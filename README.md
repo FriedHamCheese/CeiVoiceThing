@@ -1,9 +1,15 @@
-`cd [Project root folder]`
-`cd ../database`
+```
+cd [Project root folder]
+```
+```
+cd ../database
+```
 have docker running
-`docker-compose -f db-compose-dev.yml up`
+```
+docker-compose -f db-compose-dev.yml up
+```
 bring up phpmyadmin, log in as root and drop setup.sql into it
-
+__________________
 new terminal:
 ```
 cd ./frontend
