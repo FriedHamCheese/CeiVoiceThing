@@ -6,6 +6,7 @@ services:
     image: mysql:8.0 # Or your desired MySQL version
     environment:
       MYSQL_ROOT_PASSWORD: CEiAdmin0 # Replace with a strong password
+      MYSQL_DATABASE: ceidb
       MYSQL_USER: cei # Optional: Create a default user
       MYSQL_PASSWORD: CEi001 # Optional: Set password for the default user
     volumes:

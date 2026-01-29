@@ -16,8 +16,6 @@ SET time_zone = "+07:00";
 	but the comment is here to explain the reason behind the tables.
 */
 
-CREATE SCHEMA ceidb;
-
 CREATE TABLE UserRequest(
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	userEmail VARCHAR(64) NOT NULL,
