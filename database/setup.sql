@@ -3,6 +3,11 @@ START TRANSACTION;
 SET time_zone = "+07:00";
 
 /*
+on delete cascades fix foreign key constraint while deleting, even though child tables are already deleted.
+From mysql2 pipelining I think
+*/
+
+/*
 	UserRequest is needed because a DraftTicket could contain multiple UserRequests from merging, 
 	and we want to keep original UserRequests in case the DraftTicket is split.
 	
@@ -27,13 +32,14 @@ CREATE TABLE DraftTicket(
 	
 	/*These are from AI and can be edited by admin*/
 	summary VARCHAR(2048),
-	title VARCHAR(256),
+	title VARCHAR(128),
 	suggestedSolutions VARCHAR(2048)
 );
 
 CREATE TABLE DraftTicketUserRequest(
 	draftTicketID INT NOT NULL,
 	userRequestID INT NOT NULL,
+
 	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id),
 	CONSTRAINT primaryKey PRIMARY KEY (draftTicketID, userRequestID)
@@ -59,7 +65,7 @@ CREATE TABLE NewTicket(
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	requestContents VARCHAR(2048),	/*This is summary from DraftTicket*/
 	suggestedSolutions VARCHAR(2048),
-	title VARCHAR(256),
+	title VARCHAR(128),
 	status VARCHAR(32)
 );
 

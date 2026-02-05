@@ -60,6 +60,7 @@ router.post('/userRequest', async (request, response) => {
 	const isError = typeof draftTicketSuggestions === "string";
 	if(isError){
 		const HTTP_STATUS_FOR_SERVER_ERROR = 500;
+		console.log("Error while summarising user request: " + draftTicketSuggestions);
 		return response.status(HTTP_STATUS_FOR_SERVER_ERROR).json({message: "Error from LLM summary."});
 	}
 

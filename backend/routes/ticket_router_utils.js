@@ -5,9 +5,9 @@ export async function draftTicketFromUserRequest(userRequestText){
 	/*
 	Returns:
 	- {
-		.summary: str (requested at most 220 words, trim and truncate to 2048 characters),
-		.title: str (requested at most 10 words, trim and truncate to 128 characters),
-		.suggested_solutions: str (requested at most 220 words, trim and truncate to 2048 characters),
+		.summary: str (requested at most 50 words, trim and truncate to 500 characters),
+		.title: str (requested at most 10 words, trim and truncate to 100 characters),
+		.suggested_solutions: str (requested at most 50 words, trim and truncate to 500 characters),
 		(assuming 6 characters/word on average, so 1.5x of that is 9.)
 	}
 	- str: describing error with JSON parsing or missing attributes.
@@ -23,10 +23,12 @@ export async function draftTicketFromUserRequest(userRequestText){
 				content: userRequestText,
 			}
 		],
-		instructions: "Return a short summary, title, suggested solutions and one-word categories of the input in JSON format. Summary should not be longer than the original input. \
-			Summary attribute has the name of summary, title attribute has the name of title, suggested solutions attribute has the name of suggestedSolutions and categories attribute has the name of categories. \
-			Categories is an Array of Strings.\
-			Summary can have at most 220 words, title can have at most 10 words, suggested solutions can have at most 220 words and categories can have at most 5 elements.\
+		instructions: "Return a short summary, title, suggested solutions and categories of the input in JSON format. \
+			Summary should not be longer than the original input. \
+			Summary attribute has the name of summary, title attribute has the name of title, suggested solutions attribute has the name of suggestedSolutions, and categories attribute has the name of categories. \
+			Categories is an Array of Strings of one word. \
+			Suggested solutions must have 1 to 3 actionable steps, each numbered. Suggested solutions is a string type.\
+			Summary can have at most 50 words, title can have at most 10 words, suggested solutions can have at most 50 words and categories can have at most 5 elements.\
 			\
 		",
 		stream: false,
@@ -41,6 +43,7 @@ export async function draftTicketFromUserRequest(userRequestText){
 		else throw err;
 	}
 	
+	console.log(objectFromResponse);
 	if(typeof objectFromResponse.summary !== "string")
 		return ".summary attribute not string type.";
 	if(typeof objectFromResponse.title !== "string")
