@@ -34,7 +34,7 @@ CREATE TABLE DraftTicket(
 CREATE TABLE DraftTicketUserRequest(
 	draftTicketID INT NOT NULL,
 	userRequestID INT NOT NULL,
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id),
+	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id),
 	CONSTRAINT primaryKey PRIMARY KEY (draftTicketID, userRequestID)
 );
@@ -42,14 +42,14 @@ CREATE TABLE DraftTicketUserRequest(
 CREATE TABLE DraftTicketAssignee(
 	draftTicketID INT NOT NULL,
 	assigneeID INT NOT NULL, /*Should be foreign key to Assignee's id but dont have Assignee yet*/
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id),
+	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	CONSTRAINT primaryKey PRIMARY KEY (draftTicketID, assigneeID)
 );
 
 CREATE TABLE DraftTicketCategory(
 	draftTicketID INT NOT NULL,
 	category VARCHAR(32) NOT NULL,
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id),
+	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	CONSTRAINT primaryKey PRIMARY KEY (draftTicketID, category)
 );
 
@@ -58,6 +58,7 @@ CREATE TABLE DraftTicketCategory(
 CREATE TABLE NewTicket(
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	requestContents VARCHAR(2048),	/*This is summary from DraftTicket*/
+	suggestedSolutions VARCHAR(2048),
 	title VARCHAR(256),
 	status VARCHAR(32)
 );

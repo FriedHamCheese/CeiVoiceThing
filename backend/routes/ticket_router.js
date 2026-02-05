@@ -1,3 +1,5 @@
+import {draftTicketFromUserRequest} from './ticket_router_utils.js'
+
 import mysqlConnection from '../mysqlConnection.js';
 import express from 'express';
 const router = express.Router();
@@ -5,6 +7,11 @@ const router = express.Router();
 router.post('/userRequest', async (request, response) => {
 	/*
 	End point for user to submit their request text along with their email
+	
+	input:{
+		.requestText: str
+		.fromEmail: str
+	}
 	
 	This should create a UserRequest object in SQL; 
 	summarise the request, suggest the title, assignees for the DraftTicket;
@@ -15,6 +22,8 @@ router.post('/userRequest', async (request, response) => {
 	Reponds with  
 	- HTTP status 200 if request fulfilled
 	- HTTP status 400 with .message if attributes of the request has an invalid type
+	- HTTP status 500 with .message if error from AI summary
+	- HTTP status 500 for undocumented errors
 	
 	No documented exceptions
 	*/
@@ -47,16 +56,31 @@ router.post('/userRequest', async (request, response) => {
 	]);
 	const insertedUserRequestID = userRequestInsertionResponse[0].insertId;
 
-	//This should be from AI and not the request text, but will do for now
-	const draftTicketInsertionResponse = await mysqlConnection.execute('INSERT INTO DraftTicket (title) VALUES (?)', [
-		requestTextForInsertion.substr(FIRST_CHARACTER, MAX_DRAFT_TICKET_TITLE_CHARACTERS)
+	const draftTicketSuggestions = await draftTicketFromUserRequest(requestTextForInsertion);
+	const isError = typeof draftTicketSuggestions === "string";
+	if(isError){
+		const HTTP_STATUS_FOR_SERVER_ERROR = 500;
+		return response.status(HTTP_STATUS_FOR_SERVER_ERROR).json({message: "Error from LLM summary."});
+	}
+
+	const draftTicketInsertionResponse = await mysqlConnection.execute('INSERT INTO DraftTicket (title, summary, suggestedSolutions) VALUES (?, ?, ?)', [
+		draftTicketSuggestions.title,
+		draftTicketSuggestions.summary,
+		draftTicketSuggestions.suggestedSolutions,
 	]);
 	const insertedDraftTicketID = draftTicketInsertionResponse[0].insertId;
 	
-	await mysqlConnection.execute('INSERT INTO DraftTicketUserRequest (draftTicketID, userRequestID) VALUES (?, ?)', [
+	await mysqlConnection.execute('INSERT INTO DraftTicketUserRequest (userRequestID, draftTicketID) VALUES (?, ?)', [
 		insertedUserRequestID,
 		insertedDraftTicketID,
 	]);
+	
+	for(const category of draftTicketSuggestions.categories){
+		await mysqlConnection.execute("INSERT INTO DraftTicketCategory (draftTicketID, category) VALUES (?, ?)", [
+			insertedDraftTicketID,
+			category,
+		]);
+	}
 	
 	//Also need to insert DraftTicketAssignee(s) from AI suggestions on assignees
 
@@ -104,6 +128,7 @@ router.post('/toNewTicket', async (request, response) => {
 	- create a NewTicket from mostly the same attributes in DraftTicket
 	- convert DraftTicketUserRequest(s) of the DraftTicket to NewTicketFollower(s) and delete the former
 	- convert DraftTicketAssignee(s) of the DraftTicket to NewTicketCreator(s) and delete the former
+	- convert DraftTicketCategory(s) to NewTicketCategory and delete the former
 	- delete the original DraftTicket 
 	
 	Reponds with 
@@ -132,29 +157,50 @@ router.post('/toNewTicket', async (request, response) => {
 	//should verify admin's credentials
 	
 	//Insert a NewTicket from the DraftTicket
-	const newTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO NewTicket (title, requestContents) VALUES (?, ?)", [
+	const newTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)", [
 		draftTickets[0].title,
 		draftTickets[0].summary,
+		draftTickets[0].suggestedSolutions,
 	]);	
 	const insertedNewTicketID = newTicketInsertionResponse[0].insertId;
 	
-	//Translate Users/Assignees of the DraftTicket to Followers/Creators of the New Ticket.
-	const [userRequestsOfDraftTicket, _2] = await mysqlConnection.execute(
-		"SELECT UserRequest.userEmail, UserRequest.id FROM UserRequest, DraftTicketUserRequest WHERE DraftTicketUserRequest.userRequestID = UserRequest.id and DraftTicketUserRequest.draftTicketID = ?", 
-		[draftTicketIDForChanging]
-	);
-	
-	for(const userRequestOfDraftTicket of userRequestsOfDraftTicket){
-		await mysqlConnection.execute("INSERT INTO NewTicketFollower (newTicketID, userEmail) VALUES (?, ?)", [
-			insertedNewTicketID,
-			userRequestOfDraftTicket.userEmail,
-		]);		
-		
-		await mysqlConnection.execute("DELETE FROM DraftTicketUserRequest WHERE draftTicketID = ?", [userRequestOfDraftTicket.id]);
-		//DraftTicket should be last to be deleted since others uses DraftTicket
-		await mysqlConnection.execute("DELETE FROM DraftTicket WHERE id = ?", [userRequestOfDraftTicket.id]);
+	async function translateDraftTicketUserRequestsToNewTicketFollowers(){
+		//Translate Users/Assignees of the DraftTicket to Followers/Creators of the New Ticket.
+		const [userRequestsOfDraftTicket, _2] = await mysqlConnection.execute(
+			"SELECT UserRequest.userEmail, UserRequest.id FROM UserRequest, DraftTicketUserRequest WHERE DraftTicketUserRequest.userRequestID = UserRequest.id and DraftTicketUserRequest.draftTicketID = ?", 
+			[draftTicketIDForChanging]
+		);		
+
+		for(const userRequestOfDraftTicket of userRequestsOfDraftTicket){
+			await mysqlConnection.execute("INSERT INTO NewTicketFollower (newTicketID, userEmail) VALUES (?, ?)", [
+				insertedNewTicketID,
+				userRequestOfDraftTicket.userEmail,
+			]);		
+			
+			await mysqlConnection.execute("DELETE FROM DraftTicketUserRequest WHERE draftTicketID = ?", [draftTicketIDForChanging]);
+		}
+	}
+	async function translateDraftTicketCategoryToNewTicketCategory(){
+		const [categoriesOfDraftTicket, _3] = await mysqlConnection.execute(
+			"SELECT * FROM DraftTicketCategory WHERE draftTicketID = ?", 
+			[draftTicketIDForChanging]
+		);	
+
+		for(const categoryOfDraftTicket of categoriesOfDraftTicket){
+			await mysqlConnection.execute("INSERT INTO NewTicketCategory (newTicketID, category) VALUES (?, ?)", [
+				insertedNewTicketID,
+				categoryOfDraftTicket.category,
+			]);		
+			
+			await mysqlConnection.execute("DELETE FROM DraftTicketCategory WHERE draftTicketID = ?", [draftTicketIDForChanging]);
+		}
 	}
 	
+	translateDraftTicketUserRequestsToNewTicketFollowers();
+	translateDraftTicketCategoryToNewTicketCategory();
+
+	//DraftTicket should be last to be deleted since others uses DraftTicket	
+	await mysqlConnection.execute("DELETE FROM DraftTicket WHERE id = ?", [draftTicketIDForChanging]);
 	response.status(HTTP_STATUS_OK);
 })
 
