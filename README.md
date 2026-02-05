@@ -21,5 +21,6 @@ new terminal:
 ```
 cd ../backend
 npm install
+set OPENAI_API_KEY=YOUR_KEY; get YOUR_KEY from OPENAI xd
 node server.js
 ```
