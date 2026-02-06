@@ -1,4 +1,12 @@
-export function DraftTicketComponent({ticketTitle, ticketID, APIDomain, setErrorMessage}){
+export function DraftTicketComponent({
+	ticketTitle, 
+	ticketID, 
+	APIDomain, 
+	setErrorMessage,
+	saveTicketIDAsSelected,
+	removeTicketIDFromSelected,
+	refreshParent,
+}){
 	//May throw undocumented exceptions
 	
 	async function requestChangeToNewTicket(){
@@ -16,7 +24,7 @@ export function DraftTicketComponent({ticketTitle, ticketID, APIDomain, setError
 		- something from await
 		*/
 		try{
-			response = await fetch(APIDomain + "/ticket/toNewTicket", {
+			response = await fetch(APIDomain + "/ticket/admin/toNewTicket", {
 					method: 'POST',
 					headers: {'Content-Type': 'application/json'},
 					body: JSON.stringify({
@@ -38,12 +46,23 @@ export function DraftTicketComponent({ticketTitle, ticketID, APIDomain, setError
 		}
 		
 		setErrorMessage('');
+		refreshParent();
+	}
+	
+	function selectingCheckboxClicked(htmlEvent){
+		const checkbox = htmlEvent.target;
+		if(checkbox.checked) saveTicketIDAsSelected(ticketID);
+		else removeTicketIDFromSelected(ticketID);
 	}
 	
 	return (
-		<div style={{border: 'solid', borderWidth: '2px', padding: '3px'}}>
-			<label style={{marginRight: '10px'}}>{ticketTitle}</label>
-			<button onClick={requestChangeToNewTicket}>To New Ticket</button>
+		<div>
+			<input type="checkbox" onChange={selectingCheckboxClicked}></input>
+			<span style={{border: 'solid', borderWidth: '2px', padding: '3px', marginLeft: '5px'}}>
+				<label style={{marginRight: '10px'}}>id: {ticketID}</label>
+				<label style={{marginRight: '10px'}}>{ticketTitle}</label>
+				<button onClick={requestChangeToNewTicket}>To New Ticket</button>
+			</span>
 		</div>
 	);
 }

@@ -38,12 +38,11 @@ export async function draftTicketFromUserRequest(userRequestText){
 	try{
 		//Raises SyntaxError if argument is not a valid JSON.
 		objectFromResponse = JSON.parse(response.output_text);
-	}catch{
+	}catch(err){
 		if(err instanceof SyntaxError) return "Malformed JSON from LLM.";
 		else throw err;
 	}
 	
-	console.log(objectFromResponse);
 	if(typeof objectFromResponse.summary !== "string")
 		return ".summary attribute not string type.";
 	if(typeof objectFromResponse.title !== "string")
