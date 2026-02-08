@@ -1,4 +1,5 @@
 import {DraftTicketComponent} from './ViewTicketsPage_components.jsx';
+import MergeWindow from './ViewTicketsPage_MergeWindow.jsx';
 import {useState, useEffect} from 'react';
 
 export default function ViewTicketsPage({redirectToHomePage, APIDomain}){
@@ -6,6 +7,7 @@ export default function ViewTicketsPage({redirectToHomePage, APIDomain}){
 	
 	const [errorMessage, setErrorMessage] = useState('');
 	const [refreshPage, setRefreshPage] = useState(true);
+	const [hasMergeWindowPopup, setHasMergeWindowPopup] = useState(false);
 	const [selectedDraftTicketIDs, setSelectedDraftTicketIDs] = useState([]);
 	const [draftTicketComponents, setDraftTicketComponents] = useState([]);
 	const [newTicketComponents, setNewTicketComponents] = useState([]);
@@ -177,20 +179,30 @@ export default function ViewTicketsPage({redirectToHomePage, APIDomain}){
 				if(err instanceof SyntaxError) setErrorMessage("Could parse the request from the server.");		
 				else throw err;
 				return;
-		}		
+		}
+	}
+		
+	function MergeWindowPopup(){
+		return (
+			<div style={{backgroundColor: "rgba(0,0,0,0.75)", position: "absolute", width: "100vw", height: "100vh", top: 0, left: 0}}>
+				<MergeWindow closeWindow={setHasMergeWindowPopup} APIDomain={APIDomain} draftTicketIDsForMerging={selectedDraftTicketIDs}/>
+			</div>
+		);
 	}
 
 	return (
-		<div>
-		<h1>View Tickets (Admin)</h1>
-		<h2>Tickets</h2>
-		{newTicketComponents || <p>No tickets.</p>}
-		<h2>Draft Tickets</h2>
-		{draftTicketComponents || <p>No tickets.</p>}
-		<p></p>
-		<button onClick={mergeSelectedDraftTickets}> Merge tickets</button>
-		<p style={{color: 'red'}}>{errorMessage}</p>
-		<button onClick={redirectToHomePage}>Back to home</button>
+		<div style={{height: "100vh", width: "100vw"}}>
+			{hasMergeWindowPopup ? <MergeWindowPopup/> : null}
+		
+			<h1>View Tickets (Admin)</h1>
+			<h2>Tickets</h2>
+			{newTicketComponents || <p>No tickets.</p>}
+			<h2>Draft Tickets</h2>
+			{draftTicketComponents || <p>No tickets.</p>}
+			<p></p>
+			<button onClick={() => {setHasMergeWindowPopup(true)}} disabled={selectedDraftTicketIDs.length < 2}> Merge tickets</button>
+			<p style={{color: 'red'}}>{errorMessage}</p>
+			<button onClick={redirectToHomePage}>Back to home</button>
 		</div>
 	);
 }

@@ -122,12 +122,17 @@ router.post('/toNewTicket', async (request, response) => {
 	response.status(HTTP_STATUS_OK);
 })
 
+
 router.post("/merge", async (request, response) => {
 	/*
 	Endpoint for merging draft tickets for admin
 	
 	input: {
-		draftTicketIDs: Array(int)
+		draftTicketIDs: Array(int),
+		title: str[0-128],
+		summary: str[0-2048],
+		categories: Array(str[0-32]),
+		suggestedSolutions: str[0-2048],
 	}
 	
 	Returns:
@@ -137,8 +142,14 @@ router.post("/merge", async (request, response) => {
 	- HTTP status 500 for undocumented errors
 	*/
 	
+	const FIRST_CHARACTER = 0;
+	const MAX_CATEGORY_CHARACTERS = 32;
+	const MAX_TITLE_CHARACTERS = 128;
+	const MAX_SUMMARY_CHARACTERS = 2048;
+	const MAX_SOLUTIONS_CHARACTERS = 2048;
+	
 	const HTTP_STATUS_FOR_BAD_REQUEST = 400;
-	const {draftTicketIDs} = request.body;
+	const {draftTicketIDs, title, summary, categories, suggestedSolutions} = request.body;
 	if(!(draftTicketIDs instanceof Array)) 
 		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: ".draftTicketIDs attribute is not an Array."});
 	
@@ -149,6 +160,16 @@ router.post("/merge", async (request, response) => {
 			return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: "element in .draftTicketIDs is not an integer."});
 	}
 	
+	if((typeof title) !== "string") 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: ".title is not a string."});
+	if((typeof summary) !== "string") 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: ".summary is not a string."});
+	if((typeof suggestedSolutions) !== "string") 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: ".suggestedSolutions is not a string."});
+	if(!(categories instanceof Array)) 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: ".categories is not an Array."});
+	
+
 	const [draftTicketsFromIDs, _] = await mysqlConnection.query("SELECT * FROM DraftTicket WHERE id in (?)", [draftTicketIDs]);
 	const hasInvalidID = draftTicketsFromIDs.length !== draftTicketIDs.length;
 	if(hasInvalidID) 
@@ -159,9 +180,9 @@ router.post("/merge", async (request, response) => {
 	
 	const draftTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO DraftTicket (summary, title, suggestedSolutions) VALUES (?, ?, ?)", 
 	[
-		firstSelectedDraftTicket.summary,
-		firstSelectedDraftTicket.title,
-		firstSelectedDraftTicket.suggestedSolutions
+		summary.trim().substr(FIRST_CHARACTER, MAX_SUMMARY_CHARACTERS),
+		title.trim().substr(FIRST_CHARACTER, MAX_TITLE_CHARACTERS),
+		suggestedSolutions.trim().substr(FIRST_CHARACTER, MAX_SOLUTIONS_CHARACTERS),
 	]);
 	
 	const mergedDraftTicketID = draftTicketInsertionResponse[0].insertId;
@@ -173,40 +194,20 @@ router.post("/merge", async (request, response) => {
 	]);
 	
 	async function mergeCategories(){
-		const [draftTicketCategoriesFromIDs, _3] = await mysqlConnection.query("SELECT * FROM DraftTicketCategory WHERE draftTicketID in (?)", [
-			draftTicketIDs
-		]);
 		await mysqlConnection.query("DELETE FROM DraftTicketCategory WHERE draftTicketID in (?)", [draftTicketIDs]);
 		
-		const setOfMergedCategories = new Set();
-		for(const draftTicketCategoriesFromID of draftTicketCategoriesFromIDs)
-			setOfMergedCategories.add(draftTicketCategoriesFromID.category);
-		
-		for(const category of setOfMergedCategories){
+		const setOfCategories = new Set();
+		for(const category of categories){
+			if((typeof category) !== "string") continue;
+			setOfCategories.add(category.trim().substr(FIRST_CHARACTER, MAX_CATEGORY_CHARACTERS));
+		}
+		for(const category of setOfCategories){
 			await mysqlConnection.execute("INSERT INTO DraftTicketCategory (category, draftTicketID) VALUES (?, ?)", [
 				category, mergedDraftTicketID
 			]);
 		}
 	}
-	mergeCategories();
-	
-	async function mergeAssignees(){
-		const [draftTicketAssignees, _4] = await mysqlConnection.query("SELECT * FROM DraftTicketAssignee WHERE draftTicketID in (?)", [
-			draftTicketIDs
-		]);
-		await mysqlConnection.query("DELETE FROM DraftTicketAssignee WHERE draftTicketID in (?)", [draftTicketIDs]);
-		
-		const setOfMergedAssigneeIDs = new Set();
-		for(const draftTicketAssignee of draftTicketAssignees)
-			setOfMergedAssigneeIDs.add(draftTicketAssignee.assigneeID);
-		
-		for(const assigneeID of setOfMergedAssigneeIDs){
-			await mysqlConnection.execute("INSERT INTO DraftTicketAssignee (assigneeID, draftTicketID) VALUES (?, ?)", [
-				assigneeID, mergedDraftTicketID
-			]);
-		}
-	}
-	mergeAssignees();
+	await mergeCategories();
 	
 	await mysqlConnection.query("DELETE FROM DraftTicket WHERE id in (?)", [draftTicketIDs]);
 	response.status(200);

@@ -1,3 +1,5 @@
+import {useState, useEffect} from 'react';
+
 export function DraftTicketComponent({
 	ticketTitle, 
 	ticketID, 
@@ -58,11 +60,11 @@ export function DraftTicketComponent({
 	return (
 		<div>
 			<input type="checkbox" onChange={selectingCheckboxClicked}></input>
-			<span style={{border: 'solid', borderWidth: '2px', padding: '3px', marginLeft: '5px'}}>
-				<label style={{marginRight: '10px'}}>id: {ticketID}</label>
+			<div style={{border: 'solid', borderWidth: '2px', padding: '3px', marginLeft: '5px', width: "70%", height: "40px", display: "inline-block"}}>
+				<label style={{marginRight: '10px', marginTop: "7px", display: "inline-block"}}>id: {ticketID}</label>
 				<label style={{marginRight: '10px'}}>{ticketTitle}</label>
-				<button onClick={requestChangeToNewTicket}>To New Ticket</button>
-			</span>
+				<button onClick={requestChangeToNewTicket} style={{height: "100%", float: "right"}}>To New Ticket</button>
+			</div>
 		</div>
 	);
 }

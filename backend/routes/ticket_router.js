@@ -89,6 +89,46 @@ router.post('/userRequest', async (request, response) => {
 	response.status(HTTP_STATUS_OK);
 })
 
+
+router.get('/getDraftTicket/:draftTicketID', async (request, response) => {
+	/*
+	Returns:
+	- HTTP status 200 with {
+		.id: int,
+		.summary: str,
+		.title: str,
+		.suggestedSolutions: str,
+		.categories: Array(str),
+	}
+	- HTTP status 400 with .error if .draftTicketID is invalid
+	- HTTP status 500 for undocumented errors
+	
+	Todo:
+	- Add .userRequestIDs: Array(int)
+	- Add .assigneeIDs: Array(int)
+	*/
+	const HTTP_STATUS_FOR_BAD_REQUEST = 400;
+	const draftTicketID = parseInt(request.params.draftTicketID);
+	if(Number.isNaN(draftTicketID)) 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: "Received .draftTicketID attribute is not a number."});		
+	
+	const [draftTickets, _] = await mysqlConnection.execute("SELECT * FROM DraftTicket WHERE id = ?", [draftTicketID]);
+	if(draftTickets.length === 0) 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: "Received .draftTicketID attribute corresponds to non-existing ticket."});
+	
+	let draftTicket = draftTickets[0];
+	
+	const [draftTicketCategories, _2] = await mysqlConnection.execute("SELECT category FROM DraftTicketCategory WHERE draftTicketID = ?", [
+		draftTicketID
+	]);
+	const categories = [];
+	for(const draftTicketCategory of draftTicketCategories)
+		categories.push(draftTicketCategory.category);
+	
+	draftTicket.categories = categories;
+	response.json(draftTicket);
+});
+
 router.use('/admin', adminTicketRouter);
 
 export default router
