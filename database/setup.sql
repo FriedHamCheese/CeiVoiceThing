@@ -16,6 +16,14 @@ SET time_zone = "+07:00";
 	but the comment is here to explain the reason behind the tables.
 */
 
+CREATE TABLE Users(
+	email VARCHAR(64) PRIMARY KEY NOT NULL,
+	password_hash varchar(255) DEFAULT NULL,
+	google_id varchar(255) DEFAULT NULL,
+	perm int DEFAULT 0
+);
+
+
 CREATE TABLE UserRequest(
 	id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	userEmail VARCHAR(64) NOT NULL,

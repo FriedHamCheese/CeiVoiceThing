@@ -1,91 +1,108 @@
-import {useState} from 'react';
+import React, { useState } from 'react';
+import { Box, TextField, Typography, Alert, Stack } from '@mui/material';
+import LoadingButton from '@mui/lab/LoadingButton';
+import SendIcon from '@mui/icons-material/Send';
 
-export default function MyRequestsPage({redirectToHomePage, APIDomain}){
-	//May throw undocumented exceptions
-	
-	const [currentContainer, setCurrentContainer] = useState('CreateRequestContainer');
-	
-	function CreateUserRequestContainer(){
-		//May throw undocumented exceptions
-		const [requestText, setRequestText] = useState('');
-		const [errorMessage, setErrorMessage] = useState('');
-		
-		async function submitRequestText(htmlEventFromForm){
-			const FIRST_CHARACTER = 0;
-			const MAX_REQUEST_TEXT_CHARACTERS = 2048;
-			
-			htmlEventFromForm.preventDefault();
-			const trimmedRequestText = requestText.trim().substr(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
-			if(trimmedRequestText.length === 0){
-				setErrorMessage('Please enter the request message.');
-				return;
-			}
-			
-			let response = null;
-			try{
-				/*
-				Raises
-				- AbortError if abort() is called
-				- NotAllowedError if Topics API is blocked or Private State Token API is blocked
-				- TypeError if the URL is invalid, 
-					URL has credentials, request blocked, 
-					there's a network error, something from Private State Token API,
-					or JSON.stringify has a circular reference or BigInt is passed to it
-				- something from await
-				*/
-				response = await fetch("http://localhost:5001/ticket/userRequest", {
-					method: "POST",
-					headers: {"Content-Type": "application/json"},
-					body: JSON.stringify({
-						fromEmail: "placeholder@mail.com",
-						requestText: trimmedRequestText
-					})
-				});
-			}catch(err){
-				//Not catching AbortError because react could find its definition
-				//Not catching NotAllowedError because not using the APIs
-				if(err instanceof TypeError)
-					setErrorMessage("Couldn't connect to the server (fetch: TypeError).");
-				else throw err;
-				return;
-			}
-			if(response.ok) setErrorMessage('');
-			else setErrorMessage("Received HTTP status " + response.status + " from server.");
-		}
-		
-		return (
-			<div>
-				<h2>Create a new request</h2>
-				<form onSubmit={submitRequestText}>
-					<input 
-						value={requestText}
-						onChange={htmlEvent => setRequestText(htmlEvent.target.value)}
-						style={{width: '500px', height: '350px'}} 
-						placeholder="Request content..."
-					/>
-					{/*for button to be below input box*/} <p/>
-					<button>Submit request</button>
-				</form>
-				<p style={{color: 'red'}}>{errorMessage}</p>
-			</div>
-		);
-	}
-	
-	function SelectedContainer(){
-		//May throw undocumented exceptions
-		switch(currentContainer){
-			case 'CreateRequestContainer':
-				return <CreateUserRequestContainer/>;
-			case 'MyRequestsContainer':
-				return <h2>MyRequestsContainer not implemented</h2>;
-		}
-	}
-	
-	return (
-		<div>
-			<h1>My Requests (User)</h1>
-			<SelectedContainer/>
-			<button onClick={redirectToHomePage}>Back to Home</button>
-		</div>
-	);
+const MAX_CHARACTERS = 2048;
+
+const CreateUserRequestContainer = ({ APIDomain }) => {
+  const [requestText, setRequestText] = useState('');
+  const [status, setStatus] = useState({ type: '', message: '' }); // 'error' or 'success'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleTextChange = (e) => {
+    setRequestText(e.target.value);
+    if (status.message) setStatus({ type: '', message: '' }); // Clear errors when user types
+  };
+
+  const submitRequestText = async (e) => {
+    e.preventDefault();
+    const trimmedText = requestText.trim();
+
+    if (!trimmedText) {
+      setStatus({ type: 'error', message: 'Please enter the request message.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatus({ type: '', message: '' });
+
+    try {
+      const response = await fetch(`${APIDomain}/ticket/userRequest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromEmail: "placeholder@mail.com",
+          requestText: trimmedText.substring(0, MAX_CHARACTERS)
+        })
+      });
+
+      if (response.ok) {
+        setRequestText('');
+        setStatus({ type: 'success', message: 'Request submitted successfully!' });
+      } else {
+        setStatus({ type: 'error', message: `Server Error: ${response.status}` });
+      }
+    } catch (err) {
+      setStatus({ 
+        type: 'error', 
+        message: err instanceof TypeError ? "Network error: Connection failed." : "An unexpected error occurred." 
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Box component="form" onSubmit={submitRequestText} noValidate>
+      <Stack spacing={3}>
+        <Typography variant="h5" component="h2" fontWeight="500" color="black">
+          Create a new request
+        </Typography>
+
+        <TextField
+          fullWidth
+          multiline
+          rows={5}
+          label="Request Details"
+          placeholder="Describe your request in detail..."
+          value={requestText}
+          onChange={handleTextChange}
+          disabled={isSubmitting}
+          inputProps={{ maxLength: MAX_CHARACTERS }}
+          helperText={`${requestText.length}/${MAX_CHARACTERS} characters`}
+          // Highlight red if it somehow exceeds limit
+          error={requestText.length > MAX_CHARACTERS} 
+        />
+
+        {status.message && (
+          <Alert severity={status.type || "info"} variant="outlined">
+            {status.message}
+          </Alert>
+        )}
+
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <LoadingButton
+            type="submit"
+            variant="contained"
+            loading={isSubmitting}
+            loadingPosition="end"
+            endIcon={<SendIcon />}
+            disabled={!requestText.trim()}
+            sx={{ minWidth: 150 }}
+          >
+            Submit Request
+          </LoadingButton>
+        </Box>
+      </Stack>
+    </Box>
+  );
+};
+
+export default function MyRequestsPage({ APIDomain = "http://localhost:5001" }) {
+  return (
+    <main style={{ padding: '20px' }}>
+       <CreateUserRequestContainer APIDomain={APIDomain} />
+    </main>
+  );
 }

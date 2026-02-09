@@ -1,124 +1,103 @@
-import {DraftTicketComponent} from './ViewTicketsPage_components.jsx';
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
+import { DraftTicketComponent } from './ViewTicketsPage_components.jsx';
 
-export default function ViewTicketsPage({redirectToHomePage, APIDomain}){
-	//May throw undocumented exceptions
-	
-	const [errorMessage, setErrorMessage] = useState('');
-	const [draftTicketComponents, setDraftTicketComponents] = useState([]);
-	const [newTicketComponents, setNewTicketComponents] = useState([]);
-	
-	function NewTicketComponent({ticketTitle, ticketID}){
-		return (
-			<div style={{border: 'solid', borderWidth: '2px', padding: '3px'}}>
-				<label style={{marginRight: '10px'}}>{ticketTitle}</label>
-			</div>
-		);
-	}	
-	
-	async function fetchAllTickets(){
-		//May throw undocumented exceptions
-		let response = null;
-		try{
-				/*
-				Raises
-				- AbortError if abort() is called
-				- NotAllowedError if Topics API is blocked or Private State Token API is blocked
-				- TypeError if the URL is invalid, 
-					URL has credentials, request blocked, 
-					there's a network error, something from Private State Token API
-				- something from await
-				*/
-			response = await fetch(APIDomain + "/ticket/admin", {
-				method: "GET"
-			});
-		}catch(err){
-				//Not catching AbortError because react could find its definition
-				//Not catching NotAllowedError because not using the APIs
-				if(err instanceof TypeError)
-					setErrorMessage("Couldn't connect to the server (fetch: TypeError).");
-				else throw err;
-				return;
-		}
-		
-		if(!(response.ok)){
-			setErrorMessage("Received HTTP status " + response.status + " from server.");
-			return;
-		}
-		
-		let objectFromResponse = null;
-		try{
-			/*
-			Raises
-			- AbortError if abort() is called
-			- TypeError if the request body couldn't be read
-			- SyntaxError if the body couldn't be parsed as json
-			*/
-			objectFromResponse = await response.json();
-		}catch(err){
-				//Not catching AbortError because react could find its definition
-				if(err instanceof TypeError) setErrorMessage("Could read the request body from the server.");
-				if(err instanceof SyntaxError) setErrorMessage("Could parse the request from the server.");		
-				else throw err;
-				return;
-		}
-		
-		if(!(objectFromResponse.tickets instanceof Array)){
-			setErrorMessage("Received server response does not have .tickets attribute as array.");
-			return;
-		}
-		
-		//Set empty error message here
-		setErrorMessage('');
-		
-		const draftTicketComponentsLocal = [];
-		const newTicketComponentsLocal = [];
-		for(const ticket of objectFromResponse.tickets){
-			if(typeof ticket.type !== 'string'){
-				setErrorMessage("Invalid type for ticket .type attribute, skipping ticket...");
-				continue;
-			}else if(typeof ticket.id !== 'number'){
-				setErrorMessage("Invalid type for ticket .id attribute, skipping ticket...");
-				continue;				
-			}
+// Construct API URL
+const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
+const API_PORT = import.meta.env.VITE_API_PORT || '3001';
+const API_URL = `http://${API_HOST}:${API_PORT}`;
 
-			switch(ticket.type){
-				case 'draft':
-					draftTicketComponentsLocal.push(<DraftTicketComponent 
-						ticketTitle={ticket.title}
-						ticketID={ticket.id}
-						APIDomain={APIDomain}
-						setErrorMessage={setErrorMessage}
-					/>);
-					break;
-				default:
-					newTicketComponentsLocal.push(<NewTicketComponent
-						ticketTitle={ticket.title}
-						ticketID={ticket.id}
-					/>)
-			}
-		}
+// Move sub-components outside to prevent re-creation on every render
+const NewTicketComponent = ({ ticketTitle }) => (
+  <div style={{ border: 'solid 2px', padding: '3px', marginBottom: '5px' }}>
+    <label style={{ marginRight: '10px' }}>{ticketTitle}</label>
+  </div>
+);
 
-		if(draftTicketComponentsLocal.length === 0) setDraftTicketComponents(null);
-		else setDraftTicketComponents(draftTicketComponentsLocal);
-		
-		if(newTicketComponentsLocal.length === 0) setNewTicketComponents(null);
-		else setNewTicketComponents(newTicketComponentsLocal);		
-	}
-	
-	useEffect(() => {
-		fetchAllTickets();
-	}, []);
+export default function ViewTicketsPage({ redirectToHomePage }) {
+  const [tickets, setTickets] = useState([]);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-	return (
-		<div>
-		<h1>View Tickets (Admin)</h1>
-		<h2>Tickets</h2>
-		{newTicketComponents || <p>No tickets.</p>}
-		<h2>Draft Tickets</h2>
-		{draftTicketComponents || <p>No tickets.</p>}
-		<p style={{color: 'red'}}>{errorMessage}</p>
-		<button onClick={redirectToHomePage}>Back to home</button>
-		</div>
-	);
+  const fetchAllTickets = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/ticket/admin`);
+      
+      if (!response.ok) {
+        throw new Error(`Server returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data.tickets)) {
+        throw new Error("Invalid data format: .tickets is not an array.");
+      }
+
+      setTickets(data.tickets);
+      setErrorMessage('');
+    } catch (err) {
+      // Friendly mapping of technical errors
+      if (err instanceof TypeError) {
+        setErrorMessage("Network error: Could not connect to server.");
+      } else if (err instanceof SyntaxError) {
+        setErrorMessage("Parse error: Received invalid JSON from server.");
+      } else {
+        setErrorMessage(err.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllTickets();
+  }, []);
+
+  // Derive filtered lists during render rather than storing them in state
+  const draftTickets = tickets.filter(t => t.type === 'draft');
+  const otherTickets = tickets.filter(t => t.type !== 'draft');
+
+  return (
+    <div>
+      <h1>View Tickets (Admin)</h1>
+
+      <section>
+        <h2>Tickets</h2>
+        {otherTickets.length > 0 ? (
+          otherTickets.map(ticket => (
+            <NewTicketComponent 
+              key={ticket.id} 
+              ticketTitle={ticket.title} 
+            />
+          ))
+        ) : (
+          <p>No tickets.</p>
+        )}
+      </section>
+
+      <section>
+        <h2>Draft Tickets</h2>
+        {draftTickets.length > 0 ? (
+          draftTickets.map(ticket => (
+            <DraftTicketComponent
+              key={ticket.id}
+              ticketTitle={ticket.title}
+              ticketID={ticket.id}
+              setErrorMessage={setErrorMessage}
+            />
+          ))
+        ) : (
+          <p>No draft tickets.</p>
+        )}
+      </section>
+
+      {errorMessage && <p style={{ color: 'red', fontWeight: 'bold' }}>{errorMessage}</p>}
+      
+      {isLoading && <p>Loading tickets...</p>}
+
+      <button onClick={redirectToHomePage} style={{ marginTop: '20px' }}>
+        Back to home
+      </button>
+    </div>
+  );
 }

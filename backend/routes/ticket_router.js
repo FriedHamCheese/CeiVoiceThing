@@ -1,6 +1,6 @@
-import {draftTicketFromUserRequest} from './ticket_router_utils.js'
-
-import mysqlConnection from '../mysqlConnection.js';
+import {draftTicketFromUserRequest as ollama} from '../utils/ticketollama.js'
+import {draftTicketFromUserRequest as openai} from '../utils/ticketopenai.js'
+import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 const router = express.Router();
 
@@ -56,7 +56,9 @@ router.post('/userRequest', async (request, response) => {
 	]);
 	const insertedUserRequestID = userRequestInsertionResponse[0].insertId;
 
-	const draftTicketSuggestions = await draftTicketFromUserRequest(requestTextForInsertion);
+	const draftTicketSuggestions = process.env.USE_OPENAI === 'TRUE' 
+		? await openai(requestTextForInsertion) 
+		: await ollama(requestTextForInsertion);
 	const isError = typeof draftTicketSuggestions === "string";
 	if(isError){
 		const HTTP_STATUS_FOR_SERVER_ERROR = 500;
@@ -82,9 +84,9 @@ router.post('/userRequest', async (request, response) => {
 		]);
 	}
 	
-	//Also need to insert DraftTicketAssignee(s) from AI suggestions on assignees
+	// TODO: Also need to insert DraftTicketAssignee(s) from AI suggestions on assignees
 
-	response.status(HTTP_STATUS_OK);
+	response.status(HTTP_STATUS_OK).json({ message: 'User request and draft ticket created successfully.' });
 })
 
 router.get('/admin', async (request, response) => {
@@ -157,51 +159,56 @@ router.post('/toNewTicket', async (request, response) => {
 	//should verify admin's credentials
 	
 	//Insert a NewTicket from the DraftTicket
-	const newTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)", [
-		draftTickets[0].title,
-		draftTickets[0].summary,
-		draftTickets[0].suggestedSolutions,
-	]);	
-	const insertedNewTicketID = newTicketInsertionResponse[0].insertId;
-	
-	async function translateDraftTicketUserRequestsToNewTicketFollowers(){
-		//Translate Users/Assignees of the DraftTicket to Followers/Creators of the New Ticket.
-		const [userRequestsOfDraftTicket, _2] = await mysqlConnection.execute(
+	let connection;
+	try {
+		connection = await mysqlConnection.getConnection();
+		await connection.beginTransaction();
+
+		const newTicketInsertionResponse = await connection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)", [
+			draftTickets[0].title,
+			draftTickets[0].summary,
+			draftTickets[0].suggestedSolutions,
+		]);	
+		const insertedNewTicketID = newTicketInsertionResponse[0].insertId;
+		
+		// Translate Users/Assignees of the DraftTicket to Followers/Creators of the New Ticket.
+		const [userRequestsOfDraftTicket] = await connection.execute(
 			"SELECT UserRequest.userEmail, UserRequest.id FROM UserRequest, DraftTicketUserRequest WHERE DraftTicketUserRequest.userRequestID = UserRequest.id and DraftTicketUserRequest.draftTicketID = ?", 
 			[draftTicketIDForChanging]
 		);		
 
 		for(const userRequestOfDraftTicket of userRequestsOfDraftTicket){
-			await mysqlConnection.execute("INSERT INTO NewTicketFollower (newTicketID, userEmail) VALUES (?, ?)", [
+			await connection.execute("INSERT INTO NewTicketFollower (newTicketID, userEmail) VALUES (?, ?)", [
 				insertedNewTicketID,
 				userRequestOfDraftTicket.userEmail,
 			]);		
-			
-			await mysqlConnection.execute("DELETE FROM DraftTicketUserRequest WHERE draftTicketID = ?", [draftTicketIDForChanging]);
 		}
-	}
-	async function translateDraftTicketCategoryToNewTicketCategory(){
-		const [categoriesOfDraftTicket, _3] = await mysqlConnection.execute(
+		await connection.execute("DELETE FROM DraftTicketUserRequest WHERE draftTicketID = ?", [draftTicketIDForChanging]);
+
+		const [categoriesOfDraftTicket] = await connection.execute(
 			"SELECT * FROM DraftTicketCategory WHERE draftTicketID = ?", 
 			[draftTicketIDForChanging]
 		);	
 
 		for(const categoryOfDraftTicket of categoriesOfDraftTicket){
-			await mysqlConnection.execute("INSERT INTO NewTicketCategory (newTicketID, category) VALUES (?, ?)", [
+			await connection.execute("INSERT INTO NewTicketCategory (newTicketID, category) VALUES (?, ?)", [
 				insertedNewTicketID,
 				categoryOfDraftTicket.category,
 			]);		
-			
-			await mysqlConnection.execute("DELETE FROM DraftTicketCategory WHERE draftTicketID = ?", [draftTicketIDForChanging]);
 		}
-	}
-	
-	translateDraftTicketUserRequestsToNewTicketFollowers();
-	translateDraftTicketCategoryToNewTicketCategory();
+		await connection.execute("DELETE FROM DraftTicketCategory WHERE draftTicketID = ?", [draftTicketIDForChanging]);
 
-	//DraftTicket should be last to be deleted since others uses DraftTicket	
-	await mysqlConnection.execute("DELETE FROM DraftTicket WHERE id = ?", [draftTicketIDForChanging]);
-	response.status(HTTP_STATUS_OK);
+		await connection.execute("DELETE FROM DraftTicket WHERE id = ?", [draftTicketIDForChanging]); 
+		
+		await connection.commit();
+		response.status(HTTP_STATUS_OK).json({ message: 'Ticket successfully converted to New Ticket.' });
+	} catch (error) {
+		if (connection) await connection.rollback();
+		console.error("Error converting DraftTicket to NewTicket:", error);
+		response.status(500).json({ message: "Internal server error during ticket conversion." });
+	} finally {
+		if (connection) connection.release();
+	}
 })
 
 export default router
