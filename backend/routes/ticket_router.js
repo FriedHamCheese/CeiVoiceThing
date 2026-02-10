@@ -45,7 +45,7 @@ router.post('/userRequest', async (request, response) => {
             : await ollama(requestTextForInsertion);
 
         if (typeof draftTicketSuggestions === "string") {
-            throw new Error("AI Summary failed");
+            throw new Error("AI Summary failed: " + draftTicketSuggestions);
         }
 
         // 3. Insert Draft Ticket
