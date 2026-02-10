@@ -1,5 +1,6 @@
 import { draftTicketFromUserRequest as ollama } from '../utils/ticketollama.js';
 import { draftTicketFromUserRequest as openai } from '../utils/ticketopenai.js';
+import {getDraftTickets, getNewTickets} from '../utils/ticket.js';
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 
@@ -120,5 +121,72 @@ router.get('/getDraftTicket/:draftTicketID', async (request, response) => {
 	response.json(draftTicket);
 });
 
+
+router.get('/userViewRequests/:userID', async (request, response) => {
+	/*
+	Endpoint for user viewing tickets from their requests.
+	
+	Returns DraftTickets and NewTickets which is from the requests of the user in a single array:
+	[
+		For each Ticket: {
+			id: int,
+			summary: str,
+			title: str,
+			suggestedSolutions: str,
+			categories: Array(str),
+			userEmails: Array(str),
+			status: str -> "Draft", "New", ...
+		},
+		...
+		
+		May throw undocumented exceptions
+	]
+	*/
+	
+	async function getDraftTicketsBulk(){
+		const joiningCondition = "? = UserRequest.userEmail AND UserRequest.id = DraftTicketUserRequest.userRequestID AND DraftTicketUserRequest.draftTicketID = DraftTicket.id ";
+		const [draftTicketsWithID, _] = await mysqlConnection.execute("SELECT DraftTicket.id FROM UserRequest, DraftTicketUserRequest, DraftTicket WHERE " + joiningCondition, [request.params.userID]);
+		const userDraftTicketIDs = new Set();
+		for(const draftTicket of draftTicketsWithID)
+			userDraftTicketIDs.add(draftTicket.id);
+		
+		const draftTickets = await getDraftTickets(Array.from(userDraftTicketIDs.values()));
+		for(const draftTicket of draftTickets){
+			draftTicket.status = "Draft";
+			const [userRequests, _2] = await mysqlConnection.query("SELECT userEmail FROM UserRequest WHERE id IN (?)", [draftTicket.userRequestIDs]);
+			
+			const userEmailSet = new Set();
+			for(const userRequest of userRequests)
+				userEmailSet.add(userRequest.userEmail);
+			draftTicket.userEmails = Array.from(userEmailSet.values());
+			
+			delete draftTicket.assigneeIDs;
+			delete draftTicket.userRequestIDs;
+		}
+		
+		return draftTickets;
+	}
+
+	async function getNewTicketsBulk(){
+		const joiningCondition = "? = NewTicketFollower.userEmail AND NewTicketFollower.newTicketID = NewTicket.id";
+		const [newTicketsWithID, _] = await mysqlConnection.execute("SELECT NewTicket.id FROM NewTicketFollower, NewTicket WHERE " + joiningCondition, [request.params.userID]);
+		const userNewTicketIDs = new Set();
+		for(const newTicket of newTicketsWithID)
+			userNewTicketIDs.add(newTicket.id);
+		
+		const newTickets = await getNewTickets(Array.from(userNewTicketIDs.values()));
+		for(const newTicket of newTickets){
+			newTicket.summary = newTicket.requestContents;
+			delete newTicket.requestContents;
+		}
+		
+		return newTickets;
+	}
+	
+	const streamlinedDraftTickets = await getDraftTicketsBulk();
+	const streamlinedNewTickets = await getNewTicketsBulk(); 
+	
+	response.status(200).json(streamlinedDraftTickets.concat(streamlinedNewTickets));
+});
 
 export default router;

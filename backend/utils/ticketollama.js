@@ -28,7 +28,7 @@ export async function draftTicketFromUserRequest(userRequestText){
                         Summary should not be longer than the original input. \
                         Summary attribute has the name of summary, title attribute has the name of title, suggested solutions attribute has the name of suggestedSolutions, and categories attribute has the name of categories. \
                         Categories is an Array of Strings of one word. \
-                        Suggested solutions must have 1 to 3 actionable steps. suggestedSolutions is a string and not an array.\
+                        Suggested solutions must have 1 to 3 sentences for actionable steps. suggestedSolutions is a string and not an array.\
                         Summary can have at most 50 words, title can have at most 10 words, suggested solutions can have at most 50 words and categories can have at most 5 elements.\
                     ",
                 },

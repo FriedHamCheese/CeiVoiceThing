@@ -3,8 +3,7 @@ import Login from "./Login.jsx";
 import Register from "./Register.jsx"; // Import the new component
 import Newticket from "./NewTicket.jsx";
 import Dashboard from "./ViewTicketsPage.jsx";
-import MergeWindow from "./ViewTicketsPage_MergeWindow.jsx";
-import React from "react";
+import ViewRequest from './UserViewRequestsPage.jsx';
 
 import "./style.css";
 
@@ -58,6 +57,8 @@ export default function HomePage() {
         return <Newticket user={user} />;
       case 'dashboard': 
         return <Dashboard />;
+    case 'viewrequest':
+        return <ViewRequest APIDomain="http://localhost:5001" userEmail={user.email}/>;
       default: 
         return user ? <Dashboard /> : <Login onLogin={handleAuthSuccess} />;
     }
@@ -107,6 +108,12 @@ export default function HomePage() {
                 onClick={() => setView('newticket')}
               >
                 Create new ticket
+              </button>
+              <button 
+                className={view === 'viewrequest' ? 'active' : ''} 
+                onClick={() => setView('viewrequest')}
+              >
+                View Requests
               </button>
               <button 
                 className={view === 'dashboard' ? 'active' : ''} 

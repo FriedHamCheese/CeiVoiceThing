@@ -31,8 +31,8 @@ router.post('/toNewTicket', async (request, response) => {
 
         // 1. Create New Ticket
         const [newTicket] = await connection.execute(
-            "INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)",
-            [draft.title, draft.summary, draft.suggestedSolutions]
+            "INSERT INTO NewTicket (title, requestContents, suggestedSolutions, status) VALUES (?, ?, ?, ?)",
+            [draft.title, draft.summary, draft.suggestedSolutions, "New"]
         );
         const newID = newTicket.insertId;
 
