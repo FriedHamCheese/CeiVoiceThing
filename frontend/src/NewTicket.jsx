@@ -5,7 +5,7 @@ import SendIcon from '@mui/icons-material/Send';
 
 const MAX_CHARACTERS = 2048;
 
-const CreateUserRequestContainer = ({ APIDomain }) => {
+const CreateUserRequestContainer = ({ APIDomain, userEmail }) => {
   const [requestText, setRequestText] = useState('');
   const [status, setStatus] = useState({ type: '', message: '' }); // 'error' or 'success'
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,11 +28,11 @@ const CreateUserRequestContainer = ({ APIDomain }) => {
     setStatus({ type: '', message: '' });
 
     try {
-      const response = await fetch(`${APIDomain}/ticket/userRequest`, {
+      const response = await fetch(`${APIDomain}/tickets/userRequest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fromEmail: "placeholder@mail.com",
+          fromEmail: userEmail,
           requestText: trimmedText.substring(0, MAX_CHARACTERS)
         })
       });
@@ -99,10 +99,10 @@ const CreateUserRequestContainer = ({ APIDomain }) => {
   );
 };
 
-export default function MyRequestsPage({ APIDomain = "http://localhost:5001" }) {
+export default function MyRequestsPage({ APIDomain = "http://localhost:5001", user }) {
   return (
     <main style={{ padding: '20px' }}>
-       <CreateUserRequestContainer APIDomain={APIDomain} />
+       <CreateUserRequestContainer APIDomain={APIDomain} userEmail={user?.email} />
     </main>
   );
 }

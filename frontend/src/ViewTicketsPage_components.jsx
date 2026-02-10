@@ -1,4 +1,7 @@
 import React, { useCallback } from 'react';
+import { Card, Box, Typography, Button, Checkbox, Chip } from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
 // Construct API URL
 const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
@@ -10,7 +13,7 @@ const API_URL = `http://${API_HOST}:${API_PORT}`;
  * Decoupling this makes it easier to test and reuse.
  */
 async function promoteTicketToNew(ticketID) {
-  const url = `${API_URL}/ticket/toNewTicket`;
+  const url = `${API_URL}/admin/tickets/toNewTicket`;
   
   const response = await fetch(url, {
     method: 'POST',
@@ -25,11 +28,11 @@ async function promoteTicketToNew(ticketID) {
   return response;
 }
 
-export function DraftTicketComponent({ ticketTitle, ticketID, setErrorMessage }) {
+export function DraftTicketComponent({ ticket, setErrorMessage, isSelected, onToggleSelect, onView }) {
   
   const handleRequestChange = useCallback(async () => {
     try {
-      await promoteTicketToNew(ticketID);
+      await promoteTicketToNew(ticket.id);
       setErrorMessage(''); // Clear errors on success
     } catch (err) {
       // Handle network/connection errors
@@ -46,23 +49,41 @@ export function DraftTicketComponent({ ticketTitle, ticketID, setErrorMessage })
         console.error("DraftTicketComponent Error:", err);
       }
     }
-  }, [ticketID, setErrorMessage]);
-
-  const containerStyle = {
-    border: '2px solid black',
-    padding: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    marginBottom: '10px'
-  };
+  }, [ticket.id, setErrorMessage]);
 
   return (
-    <div style={containerStyle}>
-      <label>{ticketTitle}</label>
-      <button onClick={handleRequestChange}>
-        To New Ticket
-      </button>
-    </div>
+    <Card variant="outlined" sx={{ display: 'flex', alignItems: 'center', p: 1 }}>
+      {onToggleSelect && (
+        <Checkbox
+          checked={isSelected || false}
+          onChange={onToggleSelect}
+        />
+      )}
+      
+      <Box sx={{ flexGrow: 1, ml: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
+          {ticket.title}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button 
+          size="small" 
+          startIcon={<VisibilityIcon />} 
+          onClick={() => onView(ticket)}
+        >
+          View
+        </Button>
+        <Button 
+          size="small" 
+          variant="contained" 
+          color="success" 
+          startIcon={<ArrowUpwardIcon />} 
+          onClick={handleRequestChange}
+        >
+          Promote
+        </Button>
+      </Box>
+    </Card>
   );
 }

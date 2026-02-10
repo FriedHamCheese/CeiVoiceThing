@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import Login from "./Login.jsx";
 import Register from "./Register.jsx"; // Import the new component
-import Newticket from "./MyRequestsPage.jsx";
+import Newticket from "./NewTicket.jsx";
 import Dashboard from "./ViewTicketsPage.jsx";
+import MergeWindow from "./ViewTicketsPage_MergeWindow.jsx";
 import React from "react";
 
 import "./style.css";
@@ -21,7 +22,7 @@ export default function HomePage() {
         const API_URL = `http://${API_HOST}:${API_PORT}`;
   
         const response = await fetch(`${API_URL}/auth/session`, {
-          credentials: 'include', // This is crucial to send the session cookie
+          credentials: 'include', 
         });
   
         if (response.ok) {
@@ -44,7 +45,7 @@ export default function HomePage() {
   // Handle successful login or registration
   const handleAuthSuccess = (userData) => {
     setUser(userData);
-    setView('dashboard'); // Redirect to dashboard upon entry
+    setView('newticket');
   };
 
   const renderPanelContent = () => {
@@ -54,7 +55,7 @@ export default function HomePage() {
       case 'register': 
         return <Register onRegister={handleAuthSuccess} />;
       case 'newticket': 
-        return <Newticket />;
+        return <Newticket user={user} />;
       case 'dashboard': 
         return <Dashboard />;
       default: 

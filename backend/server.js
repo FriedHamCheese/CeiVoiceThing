@@ -5,7 +5,9 @@ import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
 import ticketRouter from './routes/ticket_router.js';
+import ticketRouterAdmin from './routes/ticket_router_admin.js';
 import authRouter from './routes/auth_router.js';
+
 // Note: Ensure backend/utils/passport.js is converted to ESM or imported correctly
 import configurePassport from './utils/passport.js'; 
 
@@ -34,7 +36,9 @@ app.use(passport.session());
 configurePassport(passport);
 
 app.use('/auth', authRouter);
-app.use('/ticket', ticketRouter);
+app.use('/tickets', ticketRouter);
+app.use('/admin/tickets', ticketRouterAdmin);
+
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -193,3 +193,116 @@ hr {
   border-top: 1px solid #eee;
   margin: 1rem 0;
 }
+
+
+/* Container & Layout */
+.merge-window-overlay {
+    overflow-y: auto;
+    position: absolute;
+    top: 12vh;
+    left: 12vw;
+    width: 75vw;
+    height: 75vh;
+    padding: 0 5% 5% 5%;
+    background-color: rgba(26, 26, 26, 1);
+    color: white;
+    border: 1px solid #444;
+}
+
+/* Typography & Inputs */
+.merge-title-input {
+    display: inline-block;
+    margin-bottom: 10px;
+    width: 70%;
+    border: none;
+    font-size: 30px;
+    font-weight: bold;
+    text-decoration: underline;
+    background-color: transparent;
+    color: white;
+    outline: none;
+}
+
+.merge-textarea {
+    overflow-y: auto;
+    box-sizing: border-box;
+    width: 87%;
+    height: 100px;
+    padding: 15px;
+    border: 1px solid #FFFFFF;
+    background-color: #222222;
+    color: white;
+    resize: vertical;
+}
+
+.merge-submit-btn {
+    float: right;
+    margin-right: 12%;
+    padding: 8px 16px;
+    background-color: white;
+    color: black;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Ticket Component Styling */
+.ticket-container {
+    border: 1px solid #FFFFFF;
+    width: 87%;
+    padding-left: 12px;
+    margin-bottom: 10px;
+}
+
+.ticket-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.ticket-id { width: 50px; }
+.ticket-title { flex-grow: 1; margin-left: 20px; }
+
+.ticket-expand-icon { margin-right: 20px; }
+
+.ticket-remove-btn {
+    margin-right: 30px;
+    color: red;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.expanded-view-content {
+    padding: 10px 0;
+}
+
+.view-box {
+    overflow-y: auto;
+    width: 95%;
+    height: 100px;
+    padding: 10px;
+    background-color: #222222;
+}
+
+/* Bubble Styling */
+.category-bubble {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 10px;
+    padding-left: 15px;
+    border-radius: 20px;
+    border: 1px solid white;
+    margin-bottom: 5px;
+}
+
+.bubble-remove-btn {
+    margin: 0 10px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}

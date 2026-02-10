@@ -1,214 +1,124 @@
-import {draftTicketFromUserRequest as ollama} from '../utils/ticketollama.js'
-import {draftTicketFromUserRequest as openai} from '../utils/ticketopenai.js'
+import { draftTicketFromUserRequest as ollama } from '../utils/ticketollama.js';
+import { draftTicketFromUserRequest as openai } from '../utils/ticketopenai.js';
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
+
 const router = express.Router();
 
 router.post('/userRequest', async (request, response) => {
+    const FIRST_CHARACTER = 0;
+    const HTTP_STATUS_OK = 200;
+    const HTTP_STATUS_BAD_REQUEST = 400;
+    const HTTP_STATUS_SERVER_ERROR = 500;
+
+    const MAX_USER_EMAIL_CHARACTERS = 64;
+    const MAX_REQUEST_TEXT_CHARACTERS = 2048;
+
+    const { requestText, fromEmail } = request.body;
+
+    // Validation
+    if (typeof requestText !== 'string') {
+        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .requestText" });
+    }
+    if (typeof fromEmail !== 'string') {
+        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .fromEmail" });
+    }
+
+    const emailForInsertion = fromEmail.trim().substring(FIRST_CHARACTER, MAX_USER_EMAIL_CHARACTERS);
+    const requestTextForInsertion = requestText.trim().substring(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
+
+    let connection;
+    try {
+        connection = await mysqlConnection.getConnection();
+        await connection.beginTransaction();
+
+        // 1. Insert User Request
+        const [userRequestRes] = await connection.execute(
+            'INSERT INTO UserRequest (userEmail, requestContents) VALUES (?, ?)',
+            [emailForInsertion, requestTextForInsertion]
+        );
+        const insertedUserRequestID = userRequestRes.insertId;
+
+        // 2. Get AI Suggestions
+        const draftTicketSuggestions = process.env.USE_OPENAI === 'TRUE' 
+            ? await openai(requestTextForInsertion) 
+            : await ollama(requestTextForInsertion);
+
+        if (typeof draftTicketSuggestions === "string") {
+            throw new Error("AI Summary failed");
+        }
+
+        // 3. Insert Draft Ticket
+        const [draftRes] = await connection.execute(
+            'INSERT INTO DraftTicket (title, summary, suggestedSolutions) VALUES (?, ?, ?)',
+            [draftTicketSuggestions.title, draftTicketSuggestions.summary, draftTicketSuggestions.suggestedSolutions]
+        );
+        const insertedDraftTicketID = draftRes.insertId;
+
+        // 4. Link Request and Categories
+        await connection.execute(
+            'INSERT INTO DraftTicketUserRequest (userRequestID, draftTicketID) VALUES (?, ?)',
+            [insertedUserRequestID, insertedDraftTicketID]
+        );
+
+        for (const category of draftTicketSuggestions.categories) {
+            await connection.execute(
+                "INSERT INTO DraftTicketCategory (draftTicketID, category) VALUES (?, ?)",
+                [insertedDraftTicketID, category]
+            );
+        }
+
+        await connection.commit();
+        response.status(HTTP_STATUS_OK).json({ message: 'Draft ticket created successfully.' });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(error);
+        response.status(HTTP_STATUS_SERVER_ERROR).json({ message: "Internal server error." });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+
+router.get('/getDraftTicket/:draftTicketID', async (request, response) => {
 	/*
-	End point for user to submit their request text along with their email
-	
-	input:{
-		.requestText: str
-		.fromEmail: str
+	Returns:
+	- HTTP status 200 with {
+		.id: int,
+		.summary: str,
+		.title: str,
+		.suggestedSolutions: str,
+		.categories: Array(str),
 	}
-	
-	This should create a UserRequest object in SQL; 
-	summarise the request, suggest the title, assignees for the DraftTicket;
-	create the DraftTicket object in SQL with the AI suggested fields;
-	Link the UserRequest with the DraftTicket using DraftTicketUserRequest and insert it;
-	Link the suggested Assignee(s) with the DraftTicket using DraftTicketAssignee(s) and insert it;
-	
-	Reponds with  
-	- HTTP status 200 if request fulfilled
-	- HTTP status 400 with .message if attributes of the request has an invalid type
-	- HTTP status 500 with .message if error from AI summary
+	- HTTP status 400 with .error if .draftTicketID is invalid
 	- HTTP status 500 for undocumented errors
 	
-	No documented exceptions
+	Todo:
+	- Add .userRequestIDs: Array(int)
+	- Add .assigneeIDs: Array(int)
 	*/
-	const FIRST_CHARACTER = 0;
 	const HTTP_STATUS_FOR_BAD_REQUEST = 400;
-	const HTTP_STATUS_OK = 200;
+	const draftTicketID = parseInt(request.params.draftTicketID);
+	if(Number.isNaN(draftTicketID)) 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: "Received .draftTicketID attribute is not a number."});		
 	
-	//These should be less or equal to SQL length
-	const MAX_USER_EMAIL_CHARACTERS = 64;
-	const MAX_DRAFT_TICKET_TITLE_CHARACTERS = 256;
-	const MAX_REQUEST_TEXT_CHARACTERS = 2048;
+	const [draftTickets, _] = await mysqlConnection.execute("SELECT * FROM DraftTicket WHERE id = ?", [draftTicketID]);
+	if(draftTickets.length === 0) 
+		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({error: "Received .draftTicketID attribute corresponds to non-existing ticket."});
 	
-	const objectFromRequest = request.body;
-	const invalidTypeForRequestText = (typeof objectFromRequest.requestText) !== 'string';
-	const invalidTypeForUserEmail = (typeof objectFromRequest.fromEmail) !== 'string';
+	let draftTicket = draftTickets[0];
 	
-	if(invalidTypeForRequestText)
-		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({message: "Received user request has incorrect type for .requestText"});
-	if(invalidTypeForUserEmail)
-		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({message: "Received user request has incorrect type for .fromEmail"});
-	
-	//Verify if email corresponds to user in the system? maybe authenticate them?
-	
-	const emailForInsertion = objectFromRequest.fromEmail.trim().substr(FIRST_CHARACTER, MAX_USER_EMAIL_CHARACTERS);
-	const requestTextForInsertion = objectFromRequest.requestText.trim().substr(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
-
-	const userRequestInsertionResponse = await mysqlConnection.execute('INSERT INTO UserRequest (userEmail, requestContents) VALUES (?, ?)', [
-		emailForInsertion,
-		requestTextForInsertion
+	const [draftTicketCategories, _2] = await mysqlConnection.execute("SELECT category FROM DraftTicketCategory WHERE draftTicketID = ?", [
+		draftTicketID
 	]);
-	const insertedUserRequestID = userRequestInsertionResponse[0].insertId;
-
-	const draftTicketSuggestions = process.env.USE_OPENAI === 'TRUE' 
-		? await openai(requestTextForInsertion) 
-		: await ollama(requestTextForInsertion);
-	const isError = typeof draftTicketSuggestions === "string";
-	if(isError){
-		const HTTP_STATUS_FOR_SERVER_ERROR = 500;
-		return response.status(HTTP_STATUS_FOR_SERVER_ERROR).json({message: "Error from LLM summary."});
-	}
-
-	const draftTicketInsertionResponse = await mysqlConnection.execute('INSERT INTO DraftTicket (title, summary, suggestedSolutions) VALUES (?, ?, ?)', [
-		draftTicketSuggestions.title,
-		draftTicketSuggestions.summary,
-		draftTicketSuggestions.suggestedSolutions,
-	]);
-	const insertedDraftTicketID = draftTicketInsertionResponse[0].insertId;
+	const categories = [];
+	for(const draftTicketCategory of draftTicketCategories)
+		categories.push(draftTicketCategory.category);
 	
-	await mysqlConnection.execute('INSERT INTO DraftTicketUserRequest (userRequestID, draftTicketID) VALUES (?, ?)', [
-		insertedUserRequestID,
-		insertedDraftTicketID,
-	]);
-	
-	for(const category of draftTicketSuggestions.categories){
-		await mysqlConnection.execute("INSERT INTO DraftTicketCategory (draftTicketID, category) VALUES (?, ?)", [
-			insertedDraftTicketID,
-			category,
-		]);
-	}
-	
-	// TODO: Also need to insert DraftTicketAssignee(s) from AI suggestions on assignees
+	draftTicket.categories = categories;
+	response.json(draftTicket);
+});
 
-	response.status(HTTP_STATUS_OK).json({ message: 'User request and draft ticket created successfully.' });
-})
 
-router.get('/admin', async (request, response) => {
-	/*
-	End point for admin to fetch all tickets from the system
-	
-	Reponds with 
-	- HTTP status 200 with {
-			tickets: [
-			{
-				...depends on ticket type of each ticket
-				type: 'draft', 'new'
-			}
-			...
-			]
-		}
-	
-	No documented exceptions
-	*/
-
-	//should verify admin's credentials
-	
-	const [draftTickets ,_] = await mysqlConnection.execute("SELECT * FROM DraftTicket");	
-	for(let draftTicket of draftTickets)
-		draftTicket.type = 'draft';
-	
-	const [newTickets ,_2] = await mysqlConnection.execute("SELECT * FROM NewTicket");	
-	for(let newTicket of newTickets)
-		newTicket.type = 'new';	
-	
-	const HTTP_STATUS_OK = 200;
-	response.status(HTTP_STATUS_OK).json({tickets: draftTickets.concat(newTickets)});
-})
-
-router.post('/toNewTicket', async (request, response) => {
-	/*
-	Endpoint for admin to convert a DraftTicket to a New Ticket
-		
-	has to:
-	- check if the submitted DraftTicket ID exists
-	- create a NewTicket from mostly the same attributes in DraftTicket
-	- convert DraftTicketUserRequest(s) of the DraftTicket to NewTicketFollower(s) and delete the former
-	- convert DraftTicketAssignee(s) of the DraftTicket to NewTicketCreator(s) and delete the former
-	- convert DraftTicketCategory(s) to NewTicketCategory and delete the former
-	- delete the original DraftTicket 
-	
-	Reponds with 
-	- HTTP status 200 if request is fulfilled
-	- HTTP status 400 with .message,
-		if .ticketID in the request is invalid type or doesn't correspond to any DraftTicket
-	
-	No documented exceptions
-	*/
-	
-	const HTTP_STATUS_FOR_BAD_REQUEST = 400;
-	const HTTP_STATUS_OK = 200;
-	
-	const objectFromRequest = request.body;
-	const draftTicketIDForChanging = objectFromRequest.ticketID;
-
-	if(typeof draftTicketIDForChanging !== 'number')
-		return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({message: 'Invalid type for .ticketID for changing ticket state to New Ticket.'});
-	
-	const [draftTickets ,_] = await mysqlConnection.execute("SELECT * FROM DraftTicket WHERE id = ?", 
-		[draftTicketIDForChanging]
-	);	
-	const invalidDraftTicketID = draftTickets.length === 0;
-	if(invalidDraftTicketID) return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({message: 'Invalid Draft Ticket ID for changing to New Ticket.'});
-
-	//should verify admin's credentials
-	
-	//Insert a NewTicket from the DraftTicket
-	let connection;
-	try {
-		connection = await mysqlConnection.getConnection();
-		await connection.beginTransaction();
-
-		const newTicketInsertionResponse = await connection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)", [
-			draftTickets[0].title,
-			draftTickets[0].summary,
-			draftTickets[0].suggestedSolutions,
-		]);	
-		const insertedNewTicketID = newTicketInsertionResponse[0].insertId;
-		
-		// Translate Users/Assignees of the DraftTicket to Followers/Creators of the New Ticket.
-		const [userRequestsOfDraftTicket] = await connection.execute(
-			"SELECT UserRequest.userEmail, UserRequest.id FROM UserRequest, DraftTicketUserRequest WHERE DraftTicketUserRequest.userRequestID = UserRequest.id and DraftTicketUserRequest.draftTicketID = ?", 
-			[draftTicketIDForChanging]
-		);		
-
-		for(const userRequestOfDraftTicket of userRequestsOfDraftTicket){
-			await connection.execute("INSERT INTO NewTicketFollower (newTicketID, userEmail) VALUES (?, ?)", [
-				insertedNewTicketID,
-				userRequestOfDraftTicket.userEmail,
-			]);		
-		}
-		await connection.execute("DELETE FROM DraftTicketUserRequest WHERE draftTicketID = ?", [draftTicketIDForChanging]);
-
-		const [categoriesOfDraftTicket] = await connection.execute(
-			"SELECT * FROM DraftTicketCategory WHERE draftTicketID = ?", 
-			[draftTicketIDForChanging]
-		);	
-
-		for(const categoryOfDraftTicket of categoriesOfDraftTicket){
-			await connection.execute("INSERT INTO NewTicketCategory (newTicketID, category) VALUES (?, ?)", [
-				insertedNewTicketID,
-				categoryOfDraftTicket.category,
-			]);		
-		}
-		await connection.execute("DELETE FROM DraftTicketCategory WHERE draftTicketID = ?", [draftTicketIDForChanging]);
-
-		await connection.execute("DELETE FROM DraftTicket WHERE id = ?", [draftTicketIDForChanging]); 
-		
-		await connection.commit();
-		response.status(HTTP_STATUS_OK).json({ message: 'Ticket successfully converted to New Ticket.' });
-	} catch (error) {
-		if (connection) await connection.rollback();
-		console.error("Error converting DraftTicket to NewTicket:", error);
-		response.status(500).json({ message: "Internal server error during ticket conversion." });
-	} finally {
-		if (connection) connection.release();
-	}
-})
-
-export default router
+export default router;
