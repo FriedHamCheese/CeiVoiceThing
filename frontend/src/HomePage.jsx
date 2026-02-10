@@ -1,4 +1,5 @@
 export default function HomePage({
+	redirectToCreateRequestPage,
 	redirectToMyRequestsPage, 
 	redirectToMyTasksPage, 
 	redirectToViewUsersPage, 
@@ -7,6 +8,7 @@ export default function HomePage({
 }){
 	return (
 	<div>
+		<button onClick={redirectToCreateRequestPage}>Create Request(User)</button>
 		<button onClick={redirectToMyRequestsPage}>My Requests (User)</button>
 		<button onClick={redirectToMyTasksPage}>My Tasks (Assignee)</button>
 		<button onClick={redirectToViewUsersPage}>View Users (Admin)</button>

@@ -1,5 +1,6 @@
 import HomePage from './HomePage.jsx';
-import MyRequestsPage from './MyRequestsPage.jsx';
+import CreateRequestPage from './CreateRequestPage.jsx';
+import UserViewRequestsPage from './UserViewRequestsPage.jsx'
 import ViewTicketsPage from './ViewTicketsPage.jsx';
 import {useState} from 'react';
 
@@ -12,16 +13,23 @@ export default function App(){
 		switch(currentPage){
 			case 'Home':
 				return <HomePage
-					redirectToMyRequestsPage = {() => setCurrentPage('MyRequests')}
+					redirectToCreateRequestPage = {() => setCurrentPage('CreateRequest')}
+					redirectToMyRequestsPage = {() => setCurrentPage('MyRequests')}					
 					redirectToMyTasksPage = {() => setCurrentPage('MyTasks')}
 					redirectToViewUsersPage = {() => setCurrentPage('ViewUsers')}
 					redirectToSystemDashboardPage = {() => setCurrentPage('SystemDashboard')}
 					redirectToViewTicketsPage = {() => setCurrentPage('ViewTickets')}
 				/>;
-			case 'MyRequests':
-				return <MyRequestsPage
+			case 'CreateRequest':
+				return <CreateRequestPage
 					redirectToHomePage = {() => setCurrentPage('Home')}
 				/>;
+			case 'MyRequests':
+				return <UserViewRequestsPage
+					APIDomain={APIDomain}
+					redirectToHomePage = {() => setCurrentPage('Home')}
+					userEmail="placeholder@mail.com"
+				/>
 			case 'ViewTickets':
 				return <ViewTicketsPage
 					redirectToHomePage = {() => setCurrentPage('Home')}

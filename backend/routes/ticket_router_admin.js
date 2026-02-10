@@ -73,10 +73,11 @@ router.post('/toNewTicket', async (request, response) => {
 	//should verify admin's credentials
 	
 	//Insert a NewTicket from the DraftTicket
-	const newTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions) VALUES (?, ?, ?)", [
+	const newTicketInsertionResponse = await mysqlConnection.execute("INSERT INTO NewTicket (title, requestContents, suggestedSolutions, status) VALUES (?, ?, ?, ?)", [
 		draftTickets[0].title,
 		draftTickets[0].summary,
 		draftTickets[0].suggestedSolutions,
+		"New",
 	]);	
 	const insertedNewTicketID = newTicketInsertionResponse[0].insertId;
 	
