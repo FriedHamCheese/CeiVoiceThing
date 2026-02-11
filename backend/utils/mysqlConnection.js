@@ -20,7 +20,7 @@ try {
     console.log('Connected to MySQL Database');
     connection.release();
 } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('Database connection failed:', error.message);
 }
 
 export default pool;

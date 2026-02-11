@@ -1,13 +1,13 @@
-import {useState, useEffect} from 'react';
+import { useState, useEffect } from 'react';
 
 // Construct API URL
 const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
 const API_PORT = import.meta.env.VITE_API_PORT || '3001';
 const API_URL = `http://${API_HOST}:${API_PORT}`;
 
-function DraftTicketComponent({draftTicket, removeSelf}){
+function DraftTicketComponent({ draftTicket, removeSelf }) {
 	const [expanded, setExpanded] = useState(false);
-	
+
 	const cardStyle = {
 		border: "1px solid #e0e0e0",
 		borderRadius: "6px",
@@ -34,57 +34,74 @@ function DraftTicketComponent({draftTicket, removeSelf}){
 		color: "#333"
 	};
 
-	function ExpandedView(){
+	function ExpandedView() {
 		return (
 			<div style={contentStyle}>
-				<h5 style={{margin: "0 0 5px 0", color: "#555"}}>Content/Summary</h5>
-				<p style={{margin: "0 0 15px 0", whiteSpace: "pre-wrap"}}>{draftTicket.summary}</p>
-				
-				<h5 style={{margin: "0 0 5px 0", color: "#555"}}>Suggested solutions</h5>
-				<p style={{margin: "0", whiteSpace: "pre-wrap"}}>{draftTicket.suggestedSolutions}</p>
+				<h5 style={{ margin: "0 0 5px 0", color: "#555" }}>Content/Summary</h5>
+				<p style={{ margin: "0 0 15px 0", whiteSpace: "pre-wrap" }}>{draftTicket.summary}</p>
+
+				<h5 style={{ margin: "0 0 5px 0", color: "#555" }}>Suggested solutions</h5>
+				<p style={{ margin: "0", whiteSpace: "pre-wrap" }}>{draftTicket.suggestedSolutions}</p>
 			</div>
 		);
 	}
-	
+
 	return (
 		<div style={cardStyle}>
 			<div style={headerStyle} onClick={() => setExpanded(!expanded)}>
-				<div style={{display: 'flex', alignItems: 'center', gap: '10px', flex: 1}}>
-					<span style={{fontWeight: "bold", color: "#666", minWidth: "30px"}}>#{draftTicket.id}</span>
-					<span style={{fontWeight: "500"}}>{draftTicket.title}</span>
+				<div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+					<span style={{ fontWeight: "bold", color: "#666", minWidth: "30px" }}>#{draftTicket.id}</span>
+					<span style={{ fontWeight: "500" }}>{draftTicket.title}</span>
 				</div>
-				<span style={{color: "#888", fontSize: "12px"}}>{expanded ? '▲' : '▼'}</span>
+				<div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+					<button
+						style={{
+							background: '#ff6b6b',
+							color: 'white',
+							border: 'none',
+							borderRadius: '4px',
+							padding: '4px 8px',
+							fontSize: '11px',
+							fontWeight: 'bold',
+							cursor: 'pointer'
+						}}
+						onClick={(e) => { e.stopPropagation(); removeSelf(draftTicket.id); }}
+					>
+						UNLINK
+					</button>
+					<span style={{ color: "#888", fontSize: "12px" }}>{expanded ? '▲' : '▼'}</span>
+				</div>
 			</div>
-			{expanded ? <ExpandedView/> : null}
+			{expanded ? <ExpandedView /> : null}
 		</div>
 	);
 }
 
-function BubbleWithRemovalButton({text, removeSelf}){
+function BubbleWithRemovalButton({ text, removeSelf }) {
 	return (
 		<div style={{
-			display: "inline-flex", 
+			display: "inline-flex",
 			alignItems: "center",
-			marginRight: "8px", 
+			marginRight: "8px",
 			marginBottom: "8px",
-			padding: "6px 12px", 
-			borderRadius: "16px", 
+			padding: "6px 12px",
+			borderRadius: "16px",
 			backgroundColor: "#e0e0e0",
 			color: "#333",
 			fontSize: "14px"
 		}}>
-			<span style={{marginRight: "8px"}}>{text}</span>
-			<button 
+			<span style={{ marginRight: "8px" }}>{text}</span>
+			<button
 				style={{
-					background: "none", 
-					border: "none", 
-					cursor: "pointer", 
-					color: "#666", 
-					fontWeight: "bold", 
-					padding: 0, 
-					display: "flex", 
+					background: "none",
+					border: "none",
+					cursor: "pointer",
+					color: "#666",
+					fontWeight: "bold",
+					padding: 0,
+					display: "flex",
 					alignItems: "center"
-				}} 
+				}}
 				onClick={() => removeSelf(text)}
 			>
 				✕
@@ -93,20 +110,22 @@ function BubbleWithRemovalButton({text, removeSelf}){
 	);
 }
 
-export default function MergeWindow({ closeWindow, draftTicketIDsForMerging }) {
-    const [contentText, setContentText] = useState("");
-    const [suggestedSolutionsText, setSuggestedSolutionsText] = useState("");
-    const [titleText, setTitleText] = useState("");
-    const [categories, setCategories] = useState([]);
-    const [mergingDraftTickets, setMergingDraftTickets] = useState([]);
-    const [errorMessage, setErrorMessage] = useState("");
+export default function MergeWindow({ closeWindow, draftTicketIDsForMerging, refreshData }) {
+	const [contentText, setContentText] = useState("");
+	const [suggestedSolutionsText, setSuggestedSolutionsText] = useState("");
+	const [titleText, setTitleText] = useState("");
+	const [categories, setCategories] = useState([]);
+	const [mergingDraftTickets, setMergingDraftTickets] = useState([]);
+	const [deadline, setDeadline] = useState("");
+	const [assigneeEmail, setAssigneeEmail] = useState("");
+	const [errorMessage, setErrorMessage] = useState("");
 
-    const MAX_TITLE = 128;
-    const MAX_BODY = 2048;
-	
-	async function getDraftTicket(draftTicketID){
+	const MAX_TITLE = 128;
+	const MAX_BODY = 2048;
+
+	async function getDraftTicket(draftTicketID) {
 		let response = null;
-		try{
+		try {
 			/*
 			Raises
 			- AbortError if abort() is called
@@ -118,16 +137,16 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging }) {
 			- something from await
 			*/
 			response = await fetch(`${API_URL}/tickets/getDraftTicket/${draftTicketID}`);
-		}catch(err){
+		} catch (err) {
 			//Not catching AbortError because react could find its definition
 			//Not catching NotAllowedError because not using the APIs
-			if(err instanceof TypeError)
-				return {error: "Couldn't connect to the server (fetch: TypeError)."};
+			if (err instanceof TypeError)
+				return { error: "Couldn't connect to the server (fetch: TypeError)." };
 			else throw err;
 		}
 
 		let objectFromResponse = null;
-		try{
+		try {
 			/*
 			Raises
 			- AbortError if abort() is called
@@ -135,19 +154,19 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging }) {
 			- SyntaxError if the body couldn't be parsed as json
 			*/
 			objectFromResponse = await response.json();
-			if(!response.ok) return {error: "Received HTTP status " + response.status + " from server."};
+			if (!response.ok) return { error: "Received HTTP status " + response.status + " from server." };
 			return objectFromResponse;
-		}catch(err){
+		} catch (err) {
 			//Not catching AbortError because react could find its definition
-			if(err instanceof TypeError) return {error: "Could read the request body from the server."};
-			if(err instanceof SyntaxError) return {error: "Could parse the request from the server."};		
+			if (err instanceof TypeError) return { error: "Could read the request body from the server." };
+			if (err instanceof SyntaxError) return { error: "Could parse the request from the server." };
 			else throw err;
 		}
 	}
-	
-	async function sendMergeRequest(){
+
+	async function sendMergeRequest() {
 		let response = null;
-		try{
+		try {
 			/*
 			Raises
 			- AbortError if abort() is called
@@ -160,27 +179,33 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging }) {
 			*/
 			response = await fetch(`${API_URL}/admin/tickets/merge/`, {
 				method: "POST",
-				headers: {'Content-Type': 'application/json'},
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					draftTicketIDs: draftTicketIDsForMerging,
+					draftTicketIDs: mergingDraftTickets.map(dt => dt.id),
 					title: titleText,
 					summary: contentText,
 					categories: categories,
 					suggestedSolutions: suggestedSolutionsText,
+					deadline: deadline,
+					assigneeEmail: assigneeEmail
 				}),
 			});
-		}catch(err){
+		} catch (err) {
 			//Not catching AbortError because react could find its definition
 			//Not catching NotAllowedError because not using the APIs
-			if(err instanceof TypeError)
+			if (err instanceof TypeError)
 				return setErrorMessage("Couldn't connect to the server (fetch: TypeError).");
 			else throw err;
 		}
-		
-		if(response.ok) return;
-		
+
+		if (response.ok) {
+			if (refreshData) refreshData();
+			closeWindow(false);
+			return;
+		}
+
 		let objectFromResponse = null;
-		try{
+		try {
 			/*
 			Raises
 			- AbortError if abort() is called
@@ -189,40 +214,51 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging }) {
 			*/
 			objectFromResponse = await response.json();
 			setErrorMessage(objectFromResponse.error);
-		}catch(err){
+		} catch (err) {
 			//Not catching AbortError because react could find its definition
-			if(err instanceof TypeError) setErrorMessage("Could read the request body from the server.");
-			if(err instanceof SyntaxError) setErrorMessage("Could parse the request from the server.");		
+			if (err instanceof TypeError) setErrorMessage("Could read the request body from the server.");
+			if (err instanceof SyntaxError) setErrorMessage("Could parse the request from the server.");
 			else throw err;
-		}		
+		}
 	}
-	
-	function removeCategory(category){
+
+	function removeCategory(category) {
 		const indexOfCategory = categories.indexOf(category);
 		const REMOVE_ONE_ELEMENT_AT_INDEX = 1;
 		const categoriesRemovedElement = categories.toSpliced(indexOfCategory, REMOVE_ONE_ELEMENT_AT_INDEX);
 		setCategories(categoriesRemovedElement);
 	}
-	
-useEffect(() => {
-        async function getMergingDraftTickets() {
-            const draftTickets = [];
-            for (const draftTicketID of draftTicketIDsForMerging) {
-                const draftTicket = await getDraftTicket(draftTicketID);
-                if (!draftTicket.error) draftTickets.push(draftTicket);
-            }
 
-            if (draftTickets.length > 0) {
-                const primary = draftTickets[0];
-                setContentText(primary.summary);
-                setTitleText(primary.title);
-                setSuggestedSolutionsText(primary.suggestedSolutions);
-                setCategories(primary.categories);
-                setMergingDraftTickets(draftTickets);
-            }
-        }
-        getMergingDraftTickets();
-    }, [draftTicketIDsForMerging]);
+	function removeDraftFromMerge(id) {
+		const newDrafts = mergingDraftTickets.filter(dt => dt.id !== id);
+		if (newDrafts.length < 2) {
+			closeWindow(false);
+			return;
+		}
+		setMergingDraftTickets(newDrafts);
+	}
+
+	useEffect(() => {
+		async function getMergingDraftTickets() {
+			const draftTickets = [];
+			for (const draftTicketID of draftTicketIDsForMerging) {
+				const draftTicket = await getDraftTicket(draftTicketID);
+				if (!draftTicket.error) draftTickets.push(draftTicket);
+			}
+
+			if (draftTickets.length > 0) {
+				const primary = draftTickets[0];
+				setContentText(primary.summary);
+				setTitleText(primary.title);
+				setSuggestedSolutionsText(primary.suggestedSolutions);
+				setCategories(primary.categories);
+				setDeadline(primary.deadline ? primary.deadline.split('T')[0] : "");
+				setAssigneeEmail(primary.assigneeEmail || "");
+				setMergingDraftTickets(draftTickets);
+			}
+		}
+		getMergingDraftTickets();
+	}, [draftTicketIDsForMerging]);
 
 	// Styles for the modal
 	const styles = {
@@ -306,15 +342,15 @@ useEffect(() => {
 	};
 
 	return (
-        <div style={styles.overlay}>
-            <div style={styles.modal}>
+		<div style={styles.overlay}>
+			<div style={styles.modal}>
 				<div style={styles.header}>
-                	<h2 style={{ margin: 0, fontSize: "24px" }}>Merge Tickets</h2>
+					<h2 style={{ margin: 0, fontSize: "24px" }}>Merge Tickets</h2>
 					<button onClick={() => closeWindow(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#888' }}>✕</button>
 				</div>
-                
-                {errorMessage && <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{errorMessage}</div>}
-                
+
+				{errorMessage && <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{errorMessage}</div>}
+
 				<div style={styles.scrollArea}>
 					<label style={styles.label}>Title</label>
 					<input
@@ -323,13 +359,13 @@ useEffect(() => {
 						onChange={e => setTitleText(e.target.value.slice(0, MAX_TITLE))}
 						placeholder="Ticket Title"
 					/>
-					
+
 					<label style={styles.label}>Categories</label>
 					<div style={{ marginBottom: "15px", display: 'flex', flexWrap: 'wrap' }}>
 						{categories.map(cat => (
 							<BubbleWithRemovalButton key={cat} text={cat} removeSelf={(c) => setCategories(prev => prev.filter(i => i !== c))} />
 						))}
-						{categories.length === 0 && <span style={{color: '#888', fontStyle: 'italic'}}>No categories</span>}
+						{categories.length === 0 && <span style={{ color: '#888', fontStyle: 'italic' }}>No categories</span>}
 					</div>
 
 					<label style={styles.label}>Content / Summary</label>
@@ -351,15 +387,15 @@ useEffect(() => {
 					<label style={styles.label}>Merging From ({mergingDraftTickets.length})</label>
 					<div>
 						{mergingDraftTickets.map(dt => (
-							<DraftTicketComponent key={dt.id} draftTicket={dt} />
+							<DraftTicketComponent key={dt.id} draftTicket={dt} removeSelf={removeDraftFromMerge} />
 						))}
 					</div>
 				</div>
 
-				<div style={{display: 'flex', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #eee'}}>
-                	<button onClick={sendMergeRequest} style={styles.primaryBtn}>Confirm Merge</button>
+				<div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #eee' }}>
+					<button onClick={sendMergeRequest} style={styles.primaryBtn}>Confirm Merge</button>
 				</div>
-            </div>
-        </div>
-    );
+			</div>
+		</div>
+	);
 }

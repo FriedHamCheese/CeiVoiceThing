@@ -8,7 +8,7 @@ dotenv.config();
 async function verifyCaptcha(token) {
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${token}`;
-    
+
     try {
         const response = await axios.post(verifyUrl);
         return response.data.success;
@@ -22,12 +22,12 @@ async function verifyCaptcha(token) {
 const googleCallback = async (accessToken, refreshToken, profile, done) => {
     const googleId = profile.id;
     const email = profile.emails[0].value;
+    const name = profile.displayName;
 
     try {
         const [users] = await mysqlConnection.execute('SELECT * FROM Users WHERE google_id = ?', [googleId]);
 
         if (users.length > 0) {
-
             const user = users[0];
             return done(null, user);
         }
@@ -36,15 +36,15 @@ const googleCallback = async (accessToken, refreshToken, profile, done) => {
 
         if (emailUsers.length > 0) {
             const existingUser = emailUsers[0];
-            await mysqlConnection.execute('UPDATE Users SET google_id = ? WHERE email = ?', 
-                [googleId, existingUser.email]);
-            return done(null, existingUser);
+            await mysqlConnection.execute('UPDATE Users SET google_id = ?, name = ? WHERE email = ?',
+                [googleId, name, existingUser.email]);
+            return done(null, { ...existingUser, google_id: googleId, name: name });
         }
         const [result] = await mysqlConnection.execute(
-            'INSERT INTO Users (google_id, email) VALUES (?, ?)',
-            [googleId, email] 
+            'INSERT INTO Users (google_id, email, name) VALUES (?, ?, ?)',
+            [googleId, email, name]
         );
-        const newUser = { google_id: googleId, email: email };
+        const newUser = { google_id: googleId, email: email, name: name };
         return done(null, newUser);
 
     } catch (error) {
@@ -53,7 +53,8 @@ const googleCallback = async (accessToken, refreshToken, profile, done) => {
 };
 
 const loginLocal = async (req, res, next) => {
-    const { captchaToken } = req.body;
+    const { email, password, captchaToken } = req.body;
+
 
     const isHuman = await verifyCaptcha(captchaToken);
 
@@ -84,7 +85,7 @@ const register = async (req, res) => {
 
     try {
         const [existing] = await mysqlConnection.query(
-            'SELECT * FROM Users WHERE email = ?', 
+            'SELECT * FROM Users WHERE email = ?',
             [email]
         );
 
@@ -92,16 +93,21 @@ const register = async (req, res) => {
             return res.status(409).json({ message: 'Email already taken' });
         }
 
+        // 2. Extract Name from Email
+        // Splits "john.doe@example.com" into ["john.doe", "example.com"] and takes index 0
+        const name = email.split('@')[0];
+
+        // 3. Hash Password
         const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
         const hash = await bcrypt.hash(password, saltRounds);
 
-        // 4. Insert into Database
+        // 4. Insert into Database with Name
         const [result] = await mysqlConnection.execute(
-            'INSERT INTO Users (email, password_hash) VALUES (?, ?)',
-            [email, hash] 
+            'INSERT INTO Users (email, name, password_hash) VALUES (?, ?, ?)',
+            [email, name, hash]
         );
 
-        const newUser = { email: email };
+        const newUser = { email: email, name: name };
         return res.status(201).json({
             success: true,
             message: "Registration successful",
@@ -109,7 +115,7 @@ const register = async (req, res) => {
         });
     } catch (error) {
         return res.status(500).json({
-        message: error.message || "Internal server error",
+            message: error.message || "Internal server error",
         });
     }
 };

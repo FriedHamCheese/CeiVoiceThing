@@ -4,9 +4,15 @@ import Register from "./Register.jsx"; // Import the new component
 import Newticket from "./NewTicket.jsx";
 import Dashboard from "./ViewTicketsPage.jsx";
 import MergeWindow from "./ViewTicketsPage_MergeWindow.jsx";
+import TrackTicket from "./TrackTicket.jsx";
 import React from "react";
 
 import "./style.css";
+
+// Construct API URL
+const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
+const API_PORT = import.meta.env.VITE_API_PORT || '3001';
+const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 export default function HomePage() {
   const [view, setView] = useState('login');
@@ -17,14 +23,10 @@ export default function HomePage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
-        const API_PORT = import.meta.env.VITE_API_PORT || '3001';
-        const API_URL = `http://${API_HOST}:${API_PORT}`;
-  
         const response = await fetch(`${API_URL}/auth/session`, {
-          credentials: 'include', 
+          credentials: 'include',
         });
-  
+
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -36,7 +38,7 @@ export default function HomePage() {
         console.error("Session check failed:", error);
       }
     };
-  
+
     checkSession();
   }, []); // The empty array ensures this runs only once on component mount
 
@@ -48,53 +50,62 @@ export default function HomePage() {
     setView('newticket');
   };
 
+
   const renderPanelContent = () => {
-    switch(view) {
-      case 'login': 
+    switch (view) {
+      case 'login':
         return <Login onLogin={handleAuthSuccess} />;
-      case 'register': 
+      case 'register':
         return <Register onRegister={handleAuthSuccess} />;
-      case 'newticket': 
+      case 'newticket':
         return <Newticket user={user} />;
-      case 'dashboard': 
-        return <Dashboard />;
-      default: 
-        return user ? <Dashboard /> : <Login onLogin={handleAuthSuccess} />;
+      case 'dashboard':
+        return <Dashboard user={user} />;
+      case 'track':
+        return <TrackTicket user={user} />;
+      default:
+        return user ? <Dashboard user={user} /> : <Login onLogin={handleAuthSuccess} />;
     }
   };
 
   return (
     <div className={`viewport ${!isSidebarOpen ? "sidebar-hidden" : ""}`}>
-      
+
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <img 
-            src="cei.png" 
-            alt="logo" 
-            onClick={toggleSidebar} 
-            style={{ cursor: 'pointer' }} 
+          <img
+            src="cei.png"
+            alt="logo"
+            onClick={toggleSidebar}
+            style={{ cursor: 'pointer' }}
           />
           <div>
             <h1>CEiVoice</h1>
             <h2>AI Request & Ticket System</h2>
           </div>
         </div>
-        
+
         <nav className="sidebar-nav">
           {/* --- AUTH BUTTONS: Only show if NOT logged in --- */}
           {!user && (
             <>
-              <button 
-                className={view === 'login' ? 'active' : ''} 
+              <button
+                className={view === 'login' ? 'active' : ''}
                 onClick={() => setView('login')}
               >
                 Login
               </button>
-              <button 
-                className={view === 'register' ? 'active' : ''} 
+              <button
+                className={view === 'register' ? 'active' : ''}
                 onClick={() => setView('register')}
               >
                 Register
+              </button>
+              <button
+                className={view === 'track' ? 'active' : ''}
+                onClick={() => setView('track')}
+              >
+                Track Request
               </button>
             </>
           )}
@@ -102,19 +113,27 @@ export default function HomePage() {
           {/* --- PROTECTED BUTTONS: Only show if logged in --- */}
           {user && (
             <>
-              <button 
-                className={view === 'newticket' ? 'active' : ''} 
+              <button
+                className={view === 'newticket' ? 'active' : ''}
                 onClick={() => setView('newticket')}
               >
                 Create new ticket
               </button>
-              <button 
-                className={view === 'dashboard' ? 'active' : ''} 
-                onClick={() => setView('dashboard')}
+              {user.perm >= 2 && (
+                <button
+                  className={view === 'dashboard' ? 'active' : ''}
+                  onClick={() => setView('dashboard')}
+                >
+                  Tickets Dashboard
+                </button>
+              )}
+              <button
+                className={view === 'track' ? 'active' : ''}
+                onClick={() => setView('track')}
               >
-                View Ticket (Admin)
+                Track Request
               </button>
-              <button 
+              <button
                 onClick={() => { setUser(null); setView('login'); }}
                 style={{ marginTop: 'auto', color: '#ff6b6b' }}
               >
@@ -128,14 +147,18 @@ export default function HomePage() {
       <div className="main-layout">
         <header className="top-bar">
           {!isSidebarOpen && (
-            <img 
-              src="cei.png" 
-              alt="logo" 
-              onClick={toggleSidebar} 
+            <img
+              src="cei.png"
+              alt="logo"
+              onClick={toggleSidebar}
               className="top-bar-logo-toggle"
             />
           )}
-          {user && <span style={{ marginLeft: 'auto', paddingRight: '1rem' }}>Welcome, {user.email}</span>}
+          {user && (
+            <div style={{ marginLeft: 'auto', paddingRight: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span>Welcome, {user.email}</span>
+            </div>
+          )}
         </header>
 
         <main className="panel">
