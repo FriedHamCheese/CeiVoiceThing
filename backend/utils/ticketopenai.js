@@ -40,7 +40,7 @@ export async function draftTicketFromUserRequest(userRequestText) {
                 "Generate a short, concise title for this support ticket. Max 10 words. Do not use quotes.",
                 userRequestText
             ),
-            // Summary
+            // Summary: the ai always try to max out 220 word lead to very long details
             askOpenAI(
                 "Summarize the following user request in at most 220 words.",
                 userRequestText
