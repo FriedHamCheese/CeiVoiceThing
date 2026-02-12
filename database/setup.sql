@@ -4,10 +4,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 START TRANSACTION;
 
--- =========================
 -- DROP ALL TABLES (REVERSE FK ORDER)
--- =========================
-
 DROP TABLE IF EXISTS NewTicketUserRequest;
 DROP TABLE IF EXISTS NewTicketCategory;
 DROP TABLE IF EXISTS NewTicketFollower;
@@ -27,10 +24,7 @@ DROP TABLE IF EXISTS DraftTicket;
 DROP TABLE IF EXISTS UserRequest;
 DROP TABLE IF EXISTS Users;
 
--- =========================
 -- CREATE TABLES
--- =========================
-
 CREATE TABLE Users(
 	email VARCHAR(64) PRIMARY KEY,
 	name VARCHAR(128),
@@ -156,22 +150,6 @@ CREATE TABLE NewTicketUserRequest(
 	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
-
--- =========================
--- SEED DATA
--- =========================
-
-INSERT INTO Users (email, name, password_hash, perm) VALUES 
-('admin@example.com', 'System Admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 4),
-('specialist@example.com', 'Demo Specialist', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 2),
-('user@example.com', 'Regular User', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1);
-
-INSERT INTO SpecialistProfile (userEmail, contact) VALUES
-('specialist@example.com', 'Demo Line 555');
-
-INSERT INTO SpecialistScope (userEmail, scopeTag) VALUES
-('specialist@example.com', 'General Support'),
-('specialist@example.com', 'Demonstration');
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
