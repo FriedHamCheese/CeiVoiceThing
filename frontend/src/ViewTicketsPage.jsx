@@ -374,8 +374,11 @@ export default function ViewTicketsPage({ redirectToHomePage, user }) {
                       >
                         <MenuItem value=""><em>None</em></MenuItem>
                         {specialists.map(s => (
-                          <MenuItem key={s.email} value={s.email}>{s.name} ({s.scope})</MenuItem>
+                        <MenuItem key={s.email} value={s.email}>
+                          {s.name} {s.scope && `(${s.scope})`}
+                          </MenuItem>
                         ))}
+
                       </Select>
                     </FormControl>
                   </Stack>
