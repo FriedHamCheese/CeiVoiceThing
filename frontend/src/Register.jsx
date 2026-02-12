@@ -18,7 +18,7 @@ function Register({ onRegister }) {
     const [captchaToken, setCaptchaToken] = useState(null);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-    
+
     // Ref to reset captcha if registration fails
     const captchaRef = useRef(null);
 
@@ -47,11 +47,11 @@ function Register({ onRegister }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                credentials: 'include', 
-                body: JSON.stringify({ 
-                    email, 
-                    password, 
-                    captchaToken 
+                credentials: 'include',
+                body: JSON.stringify({
+                    email,
+                    password,
+                    captchaToken
                 }),
             });
 
@@ -68,7 +68,7 @@ function Register({ onRegister }) {
             if (data.success) {
                 setSuccess(true);
                 // 4. Success: Pass user object or redirect
-                if (onRegister) onRegister(data.user); 
+                if (onRegister) onRegister(data.user);
             }
         } catch (err) {
             setError('Network error: Could not connect to the server.');
@@ -82,15 +82,15 @@ function Register({ onRegister }) {
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '2rem auto', textAlign: 'center' }}>
+        <div className="auth-container">
             <h2>Create Account</h2>
-            
+
             {success ? (
-                <p style={{ color: 'green' }}>Registration successful! Logging you in...</p>
+                <p className="auth-success">Registration successful! Logging you in...</p>
             ) : (
                 <>
                     {/* --- LOCAL REGISTRATION FORM --- */}
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <form onSubmit={handleSubmit} className="auth-form">
                         <TextField
                             label="Email"
                             variant="outlined"
@@ -117,7 +117,7 @@ function Register({ onRegister }) {
                         />
 
                         {/* Captcha Widget */}
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div className="captcha-container">
                             <ReCAPTCHA
                                 ref={captchaRef}
                                 sitekey={RECAPTCHA_SITE_KEY}
@@ -130,18 +130,18 @@ function Register({ onRegister }) {
                         </Button>
                     </form>
 
-                    {error && <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>}
+                    {error && <p className="auth-error">{error}</p>}
 
                     {/* --- DIVIDER --- */}
-                    <Divider style={{ margin: '2rem 0' }}>OR</Divider>
+                    <Divider className="auth-divider">OR</Divider>
 
                     {/* --- GOOGLE REGISTRATION --- */}
-                    <Button 
-                        variant="outlined" 
-                        color="secondary" 
-                        fullWidth 
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        fullWidth
                         onClick={handleGoogleRegister}
-                        style={{ textTransform: 'none' }}
+                        className="google-btn"
                     >
                         Sign up with Google
                     </Button>

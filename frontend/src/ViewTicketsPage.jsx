@@ -500,7 +500,7 @@ export default function ViewTicketsPage({ redirectToHomePage, user }) {
                         checked={isCommentInternal}
                         onChange={(e) => setIsCommentInternal(e.target.checked)}
                       />
-                      <label htmlFor="internal" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Mark as Internal</label>
+                      <label htmlFor="internal" className="cursor-pointer label-small">Mark as Internal</label>
                     </Box>
                   </Box>
 

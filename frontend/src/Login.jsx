@@ -17,7 +17,7 @@ function Login({ onLogin }) {
     const [password, setPassword] = useState('');
     const [captchaToken, setCaptchaToken] = useState(null);
     const [error, setError] = useState('');
-    
+
     // Ref to reset captcha if login fails
     const captchaRef = useRef(null);
 
@@ -43,11 +43,11 @@ function Login({ onLogin }) {
                     'Content-Type': 'application/json',
                 },
                 // IMPORTANT: Send cookie/session data
-                credentials: 'include', 
-                body: JSON.stringify({ 
-                    email, 
-                    password, 
-                    captchaToken 
+                credentials: 'include',
+                body: JSON.stringify({
+                    email,
+                    password,
+                    captchaToken
                 }),
             });
 
@@ -64,7 +64,7 @@ function Login({ onLogin }) {
             if (data.success) {
                 // 4. Success: Pass full user object to parent
                 // Note: We do NOT use localStorage for auth anymore (Cookies handle it)
-                onLogin(data.user); 
+                onLogin(data.user);
             }
         } catch (err) {
             setError('Network error: Could not connect to the server.');
@@ -79,11 +79,11 @@ function Login({ onLogin }) {
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '2rem auto', textAlign: 'center' }}>
+        <div className="auth-container">
             <h2>Login</h2>
-            
+
             {/* --- LOCAL LOGIN FORM --- */}
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} className="auth-form">
                 <TextField
                     label="Email"
                     variant="outlined"
@@ -102,7 +102,7 @@ function Login({ onLogin }) {
                 />
 
                 {/* Captcha Widget */}
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="captcha-container">
                     <ReCAPTCHA
                         ref={captchaRef}
                         sitekey={RECAPTCHA_SITE_KEY}
@@ -115,18 +115,18 @@ function Login({ onLogin }) {
                 </Button>
             </form>
 
-            {error && <p style={{ color: 'red', marginTop: '1rem' }}>{error}</p>}
+            {error && <p className="auth-error">{error}</p>}
 
             {/* --- DIVIDER --- */}
-            <Divider style={{ margin: '2rem 0' }}>OR</Divider>
+            <Divider className="auth-divider">OR</Divider>
 
             {/* --- GOOGLE LOGIN --- */}
-            <Button 
-                variant="outlined" 
-                color="secondary" 
-                fullWidth 
+            <Button
+                variant="outlined"
+                color="secondary"
+                fullWidth
                 onClick={handleGoogleLogin}
-                style={{ textTransform: 'none' }}
+                className="google-btn"
             >
                 Continue with Google
             </Button>

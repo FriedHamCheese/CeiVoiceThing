@@ -8,68 +8,38 @@ const API_URL = `http://${API_HOST}:${API_PORT}`;
 function DraftTicketComponent({ draftTicket, removeSelf }) {
 	const [expanded, setExpanded] = useState(false);
 
-	const cardStyle = {
-		border: "1px solid #e0e0e0",
-		borderRadius: "6px",
-		marginBottom: "10px",
-		backgroundColor: "#f9f9f9",
-		overflow: "hidden"
-	};
 
-	const headerStyle = {
-		padding: "12px 15px",
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "space-between",
-		cursor: "pointer",
-		backgroundColor: expanded ? "#eef2f6" : "transparent",
-		transition: "background-color 0.2s"
-	};
-
-	const contentStyle = {
-		padding: "15px",
-		borderTop: "1px solid #e0e0e0",
-		backgroundColor: "#fff",
-		fontSize: "0.9rem",
-		color: "#333"
-	};
 
 	function ExpandedView() {
 		return (
-			<div style={contentStyle}>
-				<h5 style={{ margin: "0 0 5px 0", color: "#555" }}>Content/Summary</h5>
-				<p style={{ margin: "0 0 15px 0", whiteSpace: "pre-wrap" }}>{draftTicket.summary}</p>
+			<div className="draft-card-content">
+				<h5 className="draft-content-heading">Content/Summary</h5>
+				<p className="draft-content-text">{draftTicket.summary}</p>
 
-				<h5 style={{ margin: "0 0 5px 0", color: "#555" }}>Suggested solutions</h5>
-				<p style={{ margin: "0", whiteSpace: "pre-wrap" }}>{draftTicket.suggestedSolutions}</p>
+				<h5 className="draft-content-heading">Suggested solutions</h5>
+				<p className="draft-content-text">{draftTicket.suggestedSolutions}</p>
 			</div>
 		);
 	}
 
 	return (
-		<div style={cardStyle}>
-			<div style={headerStyle} onClick={() => setExpanded(!expanded)}>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-					<span style={{ fontWeight: "bold", color: "#666", minWidth: "30px" }}>#{draftTicket.id}</span>
-					<span style={{ fontWeight: "500" }}>{draftTicket.title}</span>
+		<div className="draft-card">
+			<div
+				className={`draft-card-header ${expanded ? 'draft-card-header-expanded' : ''}`}
+				onClick={() => setExpanded(!expanded)}
+			>
+				<div className="draft-card-title-container">
+					<span className="draft-card-id">#{draftTicket.id}</span>
+					<span className="draft-card-title">{draftTicket.title}</span>
 				</div>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+				<div className="draft-card-actions">
 					<button
-						style={{
-							background: '#ff6b6b',
-							color: 'white',
-							border: 'none',
-							borderRadius: '4px',
-							padding: '4px 8px',
-							fontSize: '11px',
-							fontWeight: 'bold',
-							cursor: 'pointer'
-						}}
+						className="draft-unlink-btn"
 						onClick={(e) => { e.stopPropagation(); removeSelf(draftTicket.id); }}
 					>
 						UNLINK
 					</button>
-					<span style={{ color: "#888", fontSize: "12px" }}>{expanded ? '▲' : '▼'}</span>
+					<span className="draft-expand-icon">{expanded ? '▲' : '▼'}</span>
 				</div>
 			</div>
 			{expanded ? <ExpandedView /> : null}
@@ -79,29 +49,10 @@ function DraftTicketComponent({ draftTicket, removeSelf }) {
 
 function BubbleWithRemovalButton({ text, removeSelf }) {
 	return (
-		<div style={{
-			display: "inline-flex",
-			alignItems: "center",
-			marginRight: "8px",
-			marginBottom: "8px",
-			padding: "6px 12px",
-			borderRadius: "16px",
-			backgroundColor: "#e0e0e0",
-			color: "#333",
-			fontSize: "14px"
-		}}>
-			<span style={{ marginRight: "8px" }}>{text}</span>
+		<div className="merge-bubble">
+			<span className="merge-bubble-text">{text}</span>
 			<button
-				style={{
-					background: "none",
-					border: "none",
-					cursor: "pointer",
-					color: "#666",
-					fontWeight: "bold",
-					padding: 0,
-					display: "flex",
-					alignItems: "center"
-				}}
+				className="merge-bubble-remove"
 				onClick={() => removeSelf(text)}
 			>
 				✕
@@ -261,130 +212,52 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging, ref
 	}, [draftTicketIDsForMerging]);
 
 	// Styles for the modal
-	const styles = {
-		overlay: {
-			position: 'fixed',
-			top: 0,
-			left: 0,
-			width: '100%',
-			height: '100%',
-			backgroundColor: 'rgba(0, 0, 0, 0.6)',
-			display: 'flex',
-			justifyContent: 'center',
-			alignItems: 'center',
-			zIndex: 1000,
-			backdropFilter: 'blur(3px)'
-		},
-		modal: {
-			backgroundColor: 'white',
-			borderRadius: '8px',
-			boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-			width: '90%',
-			maxWidth: '800px',
-			maxHeight: '90vh',
-			display: 'flex',
-			flexDirection: 'column',
-			padding: '25px',
-			color: '#333'
-		},
-		header: {
-			display: 'flex',
-			justifyContent: 'space-between',
-			alignItems: 'center',
-			marginBottom: '20px',
-			borderBottom: '1px solid #eee',
-			paddingBottom: '15px'
-		},
-		scrollArea: {
-			overflowY: 'auto',
-			paddingRight: '10px',
-			flex: 1
-		},
-		input: {
-			width: '100%',
-			padding: '10px',
-			borderRadius: '4px',
-			border: '1px solid #ccc',
-			fontSize: '16px',
-			marginBottom: '15px',
-			boxSizing: 'border-box'
-		},
-		textarea: {
-			width: '100%',
-			padding: '10px',
-			borderRadius: '4px',
-			border: '1px solid #ccc',
-			fontSize: '14px',
-			minHeight: '100px',
-			resize: 'vertical',
-			marginBottom: '15px',
-			fontFamily: 'inherit',
-			boxSizing: 'border-box'
-		},
-		label: {
-			display: 'block',
-			fontWeight: '600',
-			marginBottom: '8px',
-			color: '#444'
-		},
-		primaryBtn: {
-			backgroundColor: '#1976d2',
-			color: 'white',
-			border: 'none',
-			padding: '10px 20px',
-			borderRadius: '4px',
-			fontSize: '16px',
-			cursor: 'pointer',
-			fontWeight: '600',
-			marginTop: '10px',
-			alignSelf: 'flex-end'
-		}
-	};
+
 
 	return (
-		<div style={styles.overlay}>
-			<div style={styles.modal}>
-				<div style={styles.header}>
-					<h2 style={{ margin: 0, fontSize: "24px" }}>Merge Tickets</h2>
-					<button onClick={() => closeWindow(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#888' }}>✕</button>
+		<div className="merge-overlay">
+			<div className="merge-modal">
+				<div className="merge-header">
+					<h2>Merge Tickets</h2>
+					<button onClick={() => closeWindow(false)} className="merge-close-btn">✕</button>
 				</div>
 
-				{errorMessage && <div style={{ backgroundColor: '#ffebee', color: '#c62828', padding: '10px', borderRadius: '4px', marginBottom: '15px' }}>{errorMessage}</div>}
+				{errorMessage && <div className="merge-error">{errorMessage}</div>}
 
-				<div style={styles.scrollArea}>
-					<label style={styles.label}>Title</label>
+				<div className="merge-scroll-area">
+					<label className="merge-label">Title</label>
 					<input
-						style={styles.input}
+						className="merge-input"
 						value={titleText}
 						onChange={e => setTitleText(e.target.value.slice(0, MAX_TITLE))}
 						placeholder="Ticket Title"
 					/>
 
-					<label style={styles.label}>Categories</label>
-					<div style={{ marginBottom: "15px", display: 'flex', flexWrap: 'wrap' }}>
+					<label className="merge-label">Categories</label>
+					<div className="merge-categories-container">
 						{categories.map(cat => (
 							<BubbleWithRemovalButton key={cat} text={cat} removeSelf={(c) => setCategories(prev => prev.filter(i => i !== c))} />
 						))}
-						{categories.length === 0 && <span style={{ color: '#888', fontStyle: 'italic' }}>No categories</span>}
+						{categories.length === 0 && <span className="merge-no-categories">No categories</span>}
 					</div>
 
-					<label style={styles.label}>Content / Summary</label>
+					<label className="merge-label">Content / Summary</label>
 					<textarea
-						style={styles.textarea}
+						className="merge-textarea"
 						value={contentText}
 						onChange={e => setContentText(e.target.value.slice(0, MAX_BODY))}
 						placeholder="Summary of the merged request..."
 					/>
 
-					<label style={styles.label}>Suggested Solutions</label>
+					<label className="merge-label">Suggested Solutions</label>
 					<textarea
-						style={styles.textarea}
+						className="merge-textarea"
 						value={suggestedSolutionsText}
 						onChange={e => setSuggestedSolutionsText(e.target.value.slice(0, MAX_BODY))}
 						placeholder="Proposed solutions..."
 					/>
 
-					<label style={styles.label}>Merging From ({mergingDraftTickets.length})</label>
+					<label className="merge-label">Merging From ({mergingDraftTickets.length})</label>
 					<div>
 						{mergingDraftTickets.map(dt => (
 							<DraftTicketComponent key={dt.id} draftTicket={dt} removeSelf={removeDraftFromMerge} />
@@ -392,8 +265,8 @@ export default function MergeWindow({ closeWindow, draftTicketIDsForMerging, ref
 					</div>
 				</div>
 
-				<div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-					<button onClick={sendMergeRequest} style={styles.primaryBtn}>Confirm Merge</button>
+				<div className="merge-footer">
+					<button onClick={sendMergeRequest} className="merge-primary-btn">Confirm Merge</button>
 				</div>
 			</div>
 		</div>

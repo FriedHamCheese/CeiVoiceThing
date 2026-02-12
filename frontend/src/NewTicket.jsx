@@ -47,7 +47,7 @@ const CreateUserRequestContainer = ({ userEmail }) => {
         setStatus({
           type: 'success',
           message: trackingToken
-            ? <span>Request submitted successfully! <a href={`/track/${trackingToken}?email=${encodeURIComponent(userEmail)}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', fontWeight: 'bold' }}>Track your request here</a></span>
+            ? <span>Request submitted successfully! <a href={`/track/${trackingToken}?email=${encodeURIComponent(userEmail)}`} target="_blank" rel="noopener noreferrer" className="link-bold">Track your request here</a></span>
             : 'Request submitted successfully!'
         });
       } else {
@@ -109,7 +109,7 @@ const CreateUserRequestContainer = ({ userEmail }) => {
 
 export default function MyRequestsPage({ user }) {
   return (
-    <main style={{ padding: '20px' }}>
+    <main className="page-padding">
       <CreateUserRequestContainer userEmail={user?.email} />
     </main>
   );

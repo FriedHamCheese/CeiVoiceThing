@@ -9,75 +9,101 @@ export async function draftTicketFromUserRequest(userRequestText) {
         .summary: str (requested at most 220 words, trim and truncate to 2048 characters),
         .title: str (requested at most 10 words, trim and truncate to 128 characters),
         .suggested_solutions: str (requested at most 220 words, trim and truncate to 2048 characters),
-        (assuming 6 characters/word on average, so 1.5x of that is 9.)
+        .categories: str[] (Array of strings, max 5)
+        .suggestedAssignee: str (Department or role)
     }
-    - str: describing error with JSON parsing or missing attributes.
-    
-    Throws undocumented exceptions
+    - str: describing error if AI service fails.
     */
 
-    const response = await openAIClient.responses.create({
-        model: "gpt-3.5-turbo", // Changed to a valid OpenAI model
-        input: [ // Changed 'input' to 'messages' for chat models
-            {
-                role: "user",
-                content: userRequestText,
-            }
-        ],
-        instructions: "Return a short summary, title, suggested solutions, one-word categories, and a suggested assignee of the input in JSON format. Summary should not be longer than the original input. \
-            Summary attribute has the name of summary, title attribute has the name of title, suggested solutions attribute has the name of suggestedSolutions, categories attribute has the name of categories, and assignee attribute has the name of suggestedAssignee. \
-            Categories is an Array of Strings. suggestedAssignee should be a string representing a department or role (e.g., IT, HR, Billing, Technical Support) matching the categories. \
-            Summary can have at most 220 words, title can have at most 10 words, suggested solutions can have at most 220 words and categories can have at most 5 elements.\
-        ",
-        stream: false,
-    });
+    const askOpenAI = async (systemPrompt, userPrompt, jsonMode = false) => {
+        try {
+            const response = await openAIClient.chat.completions.create({ // Corrected from responses.create to chat.completions.create
+                model: "gpt-3.5-turbo",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                response_format: jsonMode ? { type: "json_object" } : undefined, // OpenAI specific JSON mode
+                stream: false,
+            });
+            return response.choices[0].message.content;
+        } catch (error) {
+            console.error(`OpenAI Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
+            throw error;
+        }
+    };
 
-    let objectFromResponse;
     try {
-        //Raises SyntaxError if argument is not a valid JSON.
-        objectFromResponse = JSON.parse(response.choices[0].message.content); // Corrected access to content
-    } catch (err) { // 'err' was undefined in the original catch block.
-        if (err instanceof SyntaxError) return "Malformed JSON from LLM.";
-        else throw err;
+        const [title, summary, solutions, categoriesRaw, assignee] = await Promise.all([
+            // Title
+            askOpenAI(
+                "Generate a short, concise title for this support ticket. Max 10 words. Do not use quotes.",
+                userRequestText
+            ),
+            // Summary
+            askOpenAI(
+                "Summarize the following user request in at most 220 words.",
+                userRequestText
+            ),
+            // Solutions
+            askOpenAI(
+                "Suggest potential solutions for this support request. Max 220 words.",
+                userRequestText
+            ),
+            // Categories (JSON)
+            askOpenAI(
+                "Categorize this request into a JSON object with a key 'categories' containing an array of 1-word strings (max 5). Example: { \"categories\": [\"Hardware\", \"Network\"] }",
+                userRequestText,
+                true // jsonMode checks for valid JSON object
+            ),
+            // Assignee
+            askOpenAI(
+                "Suggest a single department or role (e.g., IT, HR, Billing, Technical Support) for this request. Return ONLY the name.",
+                userRequestText
+            )
+        ]);
+
+        let parsedCategories = [];
+        try {
+            const parsed = JSON.parse(categoriesRaw);
+            if (parsed.categories && Array.isArray(parsed.categories)) {
+                parsedCategories = parsed.categories;
+            } else if (Array.isArray(parsed)) {
+                parsedCategories = parsed;
+            } else {
+                parsedCategories = ["General"];
+            }
+        } catch (e) {
+            console.error("Failed to parse categories:", categoriesRaw);
+            parsedCategories = ["Uncategorized"];
+        }
+
+        if (!Array.isArray(parsedCategories)) parsedCategories = ["Uncategorized"];
+
+        // Post-processing limits
+        const FIRST_CHARACTER = 0;
+        const MAX_CATEGORY_CHARACTERS = 32;
+        const MAX_SUMMARY_CHARACTERS = 2048;
+        const MAX_TITLE_CHARACTERS = 128;
+        const MAX_SOLUTION_CHARACTERS = 2048;
+
+        const cleanString = (str, maxLen) => {
+            if (typeof str !== 'string') return "";
+            return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
+        };
+
+        return {
+            title: cleanString(title, MAX_TITLE_CHARACTERS),
+            summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
+            suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
+            categories: parsedCategories.map(c => cleanString(c, MAX_CATEGORY_CHARACTERS)).filter(c => c.length > 0),
+            suggestedAssignee: cleanString(assignee, MAX_CATEGORY_CHARACTERS)
+        };
+
+    } catch (error) {
+        console.error("OpenAI connection error:", error.message);
+        return "Error connecting to AI service.";
     }
-
-    if (typeof objectFromResponse.summary !== "string")
-        return ".summary attribute not string type.";
-    if (typeof objectFromResponse.title !== "string")
-        return ".title attribute not string type.";
-    if (typeof objectFromResponse.suggestedSolutions !== "string")
-        return ".suggestedSolutions attribute not string type.";
-    if (!(objectFromResponse.categories instanceof Array))
-        return ".categories attribute not Array type.";
-    if (typeof objectFromResponse.suggestedAssignee !== "string")
-        return ".suggestedAssignee attribute not string type.";
-
-
-    const FIRST_CHARACTER = 0;
-    const MAX_CATEGORY_CHARACTERS = 32;
-    const MAX_SUMMARY_CHARACTERS = 2048;
-    const MAX_TITLE_CHARACTERS = 128;
-    const MAX_SOLUTION_CHARACTERS = 2048;
-
-    const checkedCategories = [];
-    //So we log one category error instead of 5 or something
-    let hasInvalidCategoryType = false;
-    for (const category of objectFromResponse.categories) {
-        if (typeof category !== "string")
-            hasInvalidCategoryType = true;
-        else
-            checkedCategories.push(category.trim().slice(FIRST_CHARACTER, MAX_CATEGORY_CHARACTERS)); // Changed substr to slice
-    }
-
-    if (hasInvalidCategoryType) console.log("AI suggestion for category from user request has invalid type.");
-
-    objectFromResponse.summary = objectFromResponse.summary.trim().slice(FIRST_CHARACTER, MAX_SUMMARY_CHARACTERS); // Changed substr to slice
-    objectFromResponse.title = objectFromResponse.title.trim().slice(FIRST_CHARACTER, MAX_TITLE_CHARACTERS); // Changed substr to slice
-    objectFromResponse.suggestedSolutions = objectFromResponse.suggestedSolutions.trim().slice(FIRST_CHARACTER, MAX_SOLUTION_CHARACTERS); // Changed substr to slice
-    objectFromResponse.categories = checkedCategories;
-    objectFromResponse.suggestedAssignee = objectFromResponse.suggestedAssignee.trim().slice(FIRST_CHARACTER, MAX_CATEGORY_CHARACTERS);
-
-    return objectFromResponse;
 }
 
 export async function findMergeRecommendations(drafts) {
