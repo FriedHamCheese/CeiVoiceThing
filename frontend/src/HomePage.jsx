@@ -5,6 +5,7 @@ import Newticket from "./NewTicket.jsx";
 import Dashboard from "./ViewTicketsPage.jsx";
 import MergeWindow from "./ViewTicketsPage_MergeWindow.jsx";
 import TrackTicket from "./TrackTicket.jsx";
+import ReportingDashboard from "./ReportingDashboard.jsx";
 import React from "react";
 
 import "./style.css";
@@ -61,6 +62,10 @@ export default function HomePage() {
         return <Newticket user={user} />;
       case 'dashboard':
         return <Dashboard user={user} />;
+      case 'reports-admin':
+        return <ReportingDashboard user={user} mode="admin" />;
+      case 'reports-assignee':
+        return <ReportingDashboard user={user} mode="assignee" />;
       case 'track':
         return <TrackTicket user={user} />;
       default:
@@ -125,6 +130,22 @@ export default function HomePage() {
                   onClick={() => setView('dashboard')}
                 >
                   Tickets Dashboard
+                </button>
+              )}
+              {user.perm >= 2 && (
+                <button
+                  className={view === 'reports-assignee' ? 'active' : ''}
+                  onClick={() => setView('reports-assignee')}
+                >
+                  My Reports
+                </button>
+              )}
+              {user.perm >= 4 && (
+                <button
+                  className={view === 'reports-admin' ? 'active' : ''}
+                  onClick={() => setView('reports-admin')}
+                >
+                  Admin Reports
                 </button>
               )}
               <button

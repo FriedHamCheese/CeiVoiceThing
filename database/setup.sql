@@ -21,7 +21,8 @@ CREATE TABLE Users(
 	name VARCHAR(128),
 	password_hash varchar(255) DEFAULT NULL,
 	google_id varchar(255) DEFAULT NULL,
-	perm int DEFAULT 1 /* 1: User, 2: Specialist, 4: Admin */
+	perm int DEFAULT 1 /* 1: User, 2: Specialist, 4: Admin */,
+	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE UserRequest(

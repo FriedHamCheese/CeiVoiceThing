@@ -7,6 +7,8 @@ import passport from 'passport';
 import ticketRouter from './routes/ticket_router.js';
 import ticketRouterAdmin from './routes/ticket_router_admin.js';
 import authRouter from './routes/auth_router.js';
+import reportRouter from './routes/report_router.js';
+import initializeDatabase from './utils/dbInitialize.js';
 
 // Note: Ensure backend/utils/passport.js is converted to ESM or imported correctly
 import configurePassport from './utils/passport.js'; 
@@ -38,8 +40,11 @@ configurePassport(passport);
 app.use('/auth', authRouter);
 app.use('/tickets', ticketRouter);
 app.use('/admin/tickets', ticketRouterAdmin);
+app.use('/reports', reportRouter);
 
+// Initialize database schema on startup
+await initializeDatabase();
 
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`✅ Server is running on port ${PORT}`);
 });

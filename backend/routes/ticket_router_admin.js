@@ -24,11 +24,17 @@ router.get('/', async (request, response) => {
         const [drafts] = await mysqlConnection.execute(`
             SELECT dt.*, 'draft' as type, 
             (SELECT COUNT(*) FROM DraftTicketUserRequest WHERE draftTicketID = dt.id) as requestCount,
-            dta.assigneeEmail
+            MIN(dta.assigneeEmail) as assigneeEmail
             FROM DraftTicket dt
             LEFT JOIN DraftTicketAssignee dta ON dt.id = dta.draftTicketID
+            GROUP BY dt.id
         `);
-        const [news] = await mysqlConnection.execute("SELECT *, 'new' as type FROM NewTicket");
+        const [news] = await mysqlConnection.execute(`
+            SELECT nt.*, 'new' as type, MIN(nta.assigneeEmail) as assigneeEmail
+            FROM NewTicket nt
+            LEFT JOIN NewTicketAssignee nta ON nt.id = nta.newTicketID
+            GROUP BY nt.id
+        `);
         response.status(200).json({ tickets: [...drafts, ...news] });
     } catch (error) {
         console.error(error);

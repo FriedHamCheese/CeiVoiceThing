@@ -25,9 +25,9 @@ export async function draftTicketFromUserRequest(userRequestText) {
             }
         ],
         instructions: "Return a short summary, title, suggested solutions, one-word categories, and a suggested assignee of the input in JSON format. Summary should not be longer than the original input. \
-            Summary attribute has the name of summary, title attribute has the name of title, suggested solutions attribute has the name of suggestedSolutions, categories attribute has the name of categories, and assignee attribute has the name of suggestedAssignee. \
+            Summary attribute has the name of summary (string), title attribute has the name of title (string), suggested solutions attribute has the name of suggestedSolutions (must be a single string, not an array), categories attribute has the name of categories (array of strings), and assignee attribute has the name of suggestedAssignee (string). \
             Categories is an Array of Strings. suggestedAssignee should be a string representing a department or role (e.g., IT, HR, Billing, Technical Support) matching the categories. \
-            Summary can have at most 220 words, title can have at most 10 words, suggested solutions can have at most 220 words and categories can have at most 5 elements.\
+            Summary can have at most 220 words, title can have at most 10 words, suggestedSolutions can have at most 220 words (as a single string) and categories can have at most 5 elements.\
         ",
         stream: false,
     });
@@ -39,6 +39,30 @@ export async function draftTicketFromUserRequest(userRequestText) {
     } catch (err) { // 'err' was undefined in the original catch block.
         if (err instanceof SyntaxError) return "Malformed JSON from LLM.";
         else throw err;
+    }
+
+    // Normalize keys (handle various case formats from LLM)
+    if (!objectFromResponse.summary && objectFromResponse.Summary) {
+        objectFromResponse.summary = objectFromResponse.Summary;
+    }
+    if (!objectFromResponse.title && objectFromResponse.Title) {
+        objectFromResponse.title = objectFromResponse.Title;
+    }
+    if (!objectFromResponse.suggestedSolutions) {
+        if (objectFromResponse.suggested_solutions) objectFromResponse.suggestedSolutions = objectFromResponse.suggested_solutions;
+        if (objectFromResponse['suggested solutions']) objectFromResponse.suggestedSolutions = objectFromResponse['suggested solutions'];
+        if (objectFromResponse['Suggested Solutions']) objectFromResponse.suggestedSolutions = objectFromResponse['Suggested Solutions'];
+    }
+    // Handle case where suggestedSolutions is an array (join into string)
+    if (Array.isArray(objectFromResponse.suggestedSolutions)) {
+        objectFromResponse.suggestedSolutions = objectFromResponse.suggestedSolutions.join('. ');
+    }
+    if (!objectFromResponse.suggestedAssignee) {
+        if (objectFromResponse.assignee) objectFromResponse.suggestedAssignee = objectFromResponse.assignee;
+        if (objectFromResponse.Assignee) objectFromResponse.suggestedAssignee = objectFromResponse.Assignee;
+    }
+    if (!objectFromResponse.categories && objectFromResponse.Categories) {
+        objectFromResponse.categories = objectFromResponse.Categories;
     }
 
     if (typeof objectFromResponse.summary !== "string")

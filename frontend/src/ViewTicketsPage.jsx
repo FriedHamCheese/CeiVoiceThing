@@ -118,6 +118,9 @@ export default function ViewTicketsPage({ redirectToHomePage, user }) {
       if (response.ok) {
         fetchAllTickets();
         fetchHistory(id);
+        if (viewingTicket?.id === id) {
+          setViewingTicket({ ...viewingTicket, ...updates });
+        }
       }
     } catch (err) { console.error("Failed to update ticket", err); }
     setIsUpdating(false);
