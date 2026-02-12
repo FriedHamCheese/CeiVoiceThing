@@ -1,20 +1,46 @@
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
 SET time_zone = "+07:00";
 SET FOREIGN_KEY_CHECKS = 0;
 
+START TRANSACTION;
+
+-- =========================
+-- DROP ALL TABLES (REVERSE FK ORDER)
 -- =========================
 
-CREATE TABLE IF NOT EXISTS Users(
-	email VARCHAR(64) PRIMARY KEY NOT NULL,
+DROP TABLE IF EXISTS NewTicketUserRequest;
+DROP TABLE IF EXISTS NewTicketCategory;
+DROP TABLE IF EXISTS NewTicketFollower;
+DROP TABLE IF EXISTS TicketHistory;
+DROP TABLE IF EXISTS TicketComments;
+DROP TABLE IF EXISTS NewTicketAssignee;
+DROP TABLE IF EXISTS NewTicket;
+
+DROP TABLE IF EXISTS SpecialistScope;
+DROP TABLE IF EXISTS SpecialistProfile;
+
+DROP TABLE IF EXISTS DraftTicketCategory;
+DROP TABLE IF EXISTS DraftTicketAssignee;
+DROP TABLE IF EXISTS DraftTicketUserRequest;
+DROP TABLE IF EXISTS DraftTicket;
+
+DROP TABLE IF EXISTS UserRequest;
+DROP TABLE IF EXISTS Users;
+
+-- =========================
+-- CREATE TABLES
+-- =========================
+
+CREATE TABLE Users(
+	email VARCHAR(64) PRIMARY KEY,
 	name VARCHAR(128),
-	password_hash VARCHAR(255) DEFAULT NULL,
-	google_id VARCHAR(255) DEFAULT NULL,
+	password_hash VARCHAR(255),
+	google_id VARCHAR(255),
 	perm INT DEFAULT 1
 );
 
-CREATE TABLE IF NOT EXISTS UserRequest(
-	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE UserRequest(
+	id INT AUTO_INCREMENT PRIMARY KEY,
 	userEmail VARCHAR(64) NOT NULL,
 	requestContents VARCHAR(2048),
 	tracking_token VARCHAR(64) UNIQUE,
@@ -22,8 +48,8 @@ CREATE TABLE IF NOT EXISTS UserRequest(
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS DraftTicket(
-	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE DraftTicket(
+	id INT AUTO_INCREMENT PRIMARY KEY,
 	summary VARCHAR(2048),
 	title VARCHAR(256),
 	suggestedSolutions VARCHAR(2048),
@@ -32,44 +58,44 @@ CREATE TABLE IF NOT EXISTS DraftTicket(
 	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS DraftTicketUserRequest(
-	draftTicketID INT NOT NULL,
-	userRequestID INT NOT NULL,
+CREATE TABLE DraftTicketUserRequest(
+	draftTicketID INT,
+	userRequestID INT,
 	PRIMARY KEY (draftTicketID, userRequestID),
 	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS DraftTicketAssignee(
-	draftTicketID INT NOT NULL,
-	assigneeEmail VARCHAR(64) NOT NULL,
+CREATE TABLE DraftTicketAssignee(
+	draftTicketID INT,
+	assigneeEmail VARCHAR(64),
 	PRIMARY KEY (draftTicketID, assigneeEmail),
 	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (assigneeEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS DraftTicketCategory(
-	draftTicketID INT NOT NULL,
-	category VARCHAR(32) NOT NULL,
+CREATE TABLE DraftTicketCategory(
+	draftTicketID INT,
+	category VARCHAR(32),
 	PRIMARY KEY (draftTicketID, category),
 	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS SpecialistProfile(
-	userEmail VARCHAR(64) PRIMARY KEY NOT NULL,
+CREATE TABLE SpecialistProfile(
+	userEmail VARCHAR(64) PRIMARY KEY,
 	contact VARCHAR(64),
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS SpecialistScope(
-	userEmail VARCHAR(64) NOT NULL,
-	scopeTag VARCHAR(64) NOT NULL,
+CREATE TABLE SpecialistScope(
+	userEmail VARCHAR(64),
+	scopeTag VARCHAR(64),
 	PRIMARY KEY (userEmail, scopeTag),
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS NewTicket(
-	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+CREATE TABLE NewTicket(
+	id INT AUTO_INCREMENT PRIMARY KEY,
 	requestContents VARCHAR(2048),
 	suggestedSolutions VARCHAR(2048),
 	title VARCHAR(256),
@@ -79,18 +105,18 @@ CREATE TABLE IF NOT EXISTS NewTicket(
 	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS NewTicketAssignee(
-	newTicketID INT NOT NULL,
-	assigneeEmail VARCHAR(64) NOT NULL,
+CREATE TABLE NewTicketAssignee(
+	newTicketID INT,
+	assigneeEmail VARCHAR(64),
 	PRIMARY KEY (newTicketID, assigneeEmail),
 	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (assigneeEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS TicketComments(
-	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	ticketID INT NOT NULL,
-	authorEmail VARCHAR(64) NOT NULL,
+CREATE TABLE TicketComments(
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	ticketID INT,
+	authorEmail VARCHAR(64),
 	text VARCHAR(2048) NOT NULL,
 	isInternal BOOLEAN DEFAULT FALSE,
 	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -98,60 +124,54 @@ CREATE TABLE IF NOT EXISTS TicketComments(
 	FOREIGN KEY (authorEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS TicketHistory(
-	id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-	ticketID INT NOT NULL,
-	action VARCHAR(128) NOT NULL,
-	performedBy VARCHAR(64) NOT NULL,
+CREATE TABLE TicketHistory(
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	ticketID INT,
+	action VARCHAR(128),
+	performedBy VARCHAR(64),
 	details VARCHAR(2048),
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (ticketID) REFERENCES NewTicket(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS NewTicketFollower(
-	newTicketID INT NOT NULL,
-	userEmail VARCHAR(64) NOT NULL,
+CREATE TABLE NewTicketFollower(
+	newTicketID INT,
+	userEmail VARCHAR(64),
 	PRIMARY KEY (newTicketID, userEmail),
 	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS NewTicketCategory(
-	newTicketID INT NOT NULL,
-	category VARCHAR(32) NOT NULL,
+CREATE TABLE NewTicketCategory(
+	newTicketID INT,
+	category VARCHAR(32),
 	PRIMARY KEY (newTicketID, category),
 	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS NewTicketUserRequest(
-	newTicketID INT NOT NULL,
-	userRequestID INT NOT NULL,
+CREATE TABLE NewTicketUserRequest(
+	newTicketID INT,
+	userRequestID INT,
 	PRIMARY KEY (newTicketID, userRequestID),
 	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
 
 -- =========================
+-- SEED DATA
+-- =========================
 
 INSERT INTO Users (email, name, password_hash, perm) VALUES 
 ('admin@example.com', 'System Admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 4),
 ('specialist@example.com', 'Demo Specialist', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 2),
-('user@example.com', 'Regular User', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1)
-ON DUPLICATE KEY UPDATE
-name = VALUES(name),
-password_hash = VALUES(password_hash),
-perm = VALUES(perm);
+('user@example.com', 'Regular User', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1);
 
 INSERT INTO SpecialistProfile (userEmail, contact) VALUES
-('specialist@example.com', 'Demo Line 555')
-ON DUPLICATE KEY UPDATE
-contact = VALUES(contact);
+('specialist@example.com', 'Demo Line 555');
 
 INSERT INTO SpecialistScope (userEmail, scopeTag) VALUES
 ('specialist@example.com', 'General Support'),
-('specialist@example.com', 'Demonstration')
-ON DUPLICATE KEY UPDATE
-scopeTag = VALUES(scopeTag);
+('specialist@example.com', 'Demonstration');
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
