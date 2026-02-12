@@ -84,7 +84,10 @@ router.post('/userRequest', async (request, response) => {
 	
 	//Also need to insert DraftTicketAssignee(s) from AI suggestions on assignees
 
-	response.status(HTTP_STATUS_OK);
+	return response.status(HTTP_STATUS_OK).json({
+		message: "User request processed successfully",
+		draftTicketID: insertedDraftTicketID
+	});
 })
 
 router.get('/admin', async (request, response) => {

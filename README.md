@@ -10,17 +10,27 @@ docker-compose -f db-compose-dev.yml up
 ```
 bring up phpmyadmin, log in as root and drop setup.sql into it
 __________________
-new terminal:
+setup dotenv file in backend folder
 ```
-cd ./frontend
-npm install
-npm run dev
+cd ./backend
+touch .env
+```
+
+add this in dotenv file:
+```
+OPENAI_API_KEY="your key"
 ```
 
 new terminal:
 ```
-cd ../backend
+cd ./backend
 npm install
-set OPENAI_API_KEY=YOUR_KEY; get YOUR_KEY from OPENAI xd
 node server.js
+```
+
+new terminal:
+```
+cd ../frontend
+npm install
+npm run dev
 ```

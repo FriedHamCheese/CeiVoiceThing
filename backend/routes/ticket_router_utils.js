@@ -1,3 +1,4 @@
+import "dotenv/config";
 import OpenAI from "openai";
 const openAIClient = new OpenAI();
 
