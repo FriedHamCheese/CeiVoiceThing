@@ -19,6 +19,7 @@
 
 /* --- Sidebar Styles --- */
 .sidebar {
+    position: relative;
     width: 260px;
     background-color: #ffffff;
     border-right: 1px solid #dadce0;
@@ -330,8 +331,10 @@ hr {
 }
 
 .logout-btn {
+    position: absolute;
+    bottom: 20px;
     margin-top: auto;
-    color: #ff6b6b;
+    color: #ff6b6b !important;
 }
 
 .user-welcome-container {
