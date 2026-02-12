@@ -27,9 +27,22 @@ async function runSetup() {
         // 2. Start the transaction
         await connection.beginTransaction();
 
+        const shouldIgnoreError = (error) => {
+            return error?.code === 'ER_TABLE_EXISTS_ERROR'
+                || error?.code === 'ER_DUP_ENTRY';
+        };
+
         for (const statement of statements) {
             console.log(`Executing: ${statement.substring(0, 50)}...`);
-            await connection.query(statement);
+            try {
+                await connection.query(statement);
+            } catch (error) {
+                if (shouldIgnoreError(error)) {
+                    console.warn(`⚠️  Skipped: ${error.code} for statement`);
+                    continue;
+                }
+                throw error;
+            }
         }
 
         // 3. Commit changes
