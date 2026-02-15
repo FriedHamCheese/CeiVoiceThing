@@ -4,9 +4,10 @@ import express from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import passport from 'passport';
-import ticketRouter from './routes/ticket_router.js';
-import ticketRouterAdmin from './routes/ticket_router_admin.js';
-import authRouter from './routes/auth_router.js';
+import ticketRouter from './routes/ticketRouter.js';
+import ticketRouterAdmin from './routes/ticketRouterAdmin.js';
+import authRouter from './routes/authRouter.js';
+import reportRouter from './routes/reportRouter.js';
 
 // Note: Ensure backend/utils/passport.js is converted to ESM or imported correctly
 import configurePassport from './utils/passport.js'; 
@@ -38,6 +39,8 @@ configurePassport(passport);
 app.use('/auth', authRouter);
 app.use('/tickets', ticketRouter);
 app.use('/admin/tickets', ticketRouterAdmin);
+app.use('/reports', reportRouter);
+app.use('/admin/reports', reportRouterAdmin);
 
 
 app.listen(PORT, () => {

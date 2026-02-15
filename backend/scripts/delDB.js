@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import pool from './utils/mysqlConnection.js';
+import pool from '../utils/mysqlConnection.js';
 dotenv.config();
 
 async function nukeDatabases() {

@@ -5,6 +5,7 @@ import Newticket from "./NewTicket.jsx";
 import Dashboard from "./ViewTicketsPage.jsx";
 import MergeWindow from "./ViewTicketsPage_MergeWindow.jsx";
 import TrackTicket from "./TrackTicket.jsx";
+import ReportingDashboard from "./ReportingDashboard.jsx";
 import React from "react";
 
 import "./style.css";
@@ -61,6 +62,10 @@ export default function HomePage() {
         return <Newticket user={user} />;
       case 'dashboard':
         return <Dashboard user={user} />;
+      case 'reports-admin':
+        return <ReportingDashboard user={user} mode="admin" />;
+      case 'reports-assignee':
+        return <ReportingDashboard user={user} mode="assignee" />;
       case 'track':
         return <TrackTicket user={user} />;
       default:
@@ -77,7 +82,7 @@ export default function HomePage() {
             src="cei.png"
             alt="logo"
             onClick={toggleSidebar}
-            className="cursor-pointer"
+            style={{ cursor: 'pointer' }}
           />
           <div>
             <h1>CEiVoice</h1>
@@ -127,6 +132,22 @@ export default function HomePage() {
                   Tickets Dashboard
                 </button>
               )}
+              {user.perm >= 2 && (
+                <button
+                  className={view === 'reports-assignee' ? 'active' : ''}
+                  onClick={() => setView('reports-assignee')}
+                >
+                  My Reports
+                </button>
+              )}
+              {user.perm >= 4 && (
+                <button
+                  className={view === 'reports-admin' ? 'active' : ''}
+                  onClick={() => setView('reports-admin')}
+                >
+                  Admin Reports
+                </button>
+              )}
               <button
                 className={view === 'track' ? 'active' : ''}
                 onClick={() => setView('track')}
@@ -135,7 +156,7 @@ export default function HomePage() {
               </button>
               <button
                 onClick={() => { setUser(null); setView('login'); }}
-                className="logout-btn"
+                style={{ marginTop: 'auto', color: '#ff6b6b' }}
               >
                 Logout
               </button>
@@ -155,45 +176,8 @@ export default function HomePage() {
             />
           )}
           {user && (
-            <div className="user-welcome-container">
+            <div style={{ marginLeft: 'auto', paddingRight: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span>Welcome, {user.email}</span>
-              <div className="role-buttons-container">
-                {[
-                  { label: 'User', value: 1, color: '#2ed573' },
-                  { label: 'Specialist', value: 2, color: '#ffa502' },
-                  { label: 'Admin', value: 4, color: '#ff4757' }
-                ].map(role => (
-                  <button
-                    key={role.value}
-                    onClick={async () => {
-                      if (user.perm === role.value) return; // No change needed
-                      try {
-                        const response = await fetch(`${API_URL}/auth/role`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ role: role.value }),
-                          credentials: 'include',
-                        });
-                        if (response.ok) {
-                          const data = await response.json();
-                          if (data.success) {
-                            setUser(data.user);
-                          }
-                        }
-                      } catch (error) {
-                        console.error("Failed to update role:", error);
-                      }
-                    }}
-                    className="role-btn"
-                    style={{
-                      backgroundColor: user.perm === role.value ? role.color : '#ccc',
-                      opacity: user.perm === role.value ? 1 : 0.7
-                    }}
-                  >
-                    {role.label}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
         </header>
