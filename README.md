@@ -2,8 +2,6 @@
 ```
 cd ../database
 docker-compose -f db-compose-dev.yml up
-cd ../backend
-node setup.js
 ```
 new terminal then run ollama if needed
 ```
@@ -20,5 +18,6 @@ new terminal:
 ```
 cd ../backend
 npm install
+node setup.js
 node server.js
 ```

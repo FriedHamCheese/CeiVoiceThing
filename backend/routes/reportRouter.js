@@ -22,7 +22,7 @@ const parseRange = (query) => {
 	return { startDate, endDate };
 };
 
-router.get('/overview', async (request, response) => {
+router.get('/', async (request, response) => {
 	const email = request.query.email;
 	const days = Math.max(1, parseInt(request.query.days || '30', 10));
 

@@ -92,7 +92,7 @@ export default function ReportingDashboard({ user, mode }) {
       endDate: adminRange.endDate
     });
 
-    const response = await fetch(`${API_URL}/reports/admin/overview?${params.toString()}`, {
+    const response = await fetch(`${API_URL}/admin/reports?${params.toString()}`, {
       credentials: 'include'
     });
 
@@ -115,7 +115,7 @@ export default function ReportingDashboard({ user, mode }) {
       days: String(days)
     });
 
-    const response = await fetch(`${API_URL}/reports/assignee/overview?${params.toString()}`, {
+    const response = await fetch(`${API_URL}/reports?${params.toString()}`, {
       credentials: 'include'
     });
 

@@ -8,6 +8,7 @@ import ticketRouter from './routes/ticketRouter.js';
 import ticketRouterAdmin from './routes/ticketRouterAdmin.js';
 import authRouter from './routes/authRouter.js';
 import reportRouter from './routes/reportRouter.js';
+import reportRouterAdmin from './routes/reportRouterAdmin.js'; 
 
 // Note: Ensure backend/utils/passport.js is converted to ESM or imported correctly
 import configurePassport from './utils/passport.js'; 

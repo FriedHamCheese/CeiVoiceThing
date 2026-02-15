@@ -1,8 +1,8 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
-import { sendStatusUpdateEmail } from '../utils/emailService.js';
-import { findMergeRecommendations as ollamaRecommend } from '../utils/ticketollama.js';
-import { findMergeRecommendations as openaiRecommend } from '../utils/ticketopenai.js';
+import { sendStatusUpdateEmail } from '../utils/email.js';
+import { findMergeRecommendations as ollamaRecommend } from '../utils/ticketOllama.js';
+import { findMergeRecommendations as openaiRecommend } from '../utils/ticketOpenAI.js';
 
 const router = express.Router();
 

@@ -41,14 +41,14 @@ export async function draftTicketFromUserRequest(userRequestText) {
                 "Generate a short, concise title for this support ticket. Max 10 words. Do not use quotes.",
                 userRequestText
             ),
-            // Summary: the ai always try to max out 220 word lead to very long details
+            // Summary
             askOllama(
-                "Summarize the following user request in at most 220 words.",
+                "Summarize the following user request in at most 100 words.",
                 userRequestText
             ),
             // Solutions
             askOllama(
-                "Suggest potential solutions for this support request. Max 220 words.",
+                "Suggest potential solutions for this support request. Max 100 words.",
                 userRequestText
             ),
             // Categories (JSON)

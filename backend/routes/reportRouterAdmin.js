@@ -22,7 +22,7 @@ const parseRange = (query) => {
 	return { startDate, endDate };
 };
 
-router.get('/overview', async (request, response) => {
+router.get('/', async (request, response) => {
 	try {
 		const { startDate, endDate } = parseRange(request.query);
 		const data = await getAdminOverview({ startDate, endDate });
@@ -35,3 +35,5 @@ router.get('/overview', async (request, response) => {
 		response.status(500).json({ message: 'Failed to build admin report.', error: error.message });
 	}
 });
+
+export default router;

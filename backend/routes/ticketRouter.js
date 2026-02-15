@@ -1,9 +1,9 @@
-import { draftTicketFromUserRequest as ollama } from '../utils/ticketollama.js';
-import { draftTicketFromUserRequest as openai } from '../utils/ticketopenai.js';
+import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
+import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { sendConfirmationEmail } from '../utils/emailService.js';
+import { sendConfirmationEmail } from '../utils/email.js';
 
 const router = express.Router();
 
