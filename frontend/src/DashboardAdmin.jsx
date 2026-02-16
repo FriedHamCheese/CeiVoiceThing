@@ -54,8 +54,8 @@ export default function AdminDashboard() {
             {recommendations.length > 0 && (
                 <Alert severity="info" sx={{ mt: 2, mb: 3 }} action={
                     <Button color="inherit" size="small" onClick={() => {
-                        setSelectedDraftIds(new Set(recommendations[0]));
-                        setShowMergeWindow(true);
+                        const selectedTickets = tickets.filter(t => recommendations[0].includes(t.id));
+                        setShowMergeWindow(selectedTickets);
                     }}>
                         Review Recommended Merge
                     </Button>
@@ -90,7 +90,10 @@ export default function AdminDashboard() {
                         <Typography variant="h5">Draft Tickets (Review Queue)</Typography>
                         <Button
                             variant="contained"
-                            onClick={() => setShowMergeWindow(true)}
+                            onClick={() => {
+                                const selectedTickets = tickets.filter(t => selectedDraftIds.has(t.id));
+                                setShowMergeWindow(selectedTickets);
+                            }}
                             disabled={selectedDraftIds.size < 2}
                         >
                             Merge Selected ({selectedDraftIds.size})
@@ -120,8 +123,8 @@ export default function AdminDashboard() {
 
             {showMergeWindow && (
                 <DashboardMergeWindow
-                    closeWindow={setShowMergeWindow}
-                    draftTicketIDsForMerging={Array.from(selectedDraftIds)}
+                    closeWindow={() => setShowMergeWindow(null)}
+                    selectedDraftTickets={showMergeWindow}
                     refreshData={fetchAllTickets}
                 />
             )}

@@ -47,12 +47,12 @@ function DraftTicketComponent({ draftTicket, removeSelf }) {
     );
 }
 
-export default function DashboardMergeWindow({ closeWindow, draftTicketIDsForMerging, refreshData }) {
+export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData }) {
     const [contentText, setContentText] = useState("");
     const [suggestedSolutionsText, setSuggestedSolutionsText] = useState("");
     const [titleText, setTitleText] = useState("");
     const [categories, setCategories] = useState([]);
-    const [mergingDraftTickets, setMergingDraftTickets] = useState([]);
+    const [mergingDraftTickets, setMergingDraftTickets] = useState(selectedDraftTickets || []);
     const [deadline, setDeadline] = useState("");
     const [assigneeEmail, setAssigneeEmail] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
@@ -60,27 +60,19 @@ export default function DashboardMergeWindow({ closeWindow, draftTicketIDsForMer
     const MAX_TITLE = 128;
     const MAX_BODY = 2048;
 
-    async function getDraftTicket(draftTicketID) {
-        let response = null;
-        try {
-            response = await fetch(`${API_URL}/tickets/getDraftTicket/${draftTicketID}`, { credentials: 'include' });
-        } catch (err) {
-            if (err instanceof TypeError)
-                return { error: "Couldn't connect to the server (fetch: TypeError)." };
-            else throw err;
+    // Initialization effect
+    useEffect(() => {
+        if (selectedDraftTickets && selectedDraftTickets.length > 0) {
+            const primary = selectedDraftTickets[0];
+            setContentText(primary.requestContents || primary.summary || "");
+            setTitleText(primary.title || "");
+            setSuggestedSolutionsText(primary.suggestedSolutions || "");
+            setCategories(primary.categories || []);
+            setDeadline(primary.deadline ? primary.deadline.split('T')[0] : "");
+            setAssigneeEmail(primary.assigneeEmail || "");
+            setMergingDraftTickets(selectedDraftTickets);
         }
-
-        let objectFromResponse = null;
-        try {
-            objectFromResponse = await response.json();
-            if (!response.ok) return { error: "Received HTTP status " + response.status + " from server." };
-            return objectFromResponse;
-        } catch (err) {
-            if (err instanceof TypeError) return { error: "Could read the request body from the server." };
-            if (err instanceof SyntaxError) return { error: "Could parse the request from the server." };
-            else throw err;
-        }
-    }
+    }, [selectedDraftTickets]);
 
     async function sendMergeRequest() {
         let response = null;
@@ -107,7 +99,7 @@ export default function DashboardMergeWindow({ closeWindow, draftTicketIDsForMer
 
         if (response.ok) {
             if (refreshData) refreshData();
-            closeWindow(false);
+            closeWindow();
             return;
         }
 
@@ -125,37 +117,14 @@ export default function DashboardMergeWindow({ closeWindow, draftTicketIDsForMer
     function removeDraftFromMerge(id) {
         const newDrafts = mergingDraftTickets.filter(dt => dt.id !== id);
         if (newDrafts.length < 2) {
-            closeWindow(false);
+            closeWindow();
             return;
         }
         setMergingDraftTickets(newDrafts);
     }
 
-    useEffect(() => {
-        async function getMergingDraftTickets() {
-            setErrorMessage("");
-            const draftTickets = [];
-            for (const draftTicketID of draftTicketIDsForMerging) {
-                const draftTicket = await getDraftTicket(draftTicketID);
-                if (!draftTicket.error) draftTickets.push(draftTicket);
-            }
-
-            if (draftTickets.length > 0) {
-                const primary = draftTickets[0];
-                setContentText(primary.summary);
-                setTitleText(primary.title);
-                setSuggestedSolutionsText(primary.suggestedSolutions);
-                setCategories(primary.categories || []);
-                setDeadline(primary.deadline ? primary.deadline.split('T')[0] : "");
-                setAssigneeEmail(primary.assigneeEmail || "");
-                setMergingDraftTickets(draftTickets);
-            }
-        }
-        getMergingDraftTickets();
-    }, [draftTicketIDsForMerging]);
-
     const handleClose = () => {
-        closeWindow(false);
+        closeWindow();
     };
 
     return (
