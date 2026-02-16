@@ -1,27 +1,48 @@
 # Setup
+Setup Docker:
 ```
-cd ../database
+cd backend/database
+```
+```
 docker-compose -f db-compose-dev.yml up
 ```
-new terminal then run ollama if needed
+
+Setup Ollama:
 ```
 ollama run llama3.2
 ```
-new terminal:
+
+Setup Database:
 ```
-cd ./frontend
+cd backend
+```
+```
 npm install
+```
+```
+cd backend/database
+```
+```
+node setup.js
+```
+
+Setup Backend:
+```
+cd backend
+```
+```
+node server.js
+```
+
+Setup Frontend by open new terminal then run:
+```
+cd frontend
+```
+```
+npm install
+```
+```
 npm run dev
 ```
 
-new terminal:
-```
-cd ../backend
-npm install
 
-cd ../scripts
-node setup.js
-
-cd ..
-node server.js
-```
