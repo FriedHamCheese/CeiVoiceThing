@@ -14,8 +14,31 @@ const CreateUserRequestContainer = ({ userEmail }) => {
     MAX_CHARACTERS
   } = useNewTicket(userEmail);
 
+  const handleFormSubmit = async (e) => {
+    const result = await submitRequestText(e);
+
+    if (result && result.success) {
+      setStatus({
+        type: 'success',
+        message: (
+          <span>
+            Request submitted successfully!{' '}
+            <a 
+              href={`/track/${result.trackingToken}?email=${encodeURIComponent(userEmail)}`} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{ fontWeight: 'bold', textDecoration: 'underline' }}
+            >
+              Track your request here
+            </a>
+          </span>
+        )
+      });
+    }
+  };
+
   return (
-    <Box component="form" onSubmit={submitRequestText} noValidate>
+    <Box component="form" onSubmit={handleFormSubmit} noValidate>
       <Stack spacing={3}>
         <Typography variant="h5" component="h2" fontWeight="500" color="black">
           Create a new request
