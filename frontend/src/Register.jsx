@@ -1,7 +1,16 @@
-import React from 'react';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Divider from '@mui/material/Divider';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    Container,
+    Typography,
+    Box,
+    Button,
+    TextField,
+    Divider,
+    Alert,
+    Paper,
+    Stack
+} from '@mui/material';
 import ReCAPTCHA from "react-google-recaptcha";
 import "./styles/main.css";
 import { useRegister } from './utils/authLogic';
@@ -19,75 +28,101 @@ function Register() {
         handleGoogleRegister,
     } = useRegister();
 
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (success) {
+            const timer = setTimeout(() => {
+                navigate('/');
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [success, navigate]);
+
     const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
     return (
-        <div className="auth-container">
-            <h2>Create Account</h2>
+        <Container maxWidth="sm" sx={{ py: 4 }}>
+            <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+                <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" textAlign="center">
+                    Create Account
+                </Typography>
 
-            {success ? (
-                <p className="auth-success">Registration successful! Logging you in...</p>
-            ) : (
-                <>
-                    {/* --- LOCAL REGISTRATION FORM --- */}
-                    <form onSubmit={handleSubmit} className="auth-form">
-                        <TextField
-                            label="Email"
-                            variant="outlined"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-                        <TextField
-                            label="Password"
-                            variant="outlined"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
-                        <TextField
-                            label="Confirm Password"
-                            variant="outlined"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                        />
-
-                        {/* Captcha Widget */}
-                        <div className="captcha-container">
-                            <ReCAPTCHA
-                                ref={captchaRef}
-                                sitekey={RECAPTCHA_SITE_KEY}
-                                onChange={(token) => setCaptchaToken(token)}
+                {success ? (
+                    <Alert severity="success" sx={{ mt: 2 }}>
+                        Registration successful! Logging you in...
+                    </Alert>
+                ) : (
+                    <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+                        <Stack spacing={3}>
+                            <TextField
+                                label="Email"
+                                variant="outlined"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                fullWidth
+                                required
                             />
-                        </div>
+                            <TextField
+                                label="Password"
+                                variant="outlined"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                fullWidth
+                                required
+                            />
+                            <TextField
+                                label="Confirm Password"
+                                variant="outlined"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                fullWidth
+                                required
+                            />
 
-                        <Button variant="contained" color="primary" type="submit" size="large">
-                            Register with Email
-                        </Button>
-                    </form>
+                            {/* Captcha Widget */}
+                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                <ReCAPTCHA
+                                    ref={captchaRef}
+                                    sitekey={RECAPTCHA_SITE_KEY}
+                                    onChange={(token) => setCaptchaToken(token)}
+                                />
+                            </Box>
 
-                    {error && <p className="auth-error">{error}</p>}
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                type="submit"
+                                size="large"
+                                fullWidth
+                                sx={{ py: 1.5, fontWeight: 'bold' }}
+                            >
+                                Register with Email
+                            </Button>
 
-                    {/* --- DIVIDER --- */}
-                    <Divider className="auth-divider">OR</Divider>
+                            {error && <Alert severity="error">{error}</Alert>}
 
-                    {/* --- GOOGLE REGISTRATION --- */}
-                    <Button
-                        variant="outlined"
-                        color="secondary"
-                        fullWidth
-                        onClick={handleGoogleRegister}
-                        className="google-btn"
-                    >
-                        Sign up with Google
-                    </Button>
-                </>
-            )}
-        </div>
+                            <Divider sx={{ my: 2 }}>
+                                <Typography variant="body2" color="text.secondary">OR</Typography>
+                            </Divider>
+
+                            <Button
+                                variant="outlined"
+                                color="secondary"
+                                fullWidth
+                                onClick={handleGoogleRegister}
+                                sx={{ py: 1.5 }}
+                            >
+                                Sign up with Google
+                            </Button>
+                        </Stack>
+                    </Box>
+                )}
+            </Paper>
+        </Container>
     );
 }
 
