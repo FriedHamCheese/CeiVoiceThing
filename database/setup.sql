@@ -5,13 +5,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 START TRANSACTION;
 
 -- DROP ALL TABLES (REVERSE FK ORDER)
-DROP TABLE IF EXISTS NewTicketUserRequest;
-DROP TABLE IF EXISTS NewTicketCategory;
-DROP TABLE IF EXISTS NewTicketFollower;
+DROP TABLE IF EXISTS TicketUserRequest;
+DROP TABLE IF EXISTS TicketCategory;
+DROP TABLE IF EXISTS TicketFollower;
 DROP TABLE IF EXISTS TicketHistory;
 DROP TABLE IF EXISTS TicketComments;
-DROP TABLE IF EXISTS NewTicketAssignee;
-DROP TABLE IF EXISTS NewTicket;
+DROP TABLE IF EXISTS TicketAssignee;
+DROP TABLE IF EXISTS Ticket;
 
 DROP TABLE IF EXISTS SpecialistScope;
 DROP TABLE IF EXISTS SpecialistProfile;
@@ -42,39 +42,6 @@ CREATE TABLE UserRequest(
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE DraftTicket(
-	id INT AUTO_INCREMENT PRIMARY KEY,
-	summary VARCHAR(2048),
-	title VARCHAR(256),
-	suggestedSolutions VARCHAR(2048),
-	suggestedAssignee VARCHAR(64),
-	deadline DATETIME,
-	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE DraftTicketUserRequest(
-	draftTicketID INT,
-	userRequestID INT,
-	PRIMARY KEY (draftTicketID, userRequestID),
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
-	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
-);
-
-CREATE TABLE DraftTicketAssignee(
-	draftTicketID INT,
-	assigneeEmail VARCHAR(64),
-	PRIMARY KEY (draftTicketID, assigneeEmail),
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE,
-	FOREIGN KEY (assigneeEmail) REFERENCES Users(email) ON DELETE CASCADE
-);
-
-CREATE TABLE DraftTicketCategory(
-	draftTicketID INT,
-	category VARCHAR(32),
-	PRIMARY KEY (draftTicketID, category),
-	FOREIGN KEY (draftTicketID) REFERENCES DraftTicket(id) ON DELETE CASCADE
-);
-
 CREATE TABLE SpecialistProfile(
 	userEmail VARCHAR(64) PRIMARY KEY,
 	contact VARCHAR(64),
@@ -88,22 +55,22 @@ CREATE TABLE SpecialistScope(
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE NewTicket(
+CREATE TABLE Ticket(
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	requestContents VARCHAR(2048),
 	suggestedSolutions VARCHAR(2048),
 	title VARCHAR(256),
-	status VARCHAR(32) DEFAULT 'new',
+	status VARCHAR(32) DEFAULT 'draft',
 	deadline DATETIME,
 	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE NewTicketAssignee(
-	newTicketID INT,
+CREATE TABLE TicketAssignee(
+	ticketID INT,
 	assigneeEmail VARCHAR(64),
-	PRIMARY KEY (newTicketID, assigneeEmail),
-	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
+	PRIMARY KEY (ticketID, assigneeEmail),
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
 	FOREIGN KEY (assigneeEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
@@ -114,7 +81,7 @@ CREATE TABLE TicketComments(
 	text VARCHAR(2048) NOT NULL,
 	isInternal BOOLEAN DEFAULT FALSE,
 	createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (ticketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
 	FOREIGN KEY (authorEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
@@ -125,29 +92,29 @@ CREATE TABLE TicketHistory(
 	performedBy VARCHAR(64),
 	details VARCHAR(2048),
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-	FOREIGN KEY (ticketID) REFERENCES NewTicket(id) ON DELETE CASCADE
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
 );
 
-CREATE TABLE NewTicketFollower(
-	newTicketID INT,
+CREATE TABLE TicketFollower(
+	ticketID INT,
 	userEmail VARCHAR(64),
-	PRIMARY KEY (newTicketID, userEmail),
-	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
+	PRIMARY KEY (ticketID, userEmail),
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE NewTicketCategory(
-	newTicketID INT,
+CREATE TABLE TicketCategory(
+	ticketID INT,
 	category VARCHAR(32),
-	PRIMARY KEY (newTicketID, category),
-	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE
+	PRIMARY KEY (ticketID, category),
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
 );
 
-CREATE TABLE NewTicketUserRequest(
-	newTicketID INT,
+CREATE TABLE TicketUserRequest(
+	ticketID INT,
 	userRequestID INT,
-	PRIMARY KEY (newTicketID, userRequestID),
-	FOREIGN KEY (newTicketID) REFERENCES NewTicket(id) ON DELETE CASCADE,
+	PRIMARY KEY (ticketID, userRequestID),
+	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
 

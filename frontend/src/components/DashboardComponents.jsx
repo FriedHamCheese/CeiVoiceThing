@@ -5,7 +5,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
 // Construct API URL
 const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
-const API_PORT = import.meta.env.VITE_API_PORT || '3001';
+const API_PORT = import.meta.env.VITE_API_PORT || '5001';
 const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 /**
@@ -19,6 +19,7 @@ async function promoteTicketToNew(ticketID) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticketID }),
+        credentials: 'include',
     });
 
     if (!response.ok) {

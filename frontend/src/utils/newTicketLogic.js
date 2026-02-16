@@ -33,7 +33,8 @@ export const useNewTicket = (userEmail) => {
                 body: JSON.stringify({
                     fromEmail: userEmail,
                     requestText: trimmedText.substring(0, MAX_CHARACTERS)
-                })
+                }),
+                credentials: 'include'
             });
 
             if (response.ok) {

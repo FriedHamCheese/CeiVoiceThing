@@ -19,12 +19,12 @@ export default function App() {
 					{/* Public Routes */}
 					<Route path="/login" element={<Login />} />
 					<Route path="/register" element={<Register />} />
-					<Route path="/track-request" element={<TrackTicket />} />
-					<Route path="/track/:token" element={<TrackTicket />} />
 					<Route path="/unauthorized" element={<Unauthorized />} />
-
 					{/* Protected Routes wrapped in Home Layout */}
 					<Route element={<Home />}>
+						<Route path="/track-request" element={<TrackTicket />} />
+						<Route path="/track/:token" element={<TrackTicket />} />
+
 						<Route element={<ProtectedRoute minRole={1} />}>
 							<Route path="/" element={<NewTicket />} />
 						</Route>

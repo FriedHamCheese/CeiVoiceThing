@@ -6,42 +6,42 @@ const getAdminOverview = async ({ startDate, endDate }) => {
 
     try {
         const [[totalRow]] = await connection.execute(
-            'SELECT COUNT(*) AS totalTickets FROM NewTicket WHERE createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)',
+            "SELECT COUNT(*) AS totalTickets FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [[resolvedRow]] = await connection.execute(
-            "SELECT COUNT(*) AS solvedCount FROM NewTicket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT COUNT(*) AS solvedCount FROM Ticket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [[avgRow]] = await connection.execute(
-            "SELECT AVG(TIMESTAMPDIFF(HOUR, createdAt, updatedAt)) AS avgResolutionHours FROM NewTicket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT AVG(TIMESTAMPDIFF(HOUR, createdAt, updatedAt)) AS avgResolutionHours FROM Ticket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [statusRows] = await connection.execute(
-            'SELECT status, COUNT(*) AS count FROM NewTicket WHERE createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY status',
+            "SELECT status, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY status",
             dateParams
         );
 
         const [volumeByDateRows] = await connection.execute(
-            'SELECT DATE(createdAt) AS day, COUNT(*) AS count FROM NewTicket WHERE createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY DATE(createdAt) ORDER BY day ASC',
+            "SELECT DATE(createdAt) AS day, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY DATE(createdAt) ORDER BY day ASC",
             dateParams
         );
 
         const [volumeByCategoryRows] = await connection.execute(
-            `SELECT ntc.category AS category, COUNT(*) AS count
-             FROM NewTicketCategory ntc
-             JOIN NewTicket nt ON nt.id = ntc.newTicketID
-             WHERE nt.createdAt >= ? AND nt.createdAt < DATE_ADD(?, INTERVAL 1 DAY)
-             GROUP BY ntc.category
+            `SELECT tc.category AS category, COUNT(*) AS count
+             FROM TicketCategory tc
+             JOIN Ticket t ON t.id = tc.ticketID
+             WHERE t.status != 'draft' AND t.createdAt >= ? AND t.createdAt < DATE_ADD(?, INTERVAL 1 DAY)
+             GROUP BY tc.category
              ORDER BY count DESC`,
             dateParams
         );
 
         const [[backlogRow]] = await connection.execute(
-            "SELECT COUNT(*) AS backlogCount FROM NewTicket WHERE status NOT IN ('solved','failed') AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT COUNT(*) AS backlogCount FROM Ticket WHERE status NOT IN ('solved','failed','draft') AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
@@ -66,33 +66,33 @@ const getAssigneeOverview = async ({ email, days }) => {
 
     try {
         const [[workloadRow]] = await connection.execute(
-            `SELECT COUNT(DISTINCT nt.id) AS currentWorkload
-             FROM NewTicket nt
-             JOIN NewTicketAssignee nta ON nta.newTicketID = nt.id
-             WHERE nta.assigneeEmail = ?
-             AND nt.status NOT IN ('solved','failed')`,
+            `SELECT COUNT(DISTINCT t.id) AS currentWorkload
+             FROM Ticket t
+             JOIN TicketAssignee ta ON ta.ticketID = t.id
+             WHERE ta.assigneeEmail = ?
+             AND t.status NOT IN ('solved','failed','draft')`,
             [email]
         );
 
         const [workloadByStatusRows] = await connection.execute(
-            `SELECT nt.status AS status, COUNT(DISTINCT nt.id) AS count
-             FROM NewTicket nt
-             JOIN NewTicketAssignee nta ON nta.newTicketID = nt.id
-             WHERE nta.assigneeEmail = ?
-             AND nt.status NOT IN ('solved','failed')
-             GROUP BY nt.status`,
+            `SELECT t.status AS status, COUNT(DISTINCT t.id) AS count
+             FROM Ticket t
+             JOIN TicketAssignee ta ON ta.ticketID = t.id
+             WHERE ta.assigneeEmail = ?
+             AND t.status NOT IN ('solved','failed','draft')
+             GROUP BY t.status`,
             [email]
         );
 
         const [[performanceRow]] = await connection.execute(
             `SELECT
-                SUM(CASE WHEN nt.status = 'solved' THEN 1 ELSE 0 END) AS solvedCount,
-                SUM(CASE WHEN nt.status = 'failed' THEN 1 ELSE 0 END) AS failedCount
-             FROM NewTicket nt
-             JOIN NewTicketAssignee nta ON nta.newTicketID = nt.id
-             WHERE nta.assigneeEmail = ?
-             AND nt.status IN ('solved','failed')
-             AND nt.updatedAt >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
+                SUM(CASE WHEN t.status = 'solved' THEN 1 ELSE 0 END) AS solvedCount,
+                SUM(CASE WHEN t.status = 'failed' THEN 1 ELSE 0 END) AS failedCount
+             FROM Ticket t
+             JOIN TicketAssignee ta ON ta.ticketID = t.id
+             WHERE ta.assigneeEmail = ?
+             AND t.status IN ('solved','failed')
+             AND t.updatedAt >= DATE_SUB(NOW(), INTERVAL ? DAY)`,
             [email, days]
         );
 

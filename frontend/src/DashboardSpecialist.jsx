@@ -6,19 +6,20 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import { useDashboardTickets } from './utils/dashboardLogic.js';
+import { useDashboardTicketsSpecialist } from './utils/dashboardLogicSpecialist.js';
 
 export default function SpecialistDashboard() {
     const {
         tickets, errorMessage, isLoading,
         viewingTicket, setViewingTicket,
         specialists,
-        comments, history, linkedRequests,
+        comments, history,
         newComment, setNewComment,
         isCommentInternal, setIsCommentInternal,
         handleUpdateTicket, handleAddComment,
-        handleToggleFollow, isFollowing
-    } = useDashboardTickets();
+        handleToggleFollow, isFollowing,
+        user
+    } = useDashboardTicketsSpecialist();
 
     const redirectToHomePage = () => {
         window.location.href = '/';
@@ -74,9 +75,8 @@ export default function SpecialistDashboard() {
                 setViewingTicket={setViewingTicket}
                 specialists={specialists}
                 isAdmin={false}
+                user={user}
                 handleUpdateTicket={handleUpdateTicket}
-                // Specialists probably shouldn't edit drafts or unlink requests, so we don't pass those handlers or pass no-ops
-                linkedRequests={linkedRequests}
                 comments={comments}
                 newComment={newComment}
                 setNewComment={setNewComment}

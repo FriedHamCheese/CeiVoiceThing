@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 
 export default function DashboardTicketView({
-    viewingTicket, setViewingTicket, specialists, isAdmin,
+    viewingTicket, setViewingTicket, specialists, isAdmin, user,
     handleUpdateDraft, handleUpdateTicket, handleUnlinkRequest,
     linkedRequests,
     comments, newComment, setNewComment, handleAddComment,
@@ -177,6 +177,7 @@ export default function DashboardTicketView({
                                 <Select
                                     value={viewingTicket.status || ''}
                                     label="Status"
+                                    disabled={!isAdmin && viewingTicket.assigneeEmail !== user?.email}
                                     onChange={(e) => handleUpdateTicket(viewingTicket.id, { status: e.target.value })}
                                 >
                                     <MenuItem value="New">New</MenuItem>

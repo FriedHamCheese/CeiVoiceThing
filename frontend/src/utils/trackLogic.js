@@ -56,7 +56,9 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/public/tickets/track/${t}?email=${encodeURIComponent(em)}`);
+            const response = await fetch(`${API_URL}/public/tickets/track/${t}?email=${encodeURIComponent(em)}`, {
+                credentials: 'include'
+            });
             const data = await response.json();
 
             if (response.ok) {
@@ -81,7 +83,8 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
             const response = await fetch(`${API_URL}/public/tickets/track/${currentToken}/comment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user ? user.email : email, text: newComment })
+                body: JSON.stringify({ email: user ? user.email : email, text: newComment }),
+                credentials: 'include'
             });
             if (response.ok) {
                 setNewComment('');

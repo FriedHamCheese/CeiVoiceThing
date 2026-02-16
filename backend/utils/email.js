@@ -82,3 +82,44 @@ export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, tra
         console.error('Error sending status update email:', error);
     }
 };
+
+export const sendCommentNotificationEmail = async (toEmail, ticketTitle, commenterName, commentText, link, isInternal) => {
+    const subject = `New Comment on "${ticketTitle}"`;
+    const internalLabel = isInternal ? '[INTERNAL] ' : '';
+
+    // Check if internal and simple guard (though router should handle this too)
+    // We trust the router to only call this for valid recipients
+
+    const mailOptions = {
+        from: `"CEiVoice Support" <${process.env.SMTP_USER}>`,
+        to: toEmail,
+        subject: `${internalLabel}${subject}`,
+        text: `New comment from ${commenterName} on ticket "${ticketTitle}":\n\n"${commentText}"\n\nView here: ${link}`,
+        html: `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2>${internalLabel}New Comment</h2>
+                <p><strong>${commenterName}</strong> commented on <strong>"${ticketTitle}"</strong>:</p>
+                <div style="background-color: #f5f5f5; padding: 15px; border-left: 4px solid #1976d2; margin: 20px 0; font-style: italic;">
+                    "${commentText}"
+                </div>
+                <p>View the ticket using the link below:</p>
+                <div style="margin: 20px 0;">
+                    <a href="${link}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View Comment</a>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
+                <p style="font-size: 12px; color: #888;">This is an automated message, please do not reply.</p>
+            </div>
+        `,
+    };
+
+    try {
+        if (!process.env.SMTP_HOST) {
+            console.log("SMTP not configured, skipping comment email.");
+            return;
+        }
+        await transporter.sendMail(mailOptions);
+        console.log(`Comment email sent to ${toEmail}`);
+    } catch (error) {
+        console.error('Error sending comment email:', error);
+    }
+};
