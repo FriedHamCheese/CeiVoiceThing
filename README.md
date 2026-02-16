@@ -18,6 +18,10 @@ new terminal:
 ```
 cd ../backend
 npm install
+
+cd ../scripts
 node setup.js
+
+cd ..
 node server.js
 ```
