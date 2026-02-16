@@ -76,11 +76,17 @@ const loginLocal = async (req, res, next) => {
 };
 
 const register = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, captchaToken } = req.body;
 
     // 1. Basic Validation
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Please provide email and password.' });
+    if (!email || !password || !captchaToken) {
+        return res.status(400).json({ message: 'Please provide email, password, and captcha token.' });
+    }
+
+    // 2. Captcha Verification
+    const isHuman = await verifyCaptcha(captchaToken);
+    if (!isHuman) {
+        return res.status(400).json({ message: 'Captcha verification failed' });
     }
 
     try {
@@ -93,15 +99,14 @@ const register = async (req, res) => {
             return res.status(409).json({ message: 'Email already taken' });
         }
 
-        // 2. Extract Name from Email
-        // Splits "john.doe@example.com" into ["john.doe", "example.com"] and takes index 0
+        // 3. Extract Name from Email
         const name = email.split('@')[0];
 
-        // 3. Hash Password
+        // 4. Hash Password
         const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
         const hash = await bcrypt.hash(password, saltRounds);
 
-        // 4. Insert into Database with Name
+        // 5. Insert into Database
         const [result] = await mysqlConnection.execute(
             'INSERT INTO Users (email, name, password_hash) VALUES (?, ?, ?)',
             [email, name, hash]
