@@ -15,22 +15,18 @@ export default function (passport) {
         done(null, user.email);
     });
 
-    // Deserialize User
+    // Retrieve user details from email in session
     passport.deserializeUser(async (email, done) => {
         try {
-            const [rows] = await mysqlConnection.query(
-                'SELECT * FROM Users WHERE email = ?',
-                [email]
-            );
-
-            if (rows.length === 0) {
-                return done(null, false);
+            // Using 'db' consistently as imported above
+            const [rows] = await import('./mysqlConnection.js').then(module => module.default).then(db => db.query('SELECT * FROM Users WHERE email = ?', [email]));
+            if (rows.length > 0) {
+                done(null, rows[0]);
+            } else {
+                done(new Error('User not found'), null);
             }
-
-            return done(null, rows[0]);
-
-        } catch (error) {
-            return done(error, null);
+        } catch (err) {
+            done(err, null);
         }
     });
 
