@@ -126,6 +126,7 @@ export default function AdminDashboard() {
                     closeWindow={() => setShowMergeWindow(null)}
                     selectedDraftTickets={showMergeWindow}
                     refreshData={fetchAllTickets}
+                    clearSelection={() => setSelectedDraftIds(new Set())}
                 />
             )}
 

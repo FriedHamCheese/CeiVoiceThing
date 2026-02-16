@@ -47,7 +47,7 @@ function DraftTicketComponent({ draftTicket, removeSelf }) {
     );
 }
 
-export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData }) {
+export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData, clearSelection }) {
     const [contentText, setContentText] = useState("");
     const [suggestedSolutionsText, setSuggestedSolutionsText] = useState("");
     const [titleText, setTitleText] = useState("");
@@ -98,7 +98,8 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
         }
 
         if (response.ok) {
-            if (refreshData) refreshData();
+            if (refreshData) await refreshData(); // wait for tickets to refresh
+            if (clearSelection) clearSelection(); // clear the count
             closeWindow();
             return;
         }
