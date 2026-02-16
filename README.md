@@ -34,7 +34,7 @@ cd backend
 node server.js
 ```
 
-Setup Frontend by open new terminal then run:
+Setup Frontend:
 ```
 cd frontend
 ```
