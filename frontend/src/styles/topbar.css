@@ -1,0 +1,51 @@
+/* Horizontal Top Bar styling */
+.top-bar {
+    width: 100%;
+    height: var(--header-height);
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background-color: var(--bg-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    box-sizing: border-box;
+}
+
+.top-bar h2 {
+    font-size: 1rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.top-bar-logo-toggle {
+    height: 30px;
+    width: 30px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.top-bar-logo-toggle:hover {
+    transform: scale(1.1);
+}
+
+.user-welcome-container {
+    margin-left: auto;
+    padding-right: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.role-buttons-container {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.role-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.8rem;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}

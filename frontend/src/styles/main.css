@@ -1,0 +1,80 @@
+/* Main CSS - Global Variables and Layout */
+@import './utils.css';
+@import './sidebar.css';
+@import './topbar.css';
+@import './auth.css';
+@import './forms.css';
+@import './tickets.css';
+@import './modals.css';
+
+/* Ensure the page takes up the full screen height */
+:root {
+    /* Colors */
+    --primary-color: #007bff;
+    --primary-hover: #0056b3;
+    --secondary-color: #6c757d;
+    --accent-color: #1a73e8;
+    --accent-bg: #e8f0fe;
+    --text-primary: #3c3f42;
+    --text-secondary: #5f6368;
+    --bg-light: #f8f9fa;
+    --bg-white: #ffffff;
+    --border-color: #dadce0;
+    --error-color: #d93025;
+    --success-color: green;
+
+    /* Spacing */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* Dimensions */
+    --sidebar-width: 260px;
+    --header-height: 4rem;
+    --font-size-base: 1rem;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.viewport {
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--bg-light);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    overflow-y: hidden;
+    transition: all 0.3s ease;
+}
+
+/* --- Main Layout Wrapper --- */
+.main-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Content Panel */
+.panel {
+    flex: 1;
+    margin: var(--spacing-lg);
+    background: var(--bg-white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    padding: var(--spacing-xl);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid #eee;
+    margin: var(--spacing-md) 0;
+}

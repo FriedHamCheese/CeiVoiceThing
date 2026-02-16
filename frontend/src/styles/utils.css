@@ -1,0 +1,27 @@
+/* Utility Classes */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.link-bold {
+    color: inherit;
+    font-weight: bold;
+}
+
+.page-padding {
+    padding: var(--spacing-lg);
+}
+
+.error-text {
+    color: var(--error-color);
+    margin-top: var(--spacing-md);
+    font-weight: 500;
+}
+
+.brand-icon {
+    font-size: 2rem;
+}
+
+.label-small {
+    font-size: 0.875rem;
+}

@@ -1,0 +1,153 @@
+/* Ticket Component Styling */
+.ticket-container {
+    border: 1px solid var(--bg-white);
+    width: 87%;
+    padding-left: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.ticket-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.ticket-id {
+    width: 50px;
+}
+
+.ticket-title {
+    flex-grow: 1;
+    margin-left: var(--spacing-lg);
+}
+
+.ticket-expand-icon {
+    margin-right: var(--spacing-lg);
+}
+
+.ticket-remove-btn {
+    margin-right: var(--spacing-xl);
+    color: red;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.expanded-view-content {
+    padding: var(--spacing-sm) 0;
+}
+
+.view-box {
+    overflow-y: auto;
+    width: 95%;
+    height: 100px;
+    padding: var(--spacing-sm);
+    background-color: #222222;
+}
+
+/* Bubble Styling */
+.category-bubble {
+    display: inline-flex;
+    align-items: center;
+    margin-right: var(--spacing-sm);
+    padding-left: var(--spacing-md);
+    border-radius: 20px;
+    border: 1px solid white;
+    margin-bottom: var(--spacing-xs);
+}
+
+.bubble-remove-btn {
+    margin: 0 var(--spacing-sm);
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* Draft Ticket Component in Merge Window */
+.draft-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    margin-bottom: var(--spacing-sm);
+    background-color: #f9f9f9;
+    overflow: hidden;
+}
+
+.draft-card-header {
+    padding: var(--spacing-sm) var(--spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.draft-card-header-expanded {
+    background-color: #eef2f6;
+}
+
+.draft-card-title-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+}
+
+.draft-card-id {
+    font-weight: bold;
+    color: #666;
+    min-width: 30px;
+}
+
+.draft-card-title {
+    font-weight: 500;
+}
+
+.draft-card-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.draft-unlink-btn {
+    background: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 4px var(--spacing-xs);
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.draft-expand-icon {
+    color: #888;
+    font-size: 12px;
+}
+
+.draft-card-content {
+    padding: var(--spacing-md);
+    border-top: 1px solid #e0e0e0;
+    background-color: #fff;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.draft-content-heading {
+    margin: 0 0 var(--spacing-xs) 0;
+    color: #555;
+    font-weight: bold;
+    font-size: 0.83em;
+}
+
+.draft-content-text {
+    margin: 0 0 var(--spacing-md) 0;
+    white-space: pre-wrap;
+}
+
+.draft-content-text:last-child {
+    margin-bottom: 0;
+}

@@ -1,0 +1,205 @@
+/* ViewTicketsPage_MergeWindow.jsx */
+.merge-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(3px);
+}
+
+.merge-modal {
+    background-color: var(--bg-white);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-lg);
+    color: #333;
+}
+
+.merge-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 1px solid #eee;
+    padding-bottom: var(--spacing-md);
+}
+
+.merge-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+.merge-close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+}
+
+.merge-scroll-area {
+    overflow-y: auto;
+    padding-right: var(--spacing-sm);
+    flex: 1;
+}
+
+.merge-error {
+    background-color: #ffebee;
+    color: #c62828;
+    padding: var(--spacing-sm);
+    border-radius: 4px;
+    margin-bottom: var(--spacing-md);
+}
+
+.merge-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    color: #444;
+}
+
+.merge-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    margin-bottom: var(--spacing-md);
+    box-sizing: border-box;
+}
+
+.merge-textarea {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    min-height: 100px;
+    resize: vertical;
+    margin-bottom: var(--spacing-md);
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.merge-categories-container {
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.merge-no-categories {
+    color: #888;
+    font-style: italic;
+}
+
+.merge-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: var(--spacing-md);
+    border-top: 1px solid #eee;
+}
+
+.merge-primary-btn {
+    background-color: #1976d2;
+    /* Override if needed, or use accent color */
+    margin-top: var(--spacing-sm);
+    align-self: flex-end;
+    /* Copied from common button styles to ensure consistency if not inherited */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+/* Bubble Styling Updates for Merge Window */
+.merge-bubble {
+    display: inline-flex;
+    align-items: center;
+    margin-right: var(--spacing-xs);
+    margin-bottom: var(--spacing-xs);
+    padding: 6px var(--spacing-sm);
+    border-radius: 16px;
+    background-color: #e0e0e0;
+    color: #333;
+    font-size: 14px;
+}
+
+.merge-bubble-text {
+    margin-right: var(--spacing-xs);
+}
+
+.merge-bubble-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-weight: bold;
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+
+/* Container & Layout - OLD Merge Window (keeping for compatibility) */
+.merge-window-overlay {
+    overflow-y: auto;
+    position: absolute;
+    top: 12vh;
+    left: 12vw;
+    width: 75vw;
+    height: 75vh;
+    padding: 0 5% 5% 5%;
+    background-color: rgba(26, 26, 26, 1);
+    color: white;
+    border: 1px solid #444;
+}
+
+/* Typography & Inputs */
+.merge-title-input {
+    display: inline-block;
+    margin-bottom: var(--spacing-sm);
+    width: 70%;
+    border: none;
+    font-size: 30px;
+    font-weight: bold;
+    text-decoration: underline;
+    background-color: transparent;
+    color: white;
+    outline: none;
+}
+
+.merge-textarea-dark {
+    overflow-y: auto;
+    box-sizing: border-box;
+    width: 87%;
+    height: 100px;
+    padding: var(--spacing-md);
+    border: 1px solid var(--bg-white);
+    background-color: #222222;
+    color: white;
+    resize: vertical;
+}
+
+.merge-submit-btn {
+    float: right;
+    margin-right: 12%;
+    padding: var(--spacing-xs) var(--spacing-md);
+    background-color: white;
+    color: black;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
