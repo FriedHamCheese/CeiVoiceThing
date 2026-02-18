@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import mysqlConnection from '../utils/mysqlConnection.js';
 import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
 import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
+import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
 import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
 
 const router = express.Router();
@@ -54,9 +55,20 @@ router.post('/request', async (request, response) => {
         const insertedUserRequestID = userRequestRes.insertId;
 
         // 2. Get AI Suggestions
-        const draftTicketSuggestions = process.env.USE_OPENAI === 'TRUE'
-            ? await openai(requestTextForInsertion)
-            : await ollama(requestTextForInsertion);
+        let draftTicketSuggestions;
+
+        switch (process.env.LLM_PROVIDER) {
+            case 'OPENAI':
+                draftTicketSuggestions = await openai(requestTextForInsertion);
+                break;
+            case 'ORACLE':
+                draftTicketSuggestions = await oracle(requestTextForInsertion);
+                break;
+            case 'OLLAMA':
+            default:
+                draftTicketSuggestions = await ollama(requestTextForInsertion);
+                break;
+        }
 
         if (typeof draftTicketSuggestions === "string") {
             console.error("AI Summary Error Body:", draftTicketSuggestions);

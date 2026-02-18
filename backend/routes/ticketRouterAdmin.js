@@ -3,6 +3,7 @@ import express from 'express';
 import { sendStatusUpdateEmail, sendCommentNotificationEmail } from '../utils/email.js';
 import { findMergeRecommendations as ollamaRecommend } from '../utils/ticketOllama.js';
 import { findMergeRecommendations as openaiRecommend } from '../utils/ticketOpenAI.js';
+import { findMergeRecommendations as oracleRecommend } from '../utils/ticketOracle.js';
 
 const router = express.Router();
 
@@ -303,9 +304,20 @@ router.get("/recommend-merges", async (request, response) => {
             return response.json({ recommendations: [] });
         }
 
-        const recommendations = process.env.USE_OPENAI === 'TRUE'
-            ? await openaiRecommend(drafts)
-            : await ollamaRecommend(drafts);
+        let recommendations;
+        
+        switch (process.env.LLM_PROVIDER) {
+            case 'OPENAI':
+                recommendations = await openaiRecommend(drafts);
+                break;
+            case 'ORACLE':
+                recommendations = await oracleRecommend(drafts);
+                break;
+            case 'OLLAMA':
+            default:
+                recommendations = await ollamaRecommend(drafts);
+                break;
+        }
 
         response.status(200).json({ recommendations });
     } catch (error) {

@@ -32,7 +32,7 @@ async function runSetup() {
             multipleStatements: true
         });
 
-        const sqlFilePath = path.join(__dirname, '../../', 'database', 'setup.sql');
+        const sqlFilePath = path.join(__dirname, './', 'setup.sql');
 
         // 4. Verification: Ensure SQL file exists before reading
         try {

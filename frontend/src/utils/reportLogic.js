@@ -49,7 +49,7 @@ export const useReportLogic = (mode) => {
             days: String(days)
         });
 
-        const response = await fetch(`${API_URL}/reports?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/specialist/reports?${params.toString()}`, {
             credentials: 'include'
         });
 
