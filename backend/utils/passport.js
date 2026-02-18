@@ -18,8 +18,7 @@ export default function (passport) {
     // Retrieve user details from email in session
     passport.deserializeUser(async (email, done) => {
         try {
-            // Using 'db' consistently as imported above
-            const [rows] = await import('./mysqlConnection.js').then(module => module.default).then(db => db.query('SELECT * FROM Users WHERE email = ?', [email]));
+            const [rows] = await mysqlConnection.query('SELECT * FROM Users WHERE email = ?', [email]);
             if (rows.length > 0) {
                 done(null, rows[0]);
             } else {
