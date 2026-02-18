@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
+import helmet from 'helmet';
 import cors from 'cors';
 import expressMysqlSession from 'express-mysql-session';
 import session from 'express-session';
@@ -8,22 +9,24 @@ import passport from 'passport';
 import pool from './utils/mysqlConnection.js'; // Import the pool
 import ticketRouter from './routes/ticketRouter.js';
 import ticketRouterAdmin from './routes/ticketRouterAdmin.js';
-import ticketRouterSpecialist from './routes/ticketRouterSpecialist.js';
+import ticketRouterSpecialist from './routes/ticketRouterAssignee.js';
 
 import ticketRouterPublic from './routes/ticketRouterPublic.js';
 import authRouter from './routes/authRouter.js';
 import reportRouter from './routes/reportRouterSpecialist.js';
 import reportRouterAdmin from './routes/reportRouterAdmin.js';
-
-// Note: Ensure backend/utils/passport.js is converted to ESM or imported correctly
 import configurePassport from './utils/passport.js';
-import { isAuthenticated, isSpecialist, isAdmin } from './middleware/authMiddleware.js';
+
+//Add isAssignee to prepare for renaming.
+import { isAuthenticated, isAssignee, isSpecialist, isAdmin } from './middleware/authMiddleware.js';
 
 const app = express();
 const PORT = process.env.SERVER_PORT;
+const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT}`;
 
+app.use(helmet());
 app.use(cors({
-    origin: `http://localhost:${process.env.FRONTEND_PORT}`,
+    origin: FRONTEND_URL,
     credentials: true
 }));
 
@@ -41,8 +44,10 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Set to true if using HTTPS
-        maxAge: 1000 * 60 * 60 * 24 // 1 day
+        secure: process.env.NODE_ENV === 'production', // true for HTTPS in production
+        httpOnly: true, // Prevents JS access to cookie
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+        sameSite: 'lax' // CSRF protection
     }
 }));
 
@@ -56,7 +61,11 @@ app.use('/auth', authRouter);
 app.use('/tickets', ticketRouter);
 app.use('/public/tickets', ticketRouterPublic);
 
-//Specialist
+//Assignee
+app.use('/assignee/reports', isAssignee, reportRouter);
+app.use('/assignee/tickets', isAssignee, ticketRouterSpecialist);
+
+//temporary endpoint.
 app.use('/specialist/reports', isSpecialist, reportRouter);
 app.use('/specialist/tickets', isSpecialist, ticketRouterSpecialist);
 
