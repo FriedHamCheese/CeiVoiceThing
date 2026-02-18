@@ -47,9 +47,16 @@ export const useDashboardTicketsSpecialist = () => {
     }, [API_URL]);
 
     useEffect(() => {
-        fetchAllTickets();
-        fetchSpecialists();
-    }, [fetchAllTickets, fetchSpecialists]);
+        if (user) {
+            fetchAllTickets();
+        }
+    }, [fetchAllTickets, user]);
+
+    useEffect(() => {
+        if (user) {
+            fetchSpecialists();
+        }
+    }, [fetchSpecialists, user]);
 
     // Sub-fetchers
     const fetchComments = async (id) => {

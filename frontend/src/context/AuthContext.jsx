@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useMemo, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -11,8 +11,11 @@ const API_URL = `http://${API_HOST}:${API_PORT}`;
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const hasCheckedSession = useRef(false);
 
     useEffect(() => {
+        if (hasCheckedSession.current) return;
+        hasCheckedSession.current = true;
         checkSession();
     }, []);
 
@@ -55,8 +58,12 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
     };
 
+    const authValue = useMemo(() => ({
+        user, loading, login, logout, updateUser, API_URL
+    }), [user, loading, API_URL]);
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout, updateUser, API_URL }}>
+        <AuthContext.Provider value={authValue}>
             {children}
         </AuthContext.Provider>
     );

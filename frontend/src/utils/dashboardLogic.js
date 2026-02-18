@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const useDashboardTickets = () => {
@@ -20,13 +20,14 @@ export const useDashboardTickets = () => {
     const [linkedRequests, setLinkedRequests] = useState([]);
     const [isCommentInternal, setIsCommentInternal] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const hasFetched = useRef(false);
 
     const fetchAllTickets = useCallback(async () => {
         setIsLoading(true);
         if (!user) return;
 
         try {
-            const endpoint = user.perm >= 4 ? `${API_URL}/admin/tickets` : `${API_URL}/specialist/tickets`;
+            const endpoint = user.perm === 4 ? `${API_URL}/admin/tickets` : `${API_URL}/specialist/tickets`;
             const response = await fetch(endpoint, {
                 credentials: 'include' // Ensure cookies are sent for auth check
             });
@@ -67,10 +68,15 @@ export const useDashboardTickets = () => {
     }, [API_URL]);
 
     useEffect(() => {
+        if (!user || hasFetched.current) return;
+        hasFetched.current = true;
+
         fetchAllTickets();
-        fetchRecommendations();
+        if (user.perm >= 4) {
+            fetchRecommendations();
+        }
         fetchSpecialists();
-    }, [fetchAllTickets, fetchRecommendations, fetchSpecialists]);
+    }, [user, fetchAllTickets, fetchRecommendations, fetchSpecialists]);
 
     // Sub-fetchers
     const fetchComments = async (id) => {
