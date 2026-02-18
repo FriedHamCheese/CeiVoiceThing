@@ -38,7 +38,9 @@ export default function DashboardTicketView({
                             multiline
                             rows={4}
                             label="Summary"
-                            value={viewingTicket.summary || ''}
+                            value={viewingTicket.requestContents || ''} 
+                            //This entire chain should be rename to "summary"
+                            //This is because "requestContents" is the name of the field in the database, rename that as well
                             onChange={(e) => setViewingTicket({ ...viewingTicket, summary: e.target.value })}
                             onBlur={(e) => handleUpdateDraft(viewingTicket.id, { summary: e.target.value })}
                         />
