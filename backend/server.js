@@ -9,9 +9,9 @@ import passport from 'passport';
 import pool from './utils/mysqlConnection.js'; // Import the pool
 import ticketRouter from './routes/ticketRouter.js';
 import ticketRouterAdmin from './routes/ticketRouterAdmin.js';
-import ticketRouterSpecialist from './routes/ticketRouterAssignee.js';
-
+import ticketRouterAssignee from './routes/ticketRouterAssignee.js';
 import ticketRouterPublic from './routes/ticketRouterPublic.js';
+import ticketRouterAdminAssignee from './routes/ticketRouterAdminAssignee.js';
 import authRouter from './routes/authRouter.js';
 import reportRouter from './routes/reportRouterSpecialist.js';
 import reportRouterAdmin from './routes/reportRouterAdmin.js';
@@ -62,15 +62,13 @@ app.use('/tickets', ticketRouter);
 app.use('/public/tickets', ticketRouterPublic);
 
 //Assignee
+app.use('/assignee/tickets', isAssignee, ticketRouterAdminAssignee);
 app.use('/assignee/reports', isAssignee, reportRouter);
-app.use('/assignee/tickets', isAssignee, ticketRouterSpecialist);
-
-//temporary endpoint.
-app.use('/specialist/reports', isSpecialist, reportRouter);
-app.use('/specialist/tickets', isSpecialist, ticketRouterSpecialist);
+app.use('/assignee/tickets', isAssignee, ticketRouterAssignee);
 
 //Admin
 app.use('/admin/tickets', isAdmin, ticketRouterAdmin);
+app.use('/admin/tickets', isAdmin, ticketRouterAdminAssignee);
 app.use('/admin/reports', isAdmin, reportRouterAdmin);
 
 

@@ -1,5 +1,6 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
+import { z } from 'zod';
 import { sendStatusUpdateEmail, sendCommentNotificationEmail } from '../utils/email.js';
 import { findMergeRecommendations as ollamaRecommend } from '../utils/ticketOllama.js';
 import { findMergeRecommendations as openaiRecommend } from '../utils/ticketOpenAI.js';
@@ -7,90 +8,127 @@ import { findMergeRecommendations as oracleRecommend } from '../utils/ticketOrac
 
 const router = express.Router();
 
-// Helper to log ticket history
-const logHistory = async (connection, ticketID, action, performedBy, details) => {
+const historySchema = z.object({
+    action: z.string().min(1),
+    performer: z.email().min(1),
+    details: z.string().min(1)
+});
+
+// Create a schema for the array of history items
+const historyBatchSchema = z.array(historySchema);
+
+const logHistory = async (connection, ticketID, userEmail, historyItems) => {
+    // 1. Prepare the data for validation
+    const dataToValidate = historyItems.map(item => ({
+        ticketID,
+        action: item.action,
+        performer: userEmail,
+        details: item.details
+    }));
+
+    // 2. Validate the batch
+    const validation = historyBatchSchema.safeParse(dataToValidate);
+
+    if (!validation.success) {
+        console.error("Validation failed:", validation.error.format());
+        return;
+    }
+
+    if (validation.data.length === 0) return;
+
+    // 3. Map validated data to SQL values
+    const values = validation.data.map(item => [
+        item.ticketID,
+        item.action,
+        item.performer,
+        item.details,
+        new Date()
+    ]);
+
     try {
-        await connection.execute(
-            "INSERT INTO TicketHistory (ticketID, action, performedBy, details) VALUES (?, ?, ?, ?)",
-            [ticketID, action, performedBy, details]
+        await connection.query(
+            "INSERT INTO TicketHistory (ticketID, action, performer, details, timestamp) VALUES ?",
+            [values]
         );
     } catch (error) {
-        console.error("Failed to log history:", error);
+        console.error("Database Error:", error);
     }
 };
-
-// Fetch all tickets for Admin dashboard
-router.get('/', async (request, response) => {
-    try {
-        const [rows] = await mysqlConnection.execute(`
-            SELECT t.*, 
-            (SELECT COUNT(*) FROM TicketUserRequest WHERE ticketID = t.id) as requestCount,
-            ta.assigneeEmail
-            FROM Ticket t
-            LEFT JOIN TicketAssignee ta ON t.id = ta.ticketID
-        `);
-        // Add 'type' for compatibility with frontend if it expects 'draft' or 'new'
-        const tickets = rows.map(t => ({
-            ...t,
-            type: t.status === 'draft' ? 'draft' : 'new'
-        }));
-        response.status(200).json({ tickets });
-    } catch (error) {
-        console.error(error);
-        response.status(500).json({ message: "Failed to fetch tickets." });
-    }
+// Update Ticket
+// Ticket schema
+const ticketUpdateSchema = z.object({
+    title: z.string().optional(),
+    summary: z.string().optional(),
+    solution: z.string().optional(),
+    deadline: z.string().optional().nullable(),
+    categories: z.array(z.string()).optional(),
+    assigneeEmail: z.array(z.email("Invalid email format")).optional(),
+    status: z.string().optional()
 });
 
-// GET Requests linked to a ticket (formerly draft)
-router.get('/:id/requests', async (request, response) => {
-    const ticketID = request.params.id;
-    try {
-        const [rows] = await mysqlConnection.execute(
-            `SELECT ur.* FROM UserRequest ur 
-             JOIN TicketUserRequest tur ON ur.id = tur.userRequestID 
-             WHERE tur.ticketID = ?`,
-            [ticketID]
-        );
-        response.json(rows);
-    } catch (error) {
-        response.status(500).json({ error: "Failed to fetch linked requests" });
-    }
-});
-
-// Update Ticket (Flexible for both draft and active)
 router.patch('/:id', async (request, response) => {
     const ticketID = request.params.id;
-    const { title, summary, requestContents, suggestedSolutions, deadline, categories, assigneeEmail, status } = request.body;
-    const adminEmail = request.user.email;
+    const email = request.user.email;
 
+    // 1. Validate Input
+    const parsed = ticketUpdateSchema.safeParse(request.body);
+    if (!parsed.success) {
+        return response.status(400).json({
+            error: "Validation failed",
+            details: parsed.error.issues
+        });
+    }
+
+    const { title, summary, solution, deadline, categories, assigneeEmail, status } = parsed.data;
     let connection;
+
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        const [current] = await connection.execute("SELECT * FROM Ticket WHERE id = ?", [ticketID]);
-        if (current.length === 0) return response.status(404).json({ error: "Ticket not found" });
-        const old = current[0];
+        // 2. Fetch current record to compare changes
+        const [rows] = await connection.execute("SELECT * FROM Ticket WHERE id = ?", [ticketID]);
+        if (rows.length === 0) {
+            await connection.rollback();
+            return response.status(404).json({ error: "Ticket not found" });
+        }
+        const current = rows[0];
 
         const updates = [];
         const values = [];
-        const historyDetails = [];
+        const historyItems = [];
 
-        if (title !== undefined && title !== old.title) { updates.push("title = ?"); values.push(title); historyDetails.push(`Title updated`); }
-        if (requestContents !== undefined && requestContents !== old.requestContents) {
-            updates.push("requestContents = ?");
-            values.push(requestContents);
-            historyDetails.push(`Content updated`);
-        } else if (summary !== undefined && summary !== old.requestContents) {
-            // Backward compatibility for frontend using 'summary'
-            updates.push("requestContents = ?");
-            values.push(summary);
-            historyDetails.push(`Content updated`);
+        // 3. Dynamic SQL Construction for Main Ticket Table
+        if (title !== undefined && title !== current.title) {
+            updates.push("title = ?"), values.push(title);
+            historyItems.push({ action: "Title updated", details: `${current.title} -> ${title}` });
         }
-        if (suggestedSolutions !== undefined && suggestedSolutions !== old.suggestedSolutions) { updates.push("suggestedSolutions = ?"); values.push(suggestedSolutions); historyDetails.push(`Solutions updated`); }
-        if (deadline !== undefined) { updates.push("deadline = ?"); values.push(deadline === '' ? null : deadline); historyDetails.push(`Deadline updated`); }
-        if (status !== undefined && status !== old.status) { updates.push("status = ?"); values.push(status); historyDetails.push(`Status changed from ${old.status} to ${status}`); }
+        if (summary !== undefined && summary !== current.summary) {
+            updates.push("summary = ?"), values.push(summary);
+            historyItems.push({ action: "Summary updated", details: `${current.summary} -> ${summary}` });
+        }
+        if (solution !== undefined && solution !== current.solution) {
+            updates.push("solution = ?"), values.push(solution);
+            historyItems.push({ action: "Solution updated", details: `${current.solution} -> ${solution}` });
+        }
+        let shouldNotifyNew = false;
+        if (status !== undefined && status !== current.status) {
+            updates.push("status = ?"), values.push(status);
+            if (current.status === 'draft' && status === 'New') {
+                historyItems.push({ action: "Promoted", details: "Ticket promoted from draft" });
+                shouldNotifyNew = true;
+            } else {
+                historyItems.push({ action: "Status updated", details: `${current.status} -> ${status}` });
+            }
+        }
 
+        if (deadline !== undefined) {
+            const finalDeadline = deadline === '' ? null : deadline;
+            if (finalDeadline !== current.deadline) {
+                updates.push("deadline = ?"), values.push(finalDeadline);
+                historyItems.push({ action: "Deadline updated", details: `${current.deadline} -> ${finalDeadline}` });
+            }
+        }
         if (updates.length > 0) {
             values.push(ticketID);
             await connection.execute(`UPDATE Ticket SET ${updates.join(", ")} WHERE id = ?`, values);
@@ -98,33 +136,56 @@ router.patch('/:id', async (request, response) => {
 
         if (categories !== undefined) {
             await connection.execute("DELETE FROM TicketCategory WHERE ticketID = ?", [ticketID]);
-            for (const cat of categories) {
-                await connection.execute("INSERT INTO TicketCategory (ticketID, category) VALUES (?, ?)", [ticketID, cat]);
+            if (categories.length > 0) {
+                const catValues = categories.map(cat => [ticketID, cat]);
+                await connection.query("INSERT INTO TicketCategory (ticketID, category) VALUES ?", [catValues]);
             }
+            historyItems.push({ action: "Categories updated", details: `${categories}` });
         }
 
         if (assigneeEmail !== undefined) {
             await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-            if (assigneeEmail) {
-                await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [ticketID, assigneeEmail]);
-                historyDetails.push(`Assignee updated to ${assigneeEmail}`);
-            } else {
-                historyDetails.push(`Assignee removed`);
+            if (assigneeEmail.length > 0) {
+                const assValues = assigneeEmail.map(ae => [ticketID, ae]);
+                await connection.query("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES ?", [assValues]);
             }
+            historyItems.push({ action: "Assignees updated", details: `${assigneeEmail}` });
         }
 
-        if (historyDetails.length > 0) {
-            for (const detail of historyDetails) {
-                await logHistory(connection, ticketID, "Update", adminEmail, detail);
-            }
+        await logHistory(connection, ticketID, email, historyItems);
+
+        let followers = [];
+        if (shouldNotifyNew) {
+            const [requestLinks] = await connection.execute(
+                `SELECT ur.userEmail, ur.tracking_token 
+                 FROM UserRequest ur 
+                 JOIN TicketUserRequest tur ON ur.id = tur.userRequestID 
+                 WHERE tur.ticketID = ?`,
+                [ticketID]
+            );
+            followers = requestLinks;
         }
 
         await connection.commit();
-        response.json({ message: "Ticket updated successfully" });
+
+        if (shouldNotifyNew) {
+            for (const req of followers) {
+                if (req.tracking_token) {
+                    sendStatusUpdateEmail(req.userEmail, current.title, "Active (New)", req.tracking_token)
+                        .catch(err => console.error("Update email failed:", err));
+                }
+            }
+        }
+
+        response.json({ message: "Ticket updated successfully", changes: historyItems.length });
+
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error(error);
-        response.status(500).json({ error: "Failed to update ticket" });
+        console.error("Critical Update Error:", error);
+        response.status(500).json({
+            error: "Internal server error during update",
+            message: error.message
+        });
     } finally {
         if (connection) connection.release();
     }
@@ -172,72 +233,10 @@ router.post('/:id/unlink/:requestId', async (request, response) => {
     }
 });
 
-// Convert Draft to New Ticket (Simply update status)
-router.post('/toNewTicket', async (request, response) => {
-    const { ticketID, deadline: deadlineOverride, assigneeEmail: assigneeOverride } = request.body;
-    if (typeof ticketID !== 'number') return response.status(400).json({ message: 'Invalid ticketID.' });
-
-    let connection;
-    try {
-        connection = await mysqlConnection.getConnection();
-        await connection.beginTransaction();
-
-        const [rows] = await connection.execute("SELECT * FROM Ticket WHERE id = ?", [ticketID]);
-        if (rows.length === 0) throw new Error("Ticket not found");
-        const ticket = rows[0];
-
-        const updates = ["status = 'New'"];
-        const values = [];
-
-        if (deadlineOverride !== undefined) {
-            updates.push("deadline = ?");
-            values.push(deadlineOverride === '' ? null : deadlineOverride);
-        }
-
-        values.push(ticketID);
-        await connection.execute(`UPDATE Ticket SET ${updates.join(", ")} WHERE id = ?`, values);
-
-        if (assigneeOverride !== undefined) {
-            await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-            if (assigneeOverride) {
-                await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [ticketID, assigneeOverride]);
-            }
-        }
-
-        // Log Promotion to History
-        await logHistory(connection, ticketID, "Promoted", "Admin", `Ticket promoted from draft`);
-
-        // Trigger emails to followers
-        const [requestLinks] = await connection.execute(
-            `SELECT ur.userEmail, ur.tracking_token 
-             FROM UserRequest ur 
-             JOIN TicketUserRequest tur ON ur.id = tur.userRequestID 
-             WHERE tur.ticketID = ?`,
-            [ticketID]
-        );
-
-        await connection.commit();
-
-        for (const req of requestLinks) {
-            if (req.tracking_token) {
-                sendStatusUpdateEmail(req.userEmail, ticket.title, "Active (New)", req.tracking_token)
-                    .catch(err => console.error("Update email failed:", err));
-            }
-        }
-
-        response.status(200).json({ message: 'Promoted to New Ticket.', ticketID: ticketID });
-    } catch (error) {
-        if (connection) await connection.rollback();
-        console.error(error);
-        response.status(500).json({ message: error.message });
-    } finally {
-        if (connection) connection.release();
-    }
-});
 
 // Merge multiple Tickets into one
 router.post("/merge", async (request, response) => {
-    const { draftTicketIDs, title, summary, categories, suggestedSolutions, deadline, assigneeEmail } = request.body;
+    const { draftTicketIDs, title, summary, categories, suggestedSolutions, deadline, assigneeEmails } = request.body;
 
     if (!Array.isArray(draftTicketIDs) || draftTicketIDs.length === 0) {
         return response.status(400).json({ error: "Invalid IDs array." });
@@ -271,9 +270,11 @@ router.post("/merge", async (request, response) => {
             await connection.execute("UPDATE TicketFollower SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
         }
 
-        // 3. Assign specialist if provided
-        if (assigneeEmail) {
-            await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [mergedID, assigneeEmail]);
+        // 3. Assign multiple assignees if provided
+        if (assigneeEmails && Array.isArray(assigneeEmails)) {
+            for (const email of assigneeEmails) {
+                await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [mergedID, email]);
+            }
         }
 
         // 4. Insert new unique categories
@@ -298,14 +299,14 @@ router.post("/merge", async (request, response) => {
 // Recommend Merges using AI
 router.get("/recommend-merges", async (request, response) => {
     try {
-        const [drafts] = await mysqlConnection.execute("SELECT id, title, requestContents as summary FROM Ticket WHERE status = 'draft'");
+        const [drafts] = await mysqlConnection.execute("SELECT id, title, summary FROM Ticket WHERE status = 'draft'");
 
         if (drafts.length < 2) {
             return response.json({ recommendations: [] });
         }
 
         let recommendations;
-        
+
         switch (process.env.LLM_PROVIDER) {
             case 'OPENAI':
                 recommendations = await openaiRecommend(drafts);
@@ -323,35 +324,6 @@ router.get("/recommend-merges", async (request, response) => {
     } catch (error) {
         console.error("Recommendation error:", error);
         response.status(500).json({ error: "Failed to generate recommendations." });
-    }
-});
-
-// GET Specialists (Users with perm 2)
-router.get('/specialists', async (request, response) => {
-    try {
-        const [rows] = await mysqlConnection.execute(`
-            SELECT u.email, u.name, sp.contact, GROUP_CONCAT(ss.scopeTag) as scope
-            FROM Users u
-            LEFT JOIN SpecialistProfile sp ON u.email = sp.userEmail
-            LEFT JOIN SpecialistScope ss ON u.email = ss.userEmail
-            WHERE u.perm = 2
-            GROUP BY u.email
-            ORDER BY u.name ASC
-        `);
-        response.json(rows);
-    } catch (error) {
-        console.error(error);
-        response.status(500).json({ error: "Failed to fetch specialists." });
-    }
-});
-
-// GET History
-router.get('/:id/history', async (request, response) => {
-    try {
-        const [rows] = await mysqlConnection.execute("SELECT * FROM TicketHistory WHERE ticketID = ? ORDER BY timestamp DESC", [request.params.id]);
-        response.json(rows);
-    } catch (error) {
-        response.status(500).json({ error: "Failed to fetch history" });
     }
 });
 

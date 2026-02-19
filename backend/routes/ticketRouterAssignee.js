@@ -1,12 +1,11 @@
 import express from 'express';
 import mysqlConnection from '../utils/mysqlConnection.js';
-import { isSpecialist } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 const logHistory = async (connection, ticketID, action, performedBy, details) => {
     try {
         await connection.execute(
-            "INSERT INTO TicketHistory (ticketID, action, performedBy, details) VALUES (?, ?, ?, ?)",
+            "INSERT INTO TicketHistory (ticketID, action, performer, details) VALUES (?, ?, ?, ?)",
             [ticketID, action, performedBy, details]
         );
     } catch (error) {

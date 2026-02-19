@@ -5,15 +5,122 @@ import { isAuthenticated } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// GET Specialists (Generic - all authenticated active users/staff)
-// Mounted at /tickets/specialists
-router.get('/specialists', isAuthenticated, async (request, response) => {
+
+// Create User Request
+// for all authenticated user.
+router.post('/request', isAuthenticated, async (request, response) => {
+    const FIRST_CHARACTER = 0;
+    const HTTP_STATUS_OK = 200;
+    const HTTP_STATUS_BAD_REQUEST = 400;
+    const HTTP_STATUS_SERVER_ERROR = 500;
+
+    const MAX_USER_EMAIL_CHARACTERS = 64;
+    const MAX_REQUEST_TEXT_CHARACTERS = 2048;
+
+    const { requestText, fromEmail } = request.body;
+
+    // Validation
+    if (typeof requestText !== 'string') {
+        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .requestText" });
+    }
+    if (typeof fromEmail !== 'string') {
+        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .fromEmail" });
+    }
+
+    const emailForInsertion = fromEmail.trim().substring(FIRST_CHARACTER, MAX_USER_EMAIL_CHARACTERS);
+    const requestTextForInsertion = requestText.trim().substring(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
+
+    let connection;
+    try {
+        connection = await mysqlConnection.getConnection();
+        await connection.beginTransaction();
+
+        // 0. Ensure user exists (UserRequest has FK to Users)
+        const [userCheck] = await connection.execute('SELECT email FROM Users WHERE email = ?', [emailForInsertion]);
+        if (userCheck.length === 0) {
+            await connection.execute(
+                'INSERT INTO Users (email, name, perm) VALUES (?, ?, ?)',
+                [emailForInsertion, emailForInsertion.split('@')[0], 1]
+            );
+        }
+
+        // 1. Insert User Request
+        const trackingToken = uuidv4();
+        const [userRequestRes] = await connection.execute(
+            'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
+            [emailForInsertion, requestTextForInsertion, trackingToken]
+        );
+        const insertedUserRequestID = userRequestRes.insertId;
+
+        // 2. Get AI Suggestions
+        let draftTicketSuggestions;
+
+        switch (process.env.LLM_PROVIDER) {
+            case 'OPENAI':
+                draftTicketSuggestions = await openai(requestTextForInsertion);
+                break;
+            case 'ORACLE':
+                draftTicketSuggestions = await oracle(requestTextForInsertion);
+                break;
+            case 'OLLAMA':
+            default:
+                draftTicketSuggestions = await ollama(requestTextForInsertion);
+                break;
+        }
+
+        if (typeof draftTicketSuggestions === "string") {
+            console.error("AI Summary Error Body:", draftTicketSuggestions);
+            throw new Error(`AI Summary failed: ${draftTicketSuggestions}`);
+        }
+
+        // 3. Insert Draft Ticket
+        const [draftRes] = await connection.execute(
+            'INSERT INTO Ticket (title, summary, solution, status) VALUES (?, ?, ?, ?)',
+            [draftTicketSuggestions.title, draftTicketSuggestions.summary, draftTicketSuggestions.suggestedSolutions, 'draft']
+        );
+        const insertedTicketID = draftRes.insertId;
+
+        // 4. Link Request and Categories
+        await connection.execute(
+            'INSERT INTO TicketUserRequest (userRequestID, ticketID) VALUES (?, ?)',
+            [insertedUserRequestID, insertedTicketID]
+        );
+
+        for (const category of draftTicketSuggestions.categories) {
+            await connection.execute(
+                "INSERT INTO TicketCategory (ticketID, category) VALUES (?, ?)",
+                [insertedTicketID, category]
+            );
+        }
+
+        await connection.commit();
+
+        // Trigger email asynchronously (don't block response)
+        sendConfirmationEmail(emailForInsertion, trackingToken).catch(err => console.error("Email send failed:", err));
+
+        response.status(HTTP_STATUS_OK).json({
+            message: 'Draft ticket created successfully.',
+            trackingToken: trackingToken
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(error);
+        response.status(HTTP_STATUS_SERVER_ERROR).json({ message: "Internal server error." });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+// GET Assignees (Generic - all authenticated active users/staff)
+// Mounted at /tickets/assignees
+router.get('/assignees', isAuthenticated, async (request, response) => {
     try {
         const [rows] = await mysqlConnection.execute(`
             SELECT u.email, u.name, sp.contact, GROUP_CONCAT(ss.scopeTag) as scope
             FROM Users u
-            LEFT JOIN SpecialistProfile sp ON u.email = sp.userEmail
-            LEFT JOIN SpecialistScope ss ON u.email = ss.userEmail
+            LEFT JOIN AssigneeProfile sp ON u.email = sp.userEmail
+            LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
             WHERE u.perm >= 2
             GROUP BY u.email
             ORDER BY u.name ASC
@@ -21,7 +128,7 @@ router.get('/specialists', isAuthenticated, async (request, response) => {
         response.json(rows);
     } catch (error) {
         console.error(error);
-        response.status(500).json({ error: "Failed to fetch specialists." });
+        response.status(500).json({ error: "Failed to fetch assignees." });
     }
 });
 
