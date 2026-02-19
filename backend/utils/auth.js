@@ -108,15 +108,25 @@ const register = async (req, res) => {
 
         // 5. Insert into Database
         const [result] = await mysqlConnection.execute(
-            'INSERT INTO Users (email, name, password_hash) VALUES (?, ?, ?)',
+            'INSERT INTO Users (email, name, password_hash, perm) VALUES (?, ?, ?, 1)',
             [email, name, hash]
         );
 
-        const newUser = { email: email, name: name };
-        return res.status(201).json({
-            success: true,
-            message: "Registration successful",
-            user: newUser,
+        const newUser = { email: email, name: name, perm: 1 };
+
+        // 6. Log in the user after successful registration
+        req.logIn(newUser, (err) => {
+            if (err) {
+                return res.status(500).json({
+                    message: "Login failed after registration",
+                    error: err.message
+                });
+            }
+            return res.status(201).json({
+                success: true,
+                message: "Registration and login successful",
+                user: newUser,
+            });
         });
     } catch (error) {
         return res.status(500).json({
