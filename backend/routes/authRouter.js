@@ -7,8 +7,7 @@ dotenv.config();
 
 const router = express.Router();
 
-router.get('/test', (req, res) => res.json({ message: 'Auth router is working' }));
-
+const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
 
 router.post('/login', loginLocal);
 router.post('/register', register);
@@ -17,7 +16,7 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get('/google/callback',
     passport.authenticate('google', { failureRedirect: '/' }),
     (req, res) => {
-        res.redirect(`http://localhost:${process.env.FRONTEND_PORT}/`);
+        res.redirect(FRONTEND_URL);
     }
 );
 
@@ -36,7 +35,7 @@ router.get('/session', (req, res) => {
 
 router.get('/logout', (req, res) => {
     req.logout(() => {
-        res.redirect(`http://localhost:${process.env.FRONTEND_PORT}/`);
+        res.redirect(FRONTEND_URL);
     });
 });
 
