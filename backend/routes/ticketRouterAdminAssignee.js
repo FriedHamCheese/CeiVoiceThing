@@ -20,13 +20,16 @@ router.get('/', async (request, response) => {
                 -- List all assignees in one cell (e.g., "alice@x.com, bob@x.com")
                 GROUP_CONCAT(DISTINCT ta.assigneeEmail SEPARATOR ', ') AS assignees,
                 -- List all categories in one cell (e.g., "Bug, UI")
-                GROUP_CONCAT(DISTINCT tc.category SEPARATOR ', ') AS categories
+                GROUP_CONCAT(DISTINCT tc.category SEPARATOR ', ') AS categories,
+                -- List all followers
+                GROUP_CONCAT(DISTINCT tf.userEmail SEPARATOR ', ') AS followers
             FROM 
                 Ticket t
                 -- Use LEFT JOIN so we don't lose tickets that have 0 requests or 0 assignees
                 LEFT JOIN TicketUserRequest tur ON t.id = tur.ticketID
                 LEFT JOIN TicketAssignee ta ON t.id = ta.ticketID
                 LEFT JOIN TicketCategory tc ON t.id = tc.ticketID
+                LEFT JOIN TicketFollower tf ON t.id = tf.ticketID
             GROUP BY 
                 t.id, t.title, t.status, t.deadline, t.createdAt
             ORDER BY 
@@ -37,7 +40,8 @@ router.get('/', async (request, response) => {
         const formattedTickets = tickets.map(ticket => ({
             ...ticket,
             assignees: ticket.assignees ? ticket.assignees.split(', ') : [],
-            categories: ticket.categories ? ticket.categories.split(', ') : []
+            categories: ticket.categories ? ticket.categories.split(', ') : [],
+            followers: ticket.followers ? ticket.followers.split(', ') : []
         }));
 
         response.status(200).json({ tickets: formattedTickets });

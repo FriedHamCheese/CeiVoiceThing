@@ -9,6 +9,7 @@ import { findMergeRecommendations as oracleRecommend } from '../utils/ticketOrac
 const router = express.Router();
 
 const historySchema = z.object({
+    ticketID: z.number().min(1),
     action: z.string().min(1),
     performer: z.email().min(1),
     details: z.string().min(1)
@@ -20,12 +21,11 @@ const historyBatchSchema = z.array(historySchema);
 const logHistory = async (connection, ticketID, userEmail, historyItems) => {
     // 1. Prepare the data for validation
     const dataToValidate = historyItems.map(item => ({
-        ticketID,
-        action: item.action,
-        performer: userEmail,
-        details: item.details
+        ticketID: parseInt(ticketID),
+        action: String(item.action),
+        performer: String(userEmail),
+        details: String(item.details)
     }));
-
     // 2. Validate the batch
     const validation = historyBatchSchema.safeParse(dataToValidate);
 
@@ -63,12 +63,13 @@ const ticketUpdateSchema = z.object({
     deadline: z.string().optional().nullable(),
     categories: z.array(z.string()).optional(),
     assigneeEmail: z.array(z.email("Invalid email format")).optional(),
-    status: z.string().optional()
+    status: z.string().optional(),
+    resolutionComment: z.string().optional(),
 });
 
 router.patch('/:id', async (request, response) => {
-    const ticketID = request.params.id;
     const email = request.user.email;
+    const ticketID = request.params.id;
 
     // 1. Validate Input
     const parsed = ticketUpdateSchema.safeParse(request.body);
@@ -79,7 +80,7 @@ router.patch('/:id', async (request, response) => {
         });
     }
 
-    const { title, summary, solution, deadline, categories, assigneeEmail, status } = parsed.data;
+    const { title, summary, solution, deadline, categories, assigneeEmail, status, resolutionComment } = parsed.data;
     let connection;
 
     try {
@@ -111,15 +112,33 @@ router.patch('/:id', async (request, response) => {
             updates.push("solution = ?"), values.push(solution);
             historyItems.push({ action: "Solution updated", details: `${current.solution} -> ${solution}` });
         }
+
+        if (status !== undefined && (status === 'Solved' || status === 'Failed')) {
+            if (!resolutionComment || resolutionComment.trim() === "") {
+                await connection.rollback();
+                return response.status(400).json({ error: `Resolution comment is required when setting status to ${status}.` });
+            }
+        }
+
         let shouldNotifyNew = false;
         if (status !== undefined && status !== current.status) {
             updates.push("status = ?"), values.push(status);
+            if (resolutionComment) {
+                updates.push("resolutionComment = ?"), values.push(resolutionComment);
+            }
+
             if (current.status === 'draft' && status === 'New') {
                 historyItems.push({ action: "Promoted", details: "Ticket promoted from draft" });
                 shouldNotifyNew = true;
             } else {
-                historyItems.push({ action: "Status updated", details: `${current.status} -> ${status}` });
+                let details = `${current.status} -> ${status}`;
+                if (resolutionComment) details += `. Resolution: ${resolutionComment}`;
+                historyItems.push({ action: "Status updated", details: details });
             }
+        } else if (resolutionComment !== undefined && resolutionComment !== current.resolutionComment) {
+            // Case where status didn't change but comment was updated (maybe? or just allow it)
+            updates.push("resolutionComment = ?"), values.push(resolutionComment);
+            historyItems.push({ action: "Resolution comment updated", details: resolutionComment });
         }
 
         if (deadline !== undefined) {
@@ -267,7 +286,8 @@ router.post("/merge", async (request, response) => {
             // Also move comments and history if relevant (optional, but good practice)
             await connection.execute("UPDATE TicketComments SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
             await connection.execute("UPDATE TicketHistory SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
-            await connection.execute("UPDATE TicketFollower SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
+            await connection.execute("UPDATE IGNORE TicketFollower SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
+            await connection.execute("DELETE FROM TicketFollower WHERE ticketID = ?", [oldID]);
         }
 
         // 3. Assign multiple assignees if provided

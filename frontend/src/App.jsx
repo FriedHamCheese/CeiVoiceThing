@@ -7,6 +7,8 @@ import AssigneeDashboard from './DashboardAssignee.jsx';
 import AdminDashboard from './DashboardAdmin.jsx';
 import ReportingDashboard from './Report.jsx';
 import TrackTicket from './Track.jsx';
+import AssigneeProfile from './AssigneeProfile.jsx';
+import UserManagement from './UserManagement.jsx';
 import Unauthorized from './components/Unauthorized.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
@@ -32,11 +34,13 @@ export default function App() {
 						<Route element={<ProtectedRoute minRole={2} />}>
 							<Route path="/dashboard" element={<AssigneeDashboard />} />
 							<Route path="/reports" element={<ReportingDashboard mode="assignee" />} />
+							<Route path="/assignee/profile" element={<AssigneeProfile />} />
 						</Route>
 
 						<Route element={<ProtectedRoute minRole={4} />}>
 							<Route path="/admin/dashboard" element={<AdminDashboard />} />
 							<Route path="/admin/reports" element={<ReportingDashboard mode="admin" />} />
+							<Route path="/admin/users" element={<UserManagement />} />
 						</Route>
 					</Route>
 

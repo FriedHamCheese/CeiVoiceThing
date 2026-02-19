@@ -9,7 +9,7 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
         <header className="top-bar">
             {!isSidebarOpen && (
                 <img
-                    src="cei.png"
+                    src={`cei.png?v=${new Date().getTime()}`}
                     alt="logo"
                     onClick={toggleSidebar}
                     className="top-bar-logo-toggle"

@@ -1,13 +1,13 @@
 import axios from "axios";
 import 'dotenv/config';
-
+import { pipeline, cos_sim } from '@xenova/transformers';
 // Configuration from environment variables
 const ORACLE_URL = process.env.ORACLE_URL || "http://140.245.98.10:8080/api/generate";
 const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
 
-export async function draftTicketFromUserRequest(userRequestText) {
+export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {
     /*
     Returns:
     - {
@@ -19,6 +19,8 @@ export async function draftTicketFromUserRequest(userRequestText) {
     }
     - str: describing error if AI service fails.
     */
+
+    const contextInfo = assigneeList ? `Available assignees and their specializations:\n${assigneeList}` : "No specific assignees available.";
 
     const askOracle = async (systemPrompt, userPrompt) => {
         // The /api/generate endpoint typically takes a single prompt string.
@@ -66,12 +68,12 @@ export async function draftTicketFromUserRequest(userRequestText) {
             ),
             // Categories
             askOracle(
-                "Categorize this request into one word.",
+                `Pick the best keyword for this request. as short as possible. No introduction. Here is the available assignee. ${contextInfo}`,
                 userRequestText
             ),
             // Assignee
             askOracle(
-                "Suggest responsible role for this request. as short as possible.",
+                `Pick the best assignee email for this request. as short as possible. No introduction. Consider the expertise available: ${contextInfo}. Return ONLY the email.`,
                 userRequestText
             )
         ]);
@@ -82,6 +84,7 @@ export async function draftTicketFromUserRequest(userRequestText) {
         const MAX_SUMMARY_CHARACTERS = 2048;
         const MAX_TITLE_CHARACTERS = 128;
         const MAX_SOLUTION_CHARACTERS = 2048;
+        const MAX_ASSIGNEE_CHARACTERS = 64;
 
         const cleanString = (str, maxLen) => {
             if (typeof str !== 'string') return "";
@@ -95,8 +98,8 @@ export async function draftTicketFromUserRequest(userRequestText) {
             title: cleanString(title, MAX_TITLE_CHARACTERS),
             summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
             suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"], 
-            suggestedAssignee: cleanString(assignee, MAX_CATEGORY_CHARACTERS)
+            categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"],
+            suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
         };
 
     } catch (error) {
@@ -107,41 +110,69 @@ export async function draftTicketFromUserRequest(userRequestText) {
         return "Error connecting to AI service.";
     }
 }
+let extractorInstance = null;
+async function getExtractor() {
+    if (!extractorInstance) {
+        extractorInstance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    }
+    return extractorInstance;
+}
 
-export async function findMergeRecommendations(drafts) {
+/**
+ * Finds highly similar drafts and groups their IDs.
+ * @param {Array} drafts - Array of objects containing { id, title, summary }
+ * @param {number} threshold - Cosine similarity threshold (0.0 to 1.0). 
+ * Higher means they must be more similar to be grouped.
+ * @returns {Array<Array<number>>} Array of merged ID groups
+ */
+export async function findMergeRecommendations(drafts, threshold = 0.85) {
     if (drafts.length < 2) return [];
 
-    const draftsText = drafts.map(d => `ID ${d.id}: Title: ${d.title}. Summary: ${d.summary}`).join('\n\n');
-    const systemInstruction = "Analyze the following support ticket drafts and identify groups of IDs that are highly similar and could be merged into a single ticket. Return only a JSON array of arrays, where each inner array contains the IDs of tickets that should be merged (e.g., [[1, 3], [4, 7, 8]]). If no similarities are found, return [].";
-    
-    const combinedPrompt = `${systemInstruction}\n\nDrafts:\n${draftsText}`;
-
     try {
-        const response = await axios.post(
-            ORACLE_URL,
-            {
-                model: ORACLE_MODEL,
-                prompt: combinedPrompt,
-                stream: false
-            },
-            {
-                auth: {
-                    username: ORACLE_USER,
-                    password: ORACLE_PASS
+        const extractor = await getExtractor();
+
+        // 1. Combine title and summary for the model to analyze
+        const textsToEmbed = drafts.map(d => `${d.title}. ${d.summary}`);
+
+        // 2. Generate embeddings for all drafts simultaneously
+        // pooling: 'mean' and normalize: true are required for sentence similarity
+        const output = await extractor(textsToEmbed, { pooling: 'mean', normalize: true });
+        
+        // Convert the Tensor output into a standard 2D JavaScript array
+        const embeddings = output.tolist(); 
+
+        // 3. Compare and Group
+        const groups = [];
+        const visited = new Set(); // Keep track of drafts already placed in a group
+
+        for (let i = 0; i < drafts.length; i++) {
+            // Skip if this draft was already matched with an earlier one
+            if (visited.has(i)) continue;
+
+            const currentGroup = [drafts[i].id];
+            visited.add(i);
+
+            // Compare draft[i] against all subsequent drafts
+            for (let j = i + 1; j < drafts.length; j++) {
+                if (visited.has(j)) continue;
+
+                // Calculate cosine similarity between the two embeddings
+                const similarity = cos_sim(embeddings[i], embeddings[j]);
+
+                // If similarity meets our threshold, group them
+                if (similarity >= threshold) {
+                    currentGroup.push(drafts[j].id);
+                    visited.add(j);
                 }
             }
-        );
 
-        const content = response.data.response;
-        
-        // Parse the JSON output
-        const jsonStart = content.indexOf('[');
-        const jsonEnd = content.lastIndexOf(']') + 1;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-             const groups = JSON.parse(content.substring(jsonStart, jsonEnd));
-             return Array.isArray(groups) ? groups : [];
+            // Only add to final output if we found at least one match
+            if (currentGroup.length > 1) {
+                groups.push(currentGroup);
+            }
         }
-        return [];
+
+        return groups;
 
     } catch (error) {
         console.error("Similarity analysis failed:", error.message);

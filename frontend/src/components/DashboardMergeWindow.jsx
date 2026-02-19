@@ -41,7 +41,7 @@ function DraftTicketComponent({ draftTicket, removeSelf }) {
                 <Typography variant="body2" paragraph color="text.secondary">{draftTicket.summary}</Typography>
 
                 <Typography variant="subtitle2" gutterBottom>Suggested solutions</Typography>
-                <Typography variant="body2" color="text.secondary">{draftTicket.suggestedSolutions}</Typography>
+                <Typography variant="body2" color="text.secondary">{draftTicket.solution}</Typography>
             </AccordionDetails>
         </Accordion>
     );
@@ -60,15 +60,23 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
     const MAX_TITLE = 128;
     const MAX_BODY = 2048;
 
+    // Helper to get category as array
+    const getCategoriesArray = (categories) => {
+        if (!categories) return [];
+        if (Array.isArray(categories)) return categories;
+        return categories.split(',').map(s => s.trim()).filter(Boolean);
+    };
+
     // Initialization effect
     useEffect(() => {
         if (selectedDraftTickets && selectedDraftTickets.length > 0) {
             const primary = selectedDraftTickets[0];
             setContentText(primary.requestContents || primary.summary || "");
             setTitleText(primary.title || "");
-            setSuggestedSolutionsText(primary.suggestedSolutions || "");
-            setCategories(primary.categories || []);
+            setSuggestedSolutionsText(primary.solution || "");
+            setCategories(getCategoriesArray(primary.categories));
             setDeadline(primary.deadline ? primary.deadline.split('T')[0] : "");
+            setAssigneeEmails(primary.assignees || []);
 
             // Handle multiple assignees from primary if possible
             const initialEmails = primary.assignees ?
@@ -146,73 +154,134 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
                 <Stack spacing={3}>
                     <TextField
                         fullWidth
-                        label="Ticket Title"
+                        label="Title"
                         value={titleText}
                         onChange={e => setTitleText(e.target.value.slice(0, MAX_TITLE))}
                         placeholder="Ticket Title"
                     />
 
-                    <Box>
-                        <Typography variant="subtitle2" gutterBottom>Categories</Typography>
-                        <Stack direction="row" flexWrap="wrap" gap={1}>
-                            {categories.map(cat => (
-                                <Chip
-                                    key={cat}
-                                    label={cat}
-                                    onDelete={() => setCategories(prev => prev.filter(i => i !== cat))}
-                                />
-                            ))}
-                            {categories.length === 0 && <Typography variant="body2" color="text.secondary">No categories</Typography>}
-                        </Stack>
-                    </Box>
-
                     <TextField
                         fullWidth
                         multiline
-                        minRows={3}
-                        label="Content / Summary"
+                        rows={2}
+                        label="Summary"
                         value={contentText}
                         onChange={e => setContentText(e.target.value.slice(0, MAX_BODY))}
                         placeholder="Summary of the merged request..."
                     />
 
-                    <TextField
-                        fullWidth
-                        multiline
-                        minRows={3}
-                        label="Suggested Solutions"
-                        value={suggestedSolutionsText}
-                        onChange={e => setSuggestedSolutionsText(e.target.value.slice(0, MAX_BODY))}
-                        placeholder="Proposed solutions..."
-                    />
-
                     <Autocomplete
                         multiple
                         fullWidth
-                        options={assignees || []}
-                        getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.email})`}
-                        value={assigneeEmails.map(email => (assignees && assignees.find(a => a.email === email)) || email)}
+                        options={[]}
+                        value={categories}
                         onChange={(event, newValue) => {
-                            const emails = newValue.map(val => typeof val === 'string' ? val : val.email);
-                            setAssigneeEmails(emails);
+                            setCategories(newValue);
                         }}
                         freeSolo
                         renderTags={(value, getTagProps) =>
-                            value.map((option, index) => (
-                                <Chip
-                                    label={typeof option === 'string' ? option : option.email}
-                                    {...getTagProps({ index })}
-                                />
-                            ))
+                            value.map((option, index) => {
+                                const { key, ...tagProps } = getTagProps({ index });
+                                return (
+                                    <Chip
+                                        key={key}
+                                        label={option}
+                                        {...tagProps}
+                                    />
+                                );
+                            })
                         }
+                        sx={{
+                            flexGrow: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            '& .MuiFormControl-root': {
+                                flexGrow: 1,
+                            },
+                            '& .MuiInputBase-root': {
+                                height: '100%',
+                                alignItems: 'flex-start',
+                                alignContent: 'flex-start',
+                            }
+                        }}
                         renderInput={(params) => (
                             <TextField
                                 {...params}
-                                label="Assignees"
-                                placeholder="Add assignee email"
+                                label="Categories"
+                                placeholder="Add category"
                             />
                         )}
                     />
+
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+                        <TextField
+                            fullWidth
+                            rows={10}
+                            multiline
+                            label="Solutions"
+                            value={suggestedSolutionsText}
+                            onChange={(e) => setSuggestedSolutionsText(e.target.value.slice(0, MAX_BODY))}
+                            placeholder="Proposed solutions..."
+                            sx={{
+                                flex: 1,
+                            }}
+                        />
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <TextField
+                                fullWidth
+                                label="Deadline"
+                                type="date"
+                                InputLabelProps={{ shrink: true }}
+                                value={deadline}
+                                onChange={(e) => setDeadline(e.target.value)}
+                            />
+
+                            <Autocomplete
+                                multiple
+                                fullWidth
+                                options={assignees || []}
+                                getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.email})`}
+                                value={assigneeEmails.map(email => (assignees && assignees.find(a => a.email === email)) || email)}
+                                onChange={(event, newValue) => {
+                                    const emails = newValue.map(val => typeof val === 'string' ? val : val.email);
+                                    setAssigneeEmails(emails);
+                                }}
+                                freeSolo
+                                renderTags={(value, getTagProps) =>
+                                    value.map((option, index) => {
+                                        const { key, ...tagProps } = getTagProps({ index });
+                                        return (
+                                            <Chip
+                                                key={key}
+                                                label={typeof option === 'string' ? option : option.email}
+                                                {...tagProps}
+                                            />
+                                        );
+                                    })
+                                }
+                                sx={{
+                                    flexGrow: 1,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    '& .MuiFormControl-root': {
+                                        flexGrow: 1,
+                                    },
+                                    '& .MuiInputBase-root': {
+                                        height: '100%',
+                                        alignItems: 'flex-start',
+                                        alignContent: 'flex-start',
+                                    }
+                                }}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="Assignees"
+                                        placeholder="Add assignee email"
+                                    />
+                                )}
+                            />
+                        </Box>
+                    </Box>
 
                     <Box>
                         <Typography variant="subtitle2" gutterBottom>Merging From ({mergingDraftTickets.length})</Typography>

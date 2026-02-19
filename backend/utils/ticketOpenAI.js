@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import 'dotenv/config';
 const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function draftTicketFromUserRequest(userRequestText) {
+export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {
     /*
     Returns:
     - {
@@ -14,6 +14,8 @@ export async function draftTicketFromUserRequest(userRequestText) {
     }
     - str: describing error if AI service fails.
     */
+
+    const contextInfo = assigneeList ? `Available assignees and their specializations:\n${assigneeList}` : "No specific assignees available.";
 
     const askOpenAI = async (systemPrompt, userPrompt, jsonMode = false) => {
         try {
@@ -37,48 +39,30 @@ export async function draftTicketFromUserRequest(userRequestText) {
         const [title, summary, solutions, categoriesRaw, assignee] = await Promise.all([
             // Title
             askOpenAI(
-                "Generate a short, concise title for this support ticket. Max 10 words. Do not use quotes.",
+                "Generate a title for this support ticket as short as possible.",
                 userRequestText
             ),
-            // Summary: the ai always try to max out 220 word lead to very long details
+            // Summary
             askOpenAI(
-                "Summarize the following user request in at most 220 words.",
+                "Summarize the following user request as short as possible.",
                 userRequestText
             ),
             // Solutions
             askOpenAI(
-                "Suggest potential solutions for this support request. Max 220 words.",
+                "Suggest potential solutions for this support request. as short as possible.",
                 userRequestText
             ),
-            // Categories (JSON)
+            // Categories
             askOpenAI(
-                "Categorize this request into a JSON object with a key 'categories' containing an array of 1-word strings (max 5). Example: { \"categories\": [\"Hardware\", \"Network\"] }",
-                userRequestText,
-                true // jsonMode checks for valid JSON object
+                `Pick the best keyword for this request. as short as possible. No introduction. Here is the available assignee. ${contextInfo}`,
+                userRequestText
             ),
             // Assignee
             askOpenAI(
-                "Suggest a single department or role (e.g., IT, HR, Billing, Technical Support) for this request. Return ONLY the name.",
+                `Pick the best assignee email for this request. as short as possible. No introduction. Consider the expertise available: ${contextInfo}. Return ONLY the email.`,
                 userRequestText
             )
         ]);
-
-        let parsedCategories = [];
-        try {
-            const parsed = JSON.parse(categoriesRaw);
-            if (parsed.categories && Array.isArray(parsed.categories)) {
-                parsedCategories = parsed.categories;
-            } else if (Array.isArray(parsed)) {
-                parsedCategories = parsed;
-            } else {
-                parsedCategories = ["General"];
-            }
-        } catch (e) {
-            console.error("Failed to parse categories:", categoriesRaw);
-            parsedCategories = ["Uncategorized"];
-        }
-
-        if (!Array.isArray(parsedCategories)) parsedCategories = ["Uncategorized"];
 
         // Post-processing limits
         const FIRST_CHARACTER = 0;
@@ -86,18 +70,22 @@ export async function draftTicketFromUserRequest(userRequestText) {
         const MAX_SUMMARY_CHARACTERS = 2048;
         const MAX_TITLE_CHARACTERS = 128;
         const MAX_SOLUTION_CHARACTERS = 2048;
+        const MAX_ASSIGNEE_CHARACTERS = 64;
 
         const cleanString = (str, maxLen) => {
             if (typeof str !== 'string') return "";
             return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
         };
 
+        // Process the raw category string directly
+        const cleanedCategory = cleanString(categoriesRaw, MAX_CATEGORY_CHARACTERS);
+
         return {
             title: cleanString(title, MAX_TITLE_CHARACTERS),
             summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
             suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: parsedCategories.map(c => cleanString(c, MAX_CATEGORY_CHARACTERS)).filter(c => c.length > 0),
-            suggestedAssignee: cleanString(assignee, MAX_CATEGORY_CHARACTERS)
+            categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"],
+            suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
         };
 
     } catch (error) {
@@ -109,25 +97,31 @@ export async function draftTicketFromUserRequest(userRequestText) {
 export async function findMergeRecommendations(drafts) {
     if (drafts.length < 2) return [];
 
-    const prompt = drafts.map(d => `ID ${d.id}: Title: ${d.title}. Summary: ${d.summary}`).join('\n\n');
+    const draftsText = drafts.map(d => `ID ${d.id}: Title: ${d.title}. Summary: ${d.summary}`).join('\n\n');
+    const systemInstruction = "Analyze the following support ticket drafts and identify groups of IDs that are highly similar and could be merged into a single ticket. Return only a JSON array of arrays, where each inner array contains the IDs of tickets that should be merged (e.g., [[1, 3], [4, 7, 8]]). If no similarities are found, return [].";
 
     try {
-        const response = await openAIClient.responses.create({
+        const response = await openAIClient.chat.completions.create({
             model: "gpt-3.5-turbo",
-            input: [
-                {
-                    role: "user",
-                    content: prompt
-                }
+            messages: [
+                { role: "system", content: systemInstruction },
+                { role: "user", content: `Drafts:\n${draftsText}` }
             ],
-            instructions: "Analyze the following support ticket drafts and identify groups of IDs that are highly similar and could be merged into a single ticket. Return only a JSON array of arrays, where each inner array contains the IDs of tickets that should be merged (e.g., [[1, 3], [4, 7, 8]]). If no similarities are found, return [].",
             stream: false,
         });
 
-        const groups = JSON.parse(response.choices[0].message.content);
-        return Array.isArray(groups) ? groups : [];
+        const content = response.choices[0].message.content;
+
+        // Parse the JSON output
+        const jsonStart = content.indexOf('[');
+        const jsonEnd = content.lastIndexOf(']') + 1;
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            const groups = JSON.parse(content.substring(jsonStart, jsonEnd));
+            return Array.isArray(groups) ? groups : [];
+        }
+        return [];
     } catch (error) {
-        console.error("Similarity analysis failed:", error);
+        console.error("Similarity analysis failed:", error.message);
         return [];
     }
 }

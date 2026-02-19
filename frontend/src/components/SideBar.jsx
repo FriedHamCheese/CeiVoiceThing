@@ -14,7 +14,7 @@ export default function SideBar({ toggleSidebar }) {
         <aside className="sidebar">
             <div className="sidebar-brand">
                 <img
-                    src="cei.png"
+                    src={`cei.png?v=${new Date().getTime()}`}
                     alt="logo"
                     onClick={toggleSidebar}
                     style={{ cursor: 'pointer' }}
@@ -89,6 +89,14 @@ export default function SideBar({ toggleSidebar }) {
                                 onClick={() => navigate('/admin/reports')}
                             >
                                 Admin Reports
+                            </button>
+                        )}
+                        {user.perm === 4 && (
+                            <button
+                                className={isActive('/admin/users')}
+                                onClick={() => navigate('/admin/users')}
+                            >
+                                User Management
                             </button>
                         )}
                         <button

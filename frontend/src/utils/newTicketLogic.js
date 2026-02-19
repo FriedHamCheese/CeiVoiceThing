@@ -27,7 +27,7 @@ export const useNewTicket = (userEmail) => {
         setStatus({ type: '', message: '' });
 
         try {
-            const response = await fetch(`${API_URL}/public/tickets/request`, {
+            const response = await fetch(`${API_URL}/tickets/request`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

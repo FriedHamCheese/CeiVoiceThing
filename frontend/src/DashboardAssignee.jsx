@@ -2,9 +2,11 @@ import React from 'react';
 import { NewTicketComponent } from './components/DashboardComponents.jsx';
 import DashboardTicketView from './components/DashboardTicketView.jsx';
 import {
-    Container, Typography, Box, Button, Stack, CircularProgress, Alert
+    Container, Typography, Box, Button, Stack, CircularProgress, Alert, IconButton
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PersonIcon from '@mui/icons-material/Person';
+import { Link } from 'react-router-dom';
 
 import { useDashboardTicketsSpecialist } from './utils/dashboardLogicSpecialist.js';
 
@@ -35,13 +37,23 @@ export default function SpecialistDashboard() {
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     Specialist Dashboard
                 </Typography>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    onClick={redirectToHomePage}
-                >
-                    Back to Home
-                </Button>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <Button
+                        component={Link}
+                        to="/assignee/profile"
+                        variant="outlined"
+                        startIcon={<PersonIcon />}
+                    >
+                        My Profile
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        startIcon={<ArrowBackIcon />}
+                        onClick={redirectToHomePage}
+                    >
+                        Back to Home
+                    </Button>
+                </Stack>
             </Box>
 
             {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}

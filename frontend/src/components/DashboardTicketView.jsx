@@ -31,14 +31,38 @@ export default function DashboardTicketView({
 
     const [localAssignees, setLocalAssignees] = useState([]);
     const [localCategories, setLocalCategories] = useState([]);
+    const [localStatus, setLocalStatus] = useState('');
+    const [localResolutionComment, setLocalResolutionComment] = useState('');
 
     // Sync local state when ticket changes
     useEffect(() => {
         if (viewingTicket) {
             setLocalAssignees(getAssigneeEmails(viewingTicket));
             setLocalCategories(getCategoriesArray(viewingTicket));
+            setLocalStatus(viewingTicket.status || '');
+            setLocalResolutionComment(viewingTicket.resolutionComment || '');
         }
-    }, [viewingTicket?.id, viewingTicket?.assignees, viewingTicket?.categories]);
+    }, [viewingTicket?.id, viewingTicket?.assignees, viewingTicket?.categories, viewingTicket?.status, viewingTicket?.resolutionComment]);
+
+    const handleStatusChange = (newStatus) => {
+        setLocalStatus(newStatus);
+        // If not Solved/Failed, we can auto-update if we want, or wait for manual save.
+        // For consistency with existing behavior, let's auto-update if NOT Solved/Failed.
+        if (newStatus !== 'Solved' && newStatus !== 'Failed') {
+            handleUpdateTicket(viewingTicket.id, { status: newStatus });
+        }
+    };
+
+    const submitResolution = () => {
+        if (!localResolutionComment.trim()) {
+            alert("Resolution comment is required for Solved or Failed status.");
+            return;
+        }
+        handleUpdateTicket(viewingTicket.id, {
+            status: localStatus,
+            resolutionComment: localResolutionComment
+        });
+    };
 
     if (!viewingTicket) return null;
 
@@ -235,6 +259,18 @@ export default function DashboardTicketView({
                                 </ListItem>
                             ))}
                         </List>
+
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="subtitle1" fontWeight="bold">Stakeholders (Followers)</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                            {viewingTicket.followers && viewingTicket.followers.length > 0 ? (
+                                viewingTicket.followers.map(email => (
+                                    <Chip key={email} label={email} size="small" variant="outlined" color="primary" />
+                                ))
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">No followers</Typography>
+                            )}
+                        </Box>
                     </Stack>
                 ) : (
                     /* ACTIVE TICKET MODE */
@@ -350,10 +386,10 @@ export default function DashboardTicketView({
                                 <FormControl fullWidth>
                                     <InputLabel>Status</InputLabel>
                                     <Select
-                                        value={viewingTicket.status || ''}
+                                        value={localStatus}
                                         label="Status"
                                         disabled={!isAdmin && !localAssignees.includes(user?.email)}
-                                        onChange={(e) => handleUpdateTicket(viewingTicket.id, { status: e.target.value })}
+                                        onChange={(e) => handleStatusChange(e.target.value)}
                                     >
                                         <MenuItem value="New">New</MenuItem>
                                         <MenuItem value="Assigned">Assigned</MenuItem>
@@ -362,6 +398,40 @@ export default function DashboardTicketView({
                                         <MenuItem value="Failed">Failed</MenuItem>
                                     </Select>
                                 </FormControl>
+
+                                {(localStatus === 'Solved' || localStatus === 'Failed') && (
+                                    <Box sx={{ mt: 1, p: 2, border: '1px solid', borderColor: 'warning.light', borderRadius: 1, bgcolor: 'warning.stack' }}>
+                                        <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                                            Resolution Required
+                                        </Typography>
+                                        <TextField
+                                            fullWidth
+                                            multiline
+                                            rows={3}
+                                            label="Resolution Comment"
+                                            placeholder="Explain how the issue was resolved or why it failed..."
+                                            value={localResolutionComment}
+                                            onChange={(e) => setLocalResolutionComment(e.target.value)}
+                                            sx={{ mb: 1 }}
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            fullWidth
+                                            onClick={submitResolution}
+                                            disabled={!localResolutionComment.trim() || (localStatus === viewingTicket.status && localResolutionComment === viewingTicket.resolutionComment)}
+                                        >
+                                            Save Resolution & Update Status
+                                        </Button>
+                                    </Box>
+                                )}
+
+                                {viewingTicket.resolutionComment && (localStatus !== 'Solved' && localStatus !== 'Failed') && (
+                                    <Box sx={{ mt: 1, p: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: '#f9f9f9' }}>
+                                        <Typography variant="caption" color="text.secondary">Previous Resolution:</Typography>
+                                        <Typography variant="body2">{viewingTicket.resolutionComment}</Typography>
+                                    </Box>
+                                )}
 
                                 <TextField
                                     fullWidth
@@ -373,7 +443,7 @@ export default function DashboardTicketView({
                                     onChange={(e) => handleUpdateTicket(viewingTicket.id, { deadline: e.target.value })}
                                 />
 
-                                {isAdmin ? (
+                                {isAdmin || localAssignees.includes(user?.email) ? (
                                     <Autocomplete
                                         multiple
                                         fullWidth
@@ -441,22 +511,32 @@ export default function DashboardTicketView({
                         </Box>
 
                         <Divider sx={{ my: 1 }} />
+                        <Typography variant="subtitle1" fontWeight="bold">Stakeholders (Followers)</Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                            {viewingTicket.followers && viewingTicket.followers.length > 0 ? (
+                                viewingTicket.followers.map(email => (
+                                    <Chip key={email} label={email} size="small" variant="outlined" color="primary" />
+                                ))
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">No followers</Typography>
+                            )}
+                        </Box>
+
+                        <Divider sx={{ my: 1 }} />
                         <Typography variant="h6" gutterBottom>Internal Comments</Typography>
-                        <List sx={{ mb: 2, maxHeight: 200, overflow: 'auto', bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                            {comments.length > 0 ? comments.map(c => (
-                                <ListItem key={c.id} alignItems="flex-start" divider>
-                                    <ListItemText
-                                        primary={
-                                            <Box display="flex" alignItems="center" gap={1}>
-                                                <Typography variant="body2">{c.text}</Typography>
-                                                {c.isInternal ? <Chip label="INTERNAL" size="small" color="warning" variant="outlined" /> : null}
-                                            </Box>
-                                        }
-                                        secondary={`${c.authorEmail} • ${new Date(c.createdAt).toLocaleString()}`}
-                                    />
-                                </ListItem>
-                            )) : <Box p={2}><Typography variant="body2" color="text.secondary">No comments yet.</Typography></Box>}
-                        </List>
+                        {comments.length > 0 ? comments.map(c => (
+                            <ListItem key={c.id} alignItems="flex-start" divider>
+                                <ListItemText
+                                    primary={
+                                        <Box display="flex" alignItems="center" gap={1}>
+                                            <Typography variant="body2">{c.text}</Typography>
+                                            {c.isInternal ? <Chip label="INTERNAL" size="small" color="warning" variant="outlined" /> : null}
+                                        </Box>
+                                    }
+                                    secondary={`${c.authorEmail} • ${new Date(c.createdAt).toLocaleString()}`}
+                                />
+                            </ListItem>
+                        )) : null}
                         <Box display="flex" flexDirection="column" gap={1}>
                             <Box display="flex" gap={1}>
                                 <TextField
@@ -486,7 +566,7 @@ export default function DashboardTicketView({
                                 <ListItem key={h.id} dense divider>
                                     <ListItemText
                                         primary={h.action}
-                                        secondary={`${h.details} • By ${h.performedBy} on ${new Date(h.timestamp).toLocaleString()}`}
+                                        secondary={`${h.details} • By ${h.performer} on ${new Date(h.timestamp).toLocaleString()}`}
                                     />
                                 </ListItem>
                             )) : <Box p={2}><Typography variant="body2" color="text.secondary">No activity logged.</Typography></Box>}

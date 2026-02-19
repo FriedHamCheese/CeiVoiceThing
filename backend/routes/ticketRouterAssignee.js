@@ -15,20 +15,42 @@ const logHistory = async (connection, ticketID, action, performedBy, details) =>
 // Fetch Active Tickets for Specialists
 // Mounted at /specialist/tickets
 router.get('/', async (request, response) => {
+    const userEmail = request.user.email;
+    const includeResolved = request.query.includeResolved === 'true';
+
     try {
-        const [rows] = await mysqlConnection.execute(`
-            SELECT t.*, 
+        let query = `
+            SELECT t.id, t.summary, t.solution, t.title, t.status, t.deadline, t.createdAt, t.updatedAt,
             (SELECT COUNT(*) FROM TicketUserRequest WHERE ticketID = t.id) as requestCount,
-            ta.assigneeEmail
+            GROUP_CONCAT(DISTINCT ta.assigneeEmail SEPARATOR ', ') AS assignees,
+            GROUP_CONCAT(DISTINCT tc.category SEPARATOR ', ') AS categories,
+            GROUP_CONCAT(DISTINCT tf.userEmail SEPARATOR ', ') AS followers
             FROM Ticket t
-            LEFT JOIN TicketAssignee ta ON t.id = ta.ticketID
-        `);
-        // Add 'type' for compatibility with frontend if it expects 'draft' or 'new'
-        const tickets = rows.map(t => ({
+            JOIN TicketAssignee ta ON t.id = ta.ticketID
+            LEFT JOIN TicketCategory tc ON t.id = tc.ticketID
+            LEFT JOIN TicketFollower tf ON t.id = tf.ticketID
+            WHERE ta.assigneeEmail = ?
+        `;
+
+        const params = [userEmail];
+
+        if (!includeResolved) {
+            query += " AND t.status NOT IN ('Solved', 'Failed')";
+        }
+
+        query += " GROUP BY t.id ORDER BY t.createdAt DESC";
+
+        const [rows] = await mysqlConnection.execute(query, params);
+
+        // Standardize output format
+        const formattedTickets = rows.map(t => ({
             ...t,
-            type: t.status === 'draft' ? 'draft' : 'new'
+            assignees: t.assignees ? t.assignees.split(', ') : [],
+            categories: t.categories ? t.categories.split(', ') : [],
+            followers: t.followers ? t.followers.split(', ') : []
         }));
-        response.status(200).json({ tickets });
+
+        response.status(200).json({ tickets: formattedTickets });
     } catch (error) {
         console.error(error);
         response.status(500).json({ message: "Failed to fetch tickets." });
@@ -62,19 +84,61 @@ router.patch('/:id', async (request, response) => {
             return response.status(403).json({ message: "You are not authorized to update this ticket." });
         }
 
-        // Only proceed if status is provided and different from the current status
-        if (status !== undefined && status !== old.status) {
-            // 1. Update the Ticket table
-            await connection.execute("UPDATE Ticket SET status = ? WHERE id = ?", [status, ticketID]);
+        // Only proceed if status or assignees are provided and different from the current
+        const { assigneeEmail } = request.body;
 
-            // 2. Log the history
-            await logHistory(
-                connection,
-                ticketID,
-                "Update",
-                adminEmail,
-                `Status changed from ${old.status} to ${status}`
-            );
+        if ((status !== undefined && status !== old.status) || assigneeEmail !== undefined) {
+            const { resolutionComment } = request.body;
+
+            // Validation: Require resolution comment for Solved or Failed
+            if (status !== undefined && (status === 'Solved' || status === 'Failed') && (!resolutionComment || resolutionComment.trim() === "")) {
+                return response.status(400).json({ error: `Resolution comment is required when setting status to ${status}.` });
+            }
+
+            // 1. Update status and resolution if provided
+            if (status !== undefined || resolutionComment !== undefined) {
+                const updateFields = [];
+                const updateValues = [];
+                if (status !== undefined) {
+                    updateFields.push("status = ?");
+                    updateValues.push(status);
+                }
+                if (resolutionComment !== undefined) {
+                    updateFields.push("resolutionComment = ?");
+                    updateValues.push(resolutionComment);
+                }
+                updateValues.push(ticketID);
+                await connection.execute(`UPDATE Ticket SET ${updateFields.join(", ")} WHERE id = ?`, updateValues);
+
+                if (status !== undefined && status !== old.status) {
+                    let historyDetails = `Status changed from ${old.status} to ${status}`;
+                    if (resolutionComment) {
+                        historyDetails += `. Resolution: ${resolutionComment}`;
+                    }
+                    await logHistory(connection, ticketID, "Update", adminEmail, historyDetails);
+                }
+            }
+
+            // 2. Update assignees if provided
+            if (assigneeEmail !== undefined) {
+                const newAssignees = Array.isArray(assigneeEmail) ? assigneeEmail : [assigneeEmail];
+                const [oldAssigneeRows] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
+                const oldAssignees = oldAssigneeRows.map(r => r.assigneeEmail);
+
+                // Check for differences
+                const added = newAssignees.filter(email => !oldAssignees.includes(email));
+                const removed = oldAssignees.filter(email => !newAssignees.includes(email));
+
+                if (added.length > 0 || removed.length > 0) {
+                    await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
+                    for (const email of newAssignees) {
+                        await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [ticketID, email]);
+                    }
+
+                    const historyDetails = `Assignees changed. Added: [${added.join(', ') || 'none'}], Removed: [${removed.join(', ') || 'none'}]`;
+                    await logHistory(connection, ticketID, "Reassign", adminEmail, historyDetails);
+                }
+            }
         }
 
         await connection.commit();
@@ -89,6 +153,7 @@ router.patch('/:id', async (request, response) => {
     }
 });
 
+
 router.get('/:id/history', async (request, response) => {
     try {
         const [rows] = await mysqlConnection.execute("SELECT * FROM TicketHistory WHERE ticketID = ? ORDER BY timestamp DESC", [request.params.id]);
@@ -97,4 +162,5 @@ router.get('/:id/history', async (request, response) => {
         response.status(500).json({ error: "Failed to fetch history" });
     }
 });
+
 export default router;

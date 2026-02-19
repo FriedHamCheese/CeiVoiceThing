@@ -99,6 +99,7 @@ router.get('/track/:token', async (request, response) => {
             status: ticket.status || "New",
             title: ticket.title,
             details: ticket.requestContents,
+            resolutionComment: ticket.resolutionComment,
             message: "Your request has been accepted and is currently in our active workflow.",
             comments: comments,
             assignees: assignees

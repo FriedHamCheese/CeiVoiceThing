@@ -15,6 +15,8 @@ import ticketRouterAdminAssignee from './routes/ticketRouterAdminAssignee.js';
 import authRouter from './routes/authRouter.js';
 import reportRouter from './routes/reportRouterSpecialist.js';
 import reportRouterAdmin from './routes/reportRouterAdmin.js';
+import assigneeRouter from './routes/assigneeRouter.js';
+import adminRouter from './routes/adminRouter.js';
 import configurePassport from './utils/passport.js';
 
 //Add isAssignee to prepare for renaming.
@@ -62,14 +64,15 @@ app.use('/tickets', ticketRouter);
 app.use('/public/tickets', ticketRouterPublic);
 
 //Assignee
-app.use('/assignee/tickets', isAssignee, ticketRouterAdminAssignee);
 app.use('/assignee/reports', isAssignee, reportRouter);
 app.use('/assignee/tickets', isAssignee, ticketRouterAssignee);
+app.use('/assignee', isAssignee, assigneeRouter);
 
 //Admin
 app.use('/admin/tickets', isAdmin, ticketRouterAdmin);
 app.use('/admin/tickets', isAdmin, ticketRouterAdminAssignee);
 app.use('/admin/reports', isAdmin, reportRouterAdmin);
+app.use('/admin', isAdmin, adminRouter);
 
 
 app.listen(PORT, () => {
