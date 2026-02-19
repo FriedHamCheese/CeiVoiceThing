@@ -5,6 +5,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 START TRANSACTION;
 
 -- DROP ALL TABLES (REVERSE FK ORDER)
+DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS TicketUserRequest;
 DROP TABLE IF EXISTS TicketCategory;
 DROP TABLE IF EXISTS TicketFollower;
@@ -13,8 +14,8 @@ DROP TABLE IF EXISTS TicketComments;
 DROP TABLE IF EXISTS TicketAssignee;
 DROP TABLE IF EXISTS Ticket;
 
-DROP TABLE IF EXISTS SpecialistScope;
-DROP TABLE IF EXISTS SpecialistProfile;
+DROP TABLE IF EXISTS AssigneeScope;
+DROP TABLE IF EXISTS AssigneeProfile;
 
 DROP TABLE IF EXISTS DraftTicketCategory;
 DROP TABLE IF EXISTS DraftTicketAssignee;
@@ -25,6 +26,12 @@ DROP TABLE IF EXISTS UserRequest;
 DROP TABLE IF EXISTS Users;
 
 -- CREATE TABLES
+
+CREATE TABLE sessions(
+	session_id VARCHAR(128) PRIMARY KEY,
+	expires int unsigned,
+	data mediumtext
+);	
 
 CREATE TABLE Users(
 	email VARCHAR(64) PRIMARY KEY,
@@ -43,13 +50,13 @@ CREATE TABLE UserRequest(
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE SpecialistProfile(
+CREATE TABLE AssigneeProfile(
 	userEmail VARCHAR(64) PRIMARY KEY,
 	contact VARCHAR(64),
 	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE SpecialistScope(
+CREATE TABLE AssigneeScope(
 	userEmail VARCHAR(64),
 	scopeTag VARCHAR(64),
 	PRIMARY KEY (userEmail, scopeTag),
@@ -58,8 +65,8 @@ CREATE TABLE SpecialistScope(
 
 CREATE TABLE Ticket(
 	id INT AUTO_INCREMENT PRIMARY KEY,
-	requestContents VARCHAR(2048),
-	suggestedSolutions VARCHAR(2048),
+	summary VARCHAR(2048),
+	solution VARCHAR(2048),
 	title VARCHAR(256),
 	status VARCHAR(32) DEFAULT 'draft',
 	deadline DATETIME,
@@ -90,7 +97,7 @@ CREATE TABLE TicketHistory(
 	id INT AUTO_INCREMENT PRIMARY KEY,
 	ticketID INT,
 	action VARCHAR(128),
-	performedBy VARCHAR(64),
+	performer VARCHAR(64),
 	details VARCHAR(2048),
 	timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
