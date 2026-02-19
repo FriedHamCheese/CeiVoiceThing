@@ -73,7 +73,7 @@ export default function SpecialistDashboard() {
             <DashboardTicketView
                 viewingTicket={viewingTicket}
                 setViewingTicket={setViewingTicket}
-                specialists={specialists}
+                assignees={specialists}
                 isAdmin={false}
                 user={user}
                 handleUpdateTicket={handleUpdateTicket}

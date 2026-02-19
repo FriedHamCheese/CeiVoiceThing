@@ -16,7 +16,7 @@ export default function AdminDashboard() {
         showMergeWindow, setShowMergeWindow,
         viewingTicket, setViewingTicket,
         recommendations,
-        specialists,
+        assignees,
         comments, history, linkedRequests,
         newComment, setNewComment,
         isCommentInternal, setIsCommentInternal,
@@ -31,8 +31,8 @@ export default function AdminDashboard() {
         window.location.href = '/';
     }
 
-    const draftTickets = tickets.filter(t => t.type === 'draft');
-    const otherTickets = tickets.filter(t => t.type !== 'draft');
+    const draftTickets = tickets.filter(t => t.status === 'draft');
+    const otherTickets = tickets.filter(t => t.status !== 'draft');
 
     return (
         <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
@@ -127,6 +127,7 @@ export default function AdminDashboard() {
                     selectedDraftTickets={showMergeWindow}
                     refreshData={fetchAllTickets}
                     clearSelection={() => setSelectedDraftIds(new Set())}
+                    assignees={assignees}
                 />
             )}
 
@@ -134,7 +135,7 @@ export default function AdminDashboard() {
             <DashboardTicketView
                 viewingTicket={viewingTicket}
                 setViewingTicket={setViewingTicket}
-                specialists={specialists}
+                assignees={assignees}
                 isAdmin={true}
                 handleUpdateDraft={handleUpdateDraft}
                 handleUpdateTicket={handleUpdateTicket}

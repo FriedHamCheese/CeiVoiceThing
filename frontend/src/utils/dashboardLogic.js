@@ -12,7 +12,7 @@ export const useDashboardTickets = () => {
     const [recommendations, setRecommendations] = useState([]);
     const [isRecommending, setIsRecommending] = useState(false);
 
-    const [specialists, setSpecialists] = useState([]);
+    const [assignees, setAssignees] = useState([]);
     const [comments, setComments] = useState([]);
     const [history, setHistory] = useState([]);
     const [newComment, setNewComment] = useState('');
@@ -27,7 +27,7 @@ export const useDashboardTickets = () => {
         if (!user) return;
 
         try {
-            const endpoint = user.perm === 4 ? `${API_URL}/admin/tickets` : `${API_URL}/specialist/tickets`;
+            const endpoint = user.perm === 4 ? `${API_URL}/admin/tickets` : `${API_URL}/assignee/tickets`;
             const response = await fetch(endpoint, {
                 credentials: 'include' // Ensure cookies are sent for auth check
             });
@@ -60,11 +60,11 @@ export const useDashboardTickets = () => {
         }
     }, [API_URL]);
 
-    const fetchSpecialists = useCallback(async () => {
+    const fetchAssignees = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/tickets/specialists`, { credentials: 'include' });
-            if (response.ok) setSpecialists(await response.json());
-        } catch (err) { console.error("Failed to fetch specialists", err); }
+            const response = await fetch(`${API_URL}/admin/tickets/assignees`, { credentials: 'include' });
+            if (response.ok) setAssignees(await response.json());
+        } catch (err) { console.error("Failed to fetch assignees", err); }
     }, [API_URL]);
 
     useEffect(() => {
@@ -75,8 +75,8 @@ export const useDashboardTickets = () => {
         if (user.perm >= 4) {
             fetchRecommendations();
         }
-        fetchSpecialists();
-    }, [user, fetchAllTickets, fetchRecommendations, fetchSpecialists]);
+        fetchAssignees();
+    }, [user, fetchAllTickets, fetchRecommendations, fetchAssignees]);
 
     // Sub-fetchers
     const fetchComments = async (id) => {
@@ -111,8 +111,8 @@ export const useDashboardTickets = () => {
     };
 
     useEffect(() => {
-        if (viewingTicket) {
-            if (viewingTicket.type === 'draft') {
+        if (viewingTicket?.id) {
+            if (viewingTicket.status === 'draft') {
                 fetchLinkedRequests(viewingTicket.id);
             } else {
                 fetchComments(viewingTicket.id);
@@ -120,7 +120,7 @@ export const useDashboardTickets = () => {
                 fetchFollowStatus(viewingTicket.id);
             }
         }
-    }, [viewingTicket]);
+    }, [viewingTicket?.id, viewingTicket?.status]);
 
     // Actions
     const handleUpdateDraft = async (id, updates) => {
@@ -182,7 +182,6 @@ export const useDashboardTickets = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     text: newComment,
-                    authorEmail: user?.email,
                     isInternal: isCommentInternal
                 }),
                 credentials: 'include'
@@ -197,10 +196,10 @@ export const useDashboardTickets = () => {
     const promoteTicket = async () => {
         if (!viewingTicket) return;
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/toNewTicket`, {
-                method: 'POST',
+            const response = await fetch(`${API_URL}/admin/tickets/${viewingTicket.id}`, {
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticketID: viewingTicket.id }),
+                body: JSON.stringify({ status: 'New' }),
                 credentials: 'include'
             });
             if (response.ok) {
@@ -236,7 +235,7 @@ export const useDashboardTickets = () => {
         showMergeWindow, setShowMergeWindow,
         viewingTicket, setViewingTicket,
         recommendations,
-        specialists,
+        assignees,
         comments, history, linkedRequests,
         newComment, setNewComment,
         isUpdating,

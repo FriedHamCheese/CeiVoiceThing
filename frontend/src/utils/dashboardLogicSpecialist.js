@@ -21,7 +21,7 @@ export const useDashboardTicketsSpecialist = () => {
         if (!user) return;
 
         try {
-            const endpoint = `${API_URL}/specialist/tickets`;
+            const endpoint = `${API_URL}/assignee/tickets`;
             const response = await fetch(endpoint, {
                 credentials: 'include'
             });
@@ -41,7 +41,7 @@ export const useDashboardTicketsSpecialist = () => {
 
     const fetchSpecialists = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/tickets/specialists`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/tickets/assignees`, { credentials: 'include' });
             if (response.ok) setSpecialists(await response.json());
         } catch (err) { console.error("Failed to fetch specialists", err); }
     }, [API_URL]);
@@ -68,7 +68,7 @@ export const useDashboardTicketsSpecialist = () => {
 
     const fetchHistory = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/specialist/tickets/${id}/history`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/assignee/tickets/${id}/history`, { credentials: 'include' });
             if (response.ok) setHistory(await response.json());
         } catch (err) { console.error("Failed to fetch history", err); }
     };
@@ -94,7 +94,7 @@ export const useDashboardTicketsSpecialist = () => {
     const handleUpdateTicket = async (id, updates) => {
         setIsUpdating(true);
         try {
-            const response = await fetch(`${API_URL}/specialist/tickets/${id}`, {
+            const response = await fetch(`${API_URL}/assignee/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates),

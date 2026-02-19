@@ -3,7 +3,7 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions,
     Button, TextField, Stack, Chip, Typography, Box,
     Accordion, AccordionSummary, AccordionDetails,
-    Alert
+    Alert, Autocomplete
 } from '@mui/material';
 
 // Construct API URL
@@ -47,14 +47,14 @@ function DraftTicketComponent({ draftTicket, removeSelf }) {
     );
 }
 
-export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData, clearSelection }) {
+export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData, clearSelection, assignees }) {
     const [contentText, setContentText] = useState("");
     const [suggestedSolutionsText, setSuggestedSolutionsText] = useState("");
     const [titleText, setTitleText] = useState("");
     const [categories, setCategories] = useState([]);
     const [mergingDraftTickets, setMergingDraftTickets] = useState(selectedDraftTickets || []);
     const [deadline, setDeadline] = useState("");
-    const [assigneeEmail, setAssigneeEmail] = useState("");
+    const [assigneeEmails, setAssigneeEmails] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
 
     const MAX_TITLE = 128;
@@ -69,7 +69,12 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
             setSuggestedSolutionsText(primary.suggestedSolutions || "");
             setCategories(primary.categories || []);
             setDeadline(primary.deadline ? primary.deadline.split('T')[0] : "");
-            setAssigneeEmail(primary.assigneeEmail || "");
+
+            // Handle multiple assignees from primary if possible
+            const initialEmails = primary.assignees ?
+                (Array.isArray(primary.assignees) ? primary.assignees : primary.assignees.split(',').map(s => s.trim())) :
+                [];
+            setAssigneeEmails(initialEmails);
             setMergingDraftTickets(selectedDraftTickets);
         }
     }, [selectedDraftTickets]);
@@ -87,7 +92,7 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
                     categories: categories,
                     suggestedSolutions: suggestedSolutionsText,
                     deadline: deadline,
-                    assigneeEmail: assigneeEmail
+                    assigneeEmails: assigneeEmails
                 }),
                 credentials: 'include'
             });
@@ -179,6 +184,34 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
                         value={suggestedSolutionsText}
                         onChange={e => setSuggestedSolutionsText(e.target.value.slice(0, MAX_BODY))}
                         placeholder="Proposed solutions..."
+                    />
+
+                    <Autocomplete
+                        multiple
+                        fullWidth
+                        options={assignees || []}
+                        getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.email})`}
+                        value={assigneeEmails.map(email => (assignees && assignees.find(a => a.email === email)) || email)}
+                        onChange={(event, newValue) => {
+                            const emails = newValue.map(val => typeof val === 'string' ? val : val.email);
+                            setAssigneeEmails(emails);
+                        }}
+                        freeSolo
+                        renderTags={(value, getTagProps) =>
+                            value.map((option, index) => (
+                                <Chip
+                                    label={typeof option === 'string' ? option : option.email}
+                                    {...getTagProps({ index })}
+                                />
+                            ))
+                        }
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Assignees"
+                                placeholder="Add assignee email"
+                            />
+                        )}
                     />
 
                     <Box>

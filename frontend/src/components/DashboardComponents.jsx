@@ -12,13 +12,17 @@ const API_URL = `http://${API_HOST}:${API_PORT}`;
  * Service function to handle the API request.
  * Decoupling this makes it easier to test and reuse.
  */
-async function promoteTicketToNew(ticketID) {
-    const url = `${API_URL}/admin/tickets/toNewTicket`;
+async function promoteTicketToNew(ticketID, userEmail) {
+    const url = `${API_URL}/admin/tickets/${ticketID}`;
 
     const response = await fetch(url, {
-        method: 'POST',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketID }),
+        body: JSON.stringify({ 
+            ticketID: ticketID,
+            adminEmail: userEmail,
+            status: 'New'
+        }),
         credentials: 'include',
     });
 

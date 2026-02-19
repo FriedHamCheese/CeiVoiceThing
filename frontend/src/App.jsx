@@ -3,7 +3,7 @@ import Home from './HomePage.jsx';
 import Login from './Login.jsx';
 import Register from './Register.jsx';
 import NewTicket from './NewTicket.jsx';
-import SpecialistDashboard from './DashboardSpecialist.jsx';
+import AssigneeDashboard from './DashboardAssignee.jsx';
 import AdminDashboard from './DashboardAdmin.jsx';
 import ReportingDashboard from './Report.jsx';
 import TrackTicket from './Track.jsx';
@@ -30,7 +30,7 @@ export default function App() {
 						</Route>
 
 						<Route element={<ProtectedRoute minRole={2} />}>
-							<Route path="/dashboard" element={<SpecialistDashboard />} />
+							<Route path="/dashboard" element={<AssigneeDashboard />} />
 							<Route path="/reports" element={<ReportingDashboard mode="assignee" />} />
 						</Route>
 
