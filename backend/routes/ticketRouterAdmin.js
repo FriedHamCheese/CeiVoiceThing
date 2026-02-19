@@ -249,7 +249,7 @@ router.post("/merge", async (request, response) => {
 
         // 1. Create Merged Ticket
         const [inserted] = await connection.execute(
-            "INSERT INTO Ticket (title, requestContents, suggestedSolutions, deadline, status) VALUES (?, ?, ?, ?, 'draft')",
+            "INSERT INTO Ticket (title, summary, solution, deadline, status) VALUES (?, ?, ?, ?, 'draft')",
             [title.trim(), summary.trim(), suggestedSolutions.trim(), deadline || null]
         );
         const mergedID = inserted.insertId;
