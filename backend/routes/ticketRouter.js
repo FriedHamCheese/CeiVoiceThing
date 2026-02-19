@@ -1,7 +1,11 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
-import { sendCommentNotificationEmail } from '../utils/email.js';
+import { v4 as uuidv4 } from 'uuid';
 import { isAuthenticated } from '../middleware/authMiddleware.js';
+import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
+import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
+import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
+import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -53,18 +57,28 @@ router.post('/request', isAuthenticated, async (request, response) => {
         const insertedUserRequestID = userRequestRes.insertId;
 
         // 2. Get AI Suggestions
+        const [assigneeRows] = await connection.execute(`
+            SELECT u.email, GROUP_CONCAT(ss.scopeTag) as scopes
+            FROM Users u
+            LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
+            WHERE u.perm = 2
+            GROUP BY u.email
+        `);
+        // Format as list of strings "email: [tag1, tag2]"
+        const assigneeList = assigneeRows.map(row => `${row.email}: [${row.scopes || ''}]`).join('\n');
+
         let draftTicketSuggestions;
 
         switch (process.env.LLM_PROVIDER) {
             case 'OPENAI':
-                draftTicketSuggestions = await openai(requestTextForInsertion);
+                draftTicketSuggestions = await openai(requestTextForInsertion, assigneeList);
                 break;
             case 'ORACLE':
-                draftTicketSuggestions = await oracle(requestTextForInsertion);
+                draftTicketSuggestions = await oracle(requestTextForInsertion, assigneeList);
                 break;
             case 'OLLAMA':
             default:
-                draftTicketSuggestions = await ollama(requestTextForInsertion);
+                draftTicketSuggestions = await ollama(requestTextForInsertion, assigneeList);
                 break;
         }
 
@@ -92,6 +106,17 @@ router.post('/request', isAuthenticated, async (request, response) => {
                 [insertedTicketID, category]
             );
         }
+        // 5. Create Follower link
+        await connection.execute(
+            "INSERT INTO TicketFollower (ticketID, userEmail) VALUES (?, ?)",
+            [insertedTicketID, emailForInsertion]
+        );
+
+        // 6. Create Assignee link
+        await connection.execute(
+            "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+            [insertedTicketID, draftTicketSuggestions.suggestedAssignee]
+        );
 
         await connection.commit();
 
@@ -143,7 +168,7 @@ router.get('/:id/comments', isAuthenticated, async (request, response) => {
         const params = [ticketID];
 
         // If user is basic (perm 1), do NOT show internal comments
-        if (userPerm < 2) {
+        if (userPerm == 1) {
             query += "AND isInternal = FALSE ";
         }
 
