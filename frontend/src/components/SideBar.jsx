@@ -72,7 +72,7 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/dashboard')}
                                 onClick={() => navigate('/dashboard')}
                             >
-                                Specialist Dashboard
+                                Assignee Dashboard
                             </button>
                         )}
                         {user.perm === 2 && (
@@ -80,7 +80,7 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/reports')}
                                 onClick={() => navigate('/reports')}
                             >
-                                Specialist Reports
+                                Assignee Reports
                             </button>
                         )}
                         {user.perm === 4 && (
