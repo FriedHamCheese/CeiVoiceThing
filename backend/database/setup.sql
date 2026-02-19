@@ -106,9 +106,7 @@ CREATE TABLE TicketHistory(
 CREATE TABLE TicketFollower(
 	ticketID INT,
 	userEmail VARCHAR(64),
-	PRIMARY KEY (ticketID, userEmail),
-	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
-	FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
+	PRIMARY KEY (ticketID, userEmail)
 );
 
 CREATE TABLE TicketCategory(
