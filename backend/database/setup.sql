@@ -131,6 +131,15 @@ CREATE TABLE Category(
 );
 
 INSERT INTO Category (name) VALUES ('Hardware'), ('Software'), ('Network'), ('Security'), ('Other');
+INSERT INTO Users (email, name, password_hash, perm) VALUES 
+('admin@example.com', 'Admin User', '$2b$10$example_hash_here', 3),
+('user@example.com', 'Regular User', '$2b$10$example_hash_here', 1),
+('specialist1@example.com', 'Assignee 1', '$2b$10$example_hash_here', 2),
+('specialist2@example.com', 'Assignee 2', '$2b$10$example_hash_here', 2),
+('specialist3@example.com', 'Assignee 3', '$2b$10$example_hash_here', 2),
+('specialist4@example.com', 'Assignee 4', '$2b$10$example_hash_here', 2),
+('specialist5@example.com', 'Assignee 5', '$2b$10$example_hash_here', 2),
+('specialist6@example.com', 'Assignee 6', '$2b$10$example_hash_here', 2);
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
