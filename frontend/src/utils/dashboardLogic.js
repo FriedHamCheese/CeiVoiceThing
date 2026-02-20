@@ -13,6 +13,7 @@ export const useDashboardTickets = () => {
     const [isRecommending, setIsRecommending] = useState(false);
 
     const [assignees, setAssignees] = useState([]);
+    const [categories, setCategories] = useState([]);
     const [comments, setComments] = useState([]);
     const [history, setHistory] = useState([]);
     const [newComment, setNewComment] = useState('');
@@ -67,6 +68,20 @@ export const useDashboardTickets = () => {
         } catch (err) { console.error("Failed to fetch assignees", err); }
     }, [API_URL]);
 
+    const fetchCategories = useCallback(async () => {
+        try {
+            const response = await fetch(`${API_URL}/admin/tickets/categories`, { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                setCategories(data);
+            } else {
+                // Not found on admin base path, try common base path
+                const fallbackResponse = await fetch(`${API_URL}/tickets/categories`, { credentials: 'include' });
+                if (fallbackResponse.ok) setCategories(await fallbackResponse.json());
+            }
+        } catch (err) { console.error("Failed to fetch categories", err); }
+    }, [API_URL]);
+
     useEffect(() => {
         if (!user || hasFetched.current) return;
         hasFetched.current = true;
@@ -76,7 +91,8 @@ export const useDashboardTickets = () => {
             fetchRecommendations();
         }
         fetchAssignees();
-    }, [user, fetchAllTickets, fetchRecommendations, fetchAssignees]);
+        fetchCategories();
+    }, [user, fetchAllTickets, fetchRecommendations, fetchAssignees, fetchCategories]);
 
     // Sub-fetchers
     const fetchComments = async (id) => {
@@ -235,7 +251,7 @@ export const useDashboardTickets = () => {
         showMergeWindow, setShowMergeWindow,
         viewingTicket, setViewingTicket,
         recommendations,
-        assignees,
+        assignees, categories,
         comments, history, linkedRequests,
         newComment, setNewComment,
         isUpdating,

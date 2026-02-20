@@ -1,129 +1,151 @@
-import React, { useState } from 'react';
-import {
-    Box,
-    Typography,
-    Paper,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    Select,
-    MenuItem,
-    TextField,
-    CircularProgress,
-    Alert,
-    Chip,
-    InputAdornment
-} from '@mui/material';
-import SearchIcon from '@mui/icons-material/Search';
-import { useUserManagement } from './utils/userManagementLogic';
+import {UserElement, ScopeTagEditWindow} from './components/UserManagementComponents.jsx'
 
-const ROLE_MAP = {
-    1: { label: 'User', color: 'default' },
-    2: { label: 'Specialist', color: 'primary' },
-    4: { label: 'Admin', color: 'secondary' }
-};
+import {Box, Typography} from '@mui/material';
+import {useState, useEffect} from 'react';
+import { useAuth } from './context/AuthContext';
 
-export default function UserManagement() {
-    const { users, loading, error, updateUserRole } = useUserManagement();
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const filteredUsers = users.filter(user =>
-        user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (user.name && user.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-
-    const handleRoleChange = async (email, newPerm) => {
-        await updateUserRole(email, parseInt(newPerm));
-    };
-
-    if (loading && users.length === 0) {
-        return (
-            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-                <CircularProgress />
-            </Box>
-        );
+export default function ViewAllUsers(){
+    const [editingScopeTag, setEditingScopeTag] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [userObjects, setUserObjects] = useState([]);
+    const [scopeEditingUserObject, setScopeEditingUserObject] = useState({});
+    const [scope, setScope] = useState([]);
+    
+    const {API_URL} = useAuth();
+    
+    async function getAllUsers(){
+        let response;
+        try{
+            response = await fetch(`${API_URL}/admin/users/`, {method: "GET", credentials: 'include'});
+        }catch(err){
+            if(err instanceof TypeError) 
+                return setErrorMessage("Couldn't connect to server.");
+            throw err;
+        }
+        
+        let objectFromResponse;
+        try{
+            objectFromResponse = await response.json();
+        }catch(err){
+            if(err instanceof TypeError)
+                return setErrorMessage("Couldn't decode server response.")
+            if(err instanceof SyntaxError) 
+                return setErrorMessage("Server returned invalid JSON.")
+            throw err;
+        }
+        
+        if(!(response.ok))
+            return setErrorMessage(`Received HTTP status ${response.status} from server.`);
+        
+        if(!(objectFromResponse instanceof Array))
+            return setErrorMessage("Object from response not an Array.");
+        setUserObjects(objectFromResponse);
+        setErrorMessage("");
     }
 
-    return (
-        <Box p={4}>
-            <Typography variant="h4" fontWeight="bold" gutterBottom color="primary">
-                User Management
-            </Typography>
-            <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-                Manage user roles and permissions across the system.
-            </Typography>
+    async function getAllScopeTags(){
+        let response;
+        try{
+            response = await fetch(`${API_URL}/admin/scope-tags/`, {method: "GET", credentials: 'include'});
+        }catch(err){
+            if(err instanceof TypeError) 
+                return setErrorMessage("Couldn't connect to server.");
+            throw err;
+        }
+        
+        let objectFromResponse;
+        try{
+            objectFromResponse = await response.json();
+        }catch(err){
+            if(err instanceof TypeError)
+                return setErrorMessage("Couldn't decode server response.")
+            if(err instanceof SyntaxError) 
+                return setErrorMessage("Server returned invalid JSON.")
+            throw err;
+        }
+        
+        if(!(response.ok))
+            return setErrorMessage(`Received HTTP status ${response.status} from server.`);
+        
+        if(!(objectFromResponse instanceof Array))
+            return setErrorMessage("Object from response not an Array.");
+        setScope(objectFromResponse);
+        setErrorMessage("");
+    }
+    
+    const RUN_FIRST_TIME = [];
+    useEffect(() => {getAllUsers();}, RUN_FIRST_TIME);
 
-            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-            <Paper sx={{ p: 2, borderRadius: 2 }}>
-                <Box mb={3}>
-                    <TextField
-                        fullWidth
-                        placeholder="Search by name or email..."
-                        variant="outlined"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <SearchIcon />
-                                </InputAdornment>
-                            ),
+    return(
+        <Box>
+        {
+            //Wrap in conditional so the useEffect in the window is triggered per window opening, 
+            //fetching the scope tags
+            editingScopeTag && <ScopeTagEditWindow 
+                userObject={scopeEditingUserObject} 
+                windowOpen={editingScopeTag}
+                closeSelf={() => {
+                    setEditingScopeTag(editingScopeTag => false);
+                }}
+                API_URL={API_URL}
+            />
+        }
+        <Typography variant='h4' sx={{mb: '40px'}}>All Users in the System</Typography>
+        
+        <Typography variant='h5' sx={{mb: '20px'}}>Admins</Typography>
+        <Box sx={{mb: '40px'}}>
+            {
+                userObjects.map(userObject => ((userObject.perm === 4) ?
+                    <UserElement 
+                        userObject={userObject} 
+                        refreshPage={getAllUsers}
+                        setErrorMessage={setErrorMessage}
+                        API_URL={API_URL}
+                        editScopeTagWindow={(userObject) => {
+                            setEditingScopeTag(true);
+                            setScopeEditingUserObject(userObject);
                         }}
-                    />
-                </Box>
-
-                <TableContainer>
-                    <Table>
-                        <TableHead>
-                            <TableRow sx={{ bgcolor: '#f8fafc' }}>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Current Role</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {filteredUsers.map((user) => (
-                                <TableRow key={user.id} hover>
-                                    <TableCell>{user.name || 'N/A'}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={ROLE_MAP[user.perm]?.label || 'Unknown'}
-                                            color={ROLE_MAP[user.perm]?.color || 'default'}
-                                            size="small"
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <Select
-                                            value={user.perm}
-                                            onChange={(e) => handleRoleChange(user.email, e.target.value)}
-                                            size="small"
-                                            sx={{ minWidth: 120 }}
-                                        >
-                                            <MenuItem value={1}>User</MenuItem>
-                                            <MenuItem value={2}>Specialist</MenuItem>
-                                            <MenuItem value={4}>Admin</MenuItem>
-                                        </Select>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {filteredUsers.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                                        <Typography color="textSecondary">No users found matching your search.</Typography>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Paper>
+                    /> : null
+                ))
+            }
+        </Box>
+        
+        <Typography variant='h5' sx={{mb: '20px'}}>Specialists</Typography>        
+        <Box sx={{mb: '40px'}}>
+            {
+                userObjects.map(userObject => ((userObject.perm === 2) ?
+                    <UserElement 
+                        userObject={userObject} 
+                        refreshPage={getAllUsers}
+                        setErrorMessage={setErrorMessage}
+                        API_URL={API_URL}
+                        editScopeTagWindow={(userObject) => {
+                            setEditingScopeTag(true);
+                            setScopeEditingUserObject(userObject);
+                        }}
+                    /> : null
+                ))
+            }
+        </Box>
+        
+        <Typography variant='h5' sx={{mb: '20px'}}>Users</Typography>        
+        <Box sx={{mb: '40px'}}>
+            {
+                userObjects.map(userObject => ((userObject.perm === 1) ?
+                    <UserElement 
+                        userObject={userObject} 
+                        refreshPage={getAllUsers}
+                        setErrorMessage={setErrorMessage}
+                        API_URL={API_URL}
+                        editScopeTagWindow={(userObject) => {
+                            setEditingScopeTag(true);
+                            setScopeEditingUserObject(userObject);
+                        }}
+                    /> : null
+                ))
+            }
+        </Box>
+        <p style={{color: 'red'}}>{errorMessage}</p> 
         </Box>
     );
 }

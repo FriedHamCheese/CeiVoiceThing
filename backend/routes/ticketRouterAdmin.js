@@ -121,6 +121,9 @@ router.patch('/:id', async (request, response) => {
         }
 
         let shouldNotifyNew = false;
+        let shouldNotifySolved = false;
+        let shouldNotifyFailed = false;
+
         if (status !== undefined && status !== current.status) {
             updates.push("status = ?"), values.push(status);
             if (resolutionComment) {
@@ -130,7 +133,16 @@ router.patch('/:id', async (request, response) => {
             if (current.status === 'draft' && status === 'New') {
                 historyItems.push({ action: "Promoted", details: "Ticket promoted from draft" });
                 shouldNotifyNew = true;
-            } else {
+            }
+            else if (status === 'Solved') {
+                historyItems.push({ action: "Solved", details: "Ticket solved" });
+                shouldNotifySolved = true;
+            }
+            else if (status === 'Failed') {
+                historyItems.push({ action: "Failed", details: "Ticket failed" });
+                shouldNotifyFailed = true;
+            }
+            else {
                 let details = `${current.status} -> ${status}`;
                 if (resolutionComment) details += `. Resolution: ${resolutionComment}`;
                 historyItems.push({ action: "Status updated", details: details });
@@ -174,7 +186,7 @@ router.patch('/:id', async (request, response) => {
         await logHistory(connection, ticketID, email, historyItems);
 
         let followers = [];
-        if (shouldNotifyNew) {
+        if (shouldNotifyNew || shouldNotifySolved || shouldNotifyFailed) {
             const [requestLinks] = await connection.execute(
                 `SELECT ur.userEmail, ur.tracking_token 
                  FROM UserRequest ur 
@@ -191,6 +203,24 @@ router.patch('/:id', async (request, response) => {
             for (const req of followers) {
                 if (req.tracking_token) {
                     sendStatusUpdateEmail(req.userEmail, current.title, "Active (New)", req.tracking_token)
+                        .catch(err => console.error("Update email failed:", err));
+                }
+            }
+        }
+
+        if (shouldNotifySolved) {
+            for (const req of followers) {
+                if (req.tracking_token) {
+                    sendStatusUpdateEmail(req.userEmail, current.title, "Solved", req.tracking_token)
+                        .catch(err => console.error("Update email failed:", err));
+                }
+            }
+        }
+
+        if (shouldNotifyFailed) {
+            for (const req of followers) {
+                if (req.tracking_token) {
+                    sendStatusUpdateEmail(req.userEmail, current.title, "Failed", req.tracking_token)
                         .catch(err => console.error("Update email failed:", err));
                 }
             }

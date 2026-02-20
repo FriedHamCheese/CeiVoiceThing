@@ -18,6 +18,7 @@ import reportRouterAdmin from './routes/reportRouterAdmin.js';
 import assigneeRouter from './routes/assigneeRouter.js';
 import adminRouter from './routes/adminRouter.js';
 import configurePassport from './utils/passport.js';
+import userRouterAdmin from './routes/userRouterAdmin.js'
 
 //Add isAssignee to prepare for renaming.
 import { isAuthenticated, isAssignee, isSpecialist, isAdmin } from './middleware/authMiddleware.js';
@@ -72,6 +73,7 @@ app.use('/assignee', isAssignee, assigneeRouter);
 app.use('/admin/tickets', isAdmin, ticketRouterAdmin);
 app.use('/admin/tickets', isAdmin, ticketRouterAdminAssignee);
 app.use('/admin/reports', isAdmin, reportRouterAdmin);
+app.use('/admin/users', isAdmin, userRouterAdmin);
 app.use('/admin', isAdmin, adminRouter);
 
 

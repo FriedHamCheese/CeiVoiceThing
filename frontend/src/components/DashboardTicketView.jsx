@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 
 export default function DashboardTicketView({
-    viewingTicket, setViewingTicket, assignees, isAdmin, user,
+    viewingTicket, setViewingTicket, assignees, categories = [], isAdmin, user,
     handleUpdateDraft, handleUpdateTicket, handleUnlinkRequest,
     linkedRequests,
     comments, newComment, setNewComment, handleAddComment,
@@ -97,7 +97,7 @@ export default function DashboardTicketView({
                             <Autocomplete
                                 multiple
                                 fullWidth
-                                options={[]} // Assuming no fixed options for categories for now, or maybe the user wants to add them
+                                options={categories} // Now uses the fetched categories list
                                 value={localCategories}
                                 onChange={(event, newValue) => {
                                     setLocalCategories(newValue);
@@ -309,7 +309,7 @@ export default function DashboardTicketView({
                             <Autocomplete
                                 multiple
                                 fullWidth
-                                options={[]}
+                                options={categories}
                                 value={localCategories}
                                 onChange={(event, newValue) => {
                                     setLocalCategories(newValue);

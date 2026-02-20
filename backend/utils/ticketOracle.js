@@ -1,11 +1,15 @@
 import axios from "axios";
 import 'dotenv/config';
 import { pipeline, cos_sim } from '@xenova/transformers';
+import pool from "./mysqlConnection.js";
 // Configuration from environment variables
 const ORACLE_URL = process.env.ORACLE_URL || "http://140.245.98.10:8080/api/generate";
 const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
+
+const category_raw = await pool.query("SELECT name FROM CATEGORY");
+const CATEGORY_LIST = category_raw.map(x => x.name);
 
 export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {
     /*
@@ -68,7 +72,7 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             ),
             // Categories
             askOracle(
-                `Pick the best keyword for this request. as short as possible. No introduction. Here is the available assignee. ${contextInfo}`,
+                `which of the following categories best describes this request. Answer as short as possible. No introduction. Here is the available categories. ${category_raw}`,
                 userRequestText
             ),
             // Assignee
@@ -137,9 +141,9 @@ export async function findMergeRecommendations(drafts, threshold = 0.85) {
         // 2. Generate embeddings for all drafts simultaneously
         // pooling: 'mean' and normalize: true are required for sentence similarity
         const output = await extractor(textsToEmbed, { pooling: 'mean', normalize: true });
-        
+
         // Convert the Tensor output into a standard 2D JavaScript array
-        const embeddings = output.tolist(); 
+        const embeddings = output.tolist();
 
         // 3. Compare and Group
         const groups = [];

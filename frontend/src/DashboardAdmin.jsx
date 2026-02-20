@@ -16,7 +16,7 @@ export default function AdminDashboard() {
         showMergeWindow, setShowMergeWindow,
         viewingTicket, setViewingTicket,
         recommendations,
-        assignees,
+        assignees, categories,
         comments, history, linkedRequests,
         newComment, setNewComment,
         isCommentInternal, setIsCommentInternal,
@@ -136,6 +136,7 @@ export default function AdminDashboard() {
                 viewingTicket={viewingTicket}
                 setViewingTicket={setViewingTicket}
                 assignees={assignees}
+                categories={categories}
                 isAdmin={true}
                 handleUpdateDraft={handleUpdateDraft}
                 handleUpdateTicket={handleUpdateTicket}

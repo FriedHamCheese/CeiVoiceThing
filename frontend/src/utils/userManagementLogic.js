@@ -58,6 +58,63 @@ export const useUserManagement = () => {
         }
     };
 
+    const fetchUserScopeTags = async (email) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/users/getScopeTags`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'email': email
+                },
+                credentials: 'include',
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true, tags: data };
+            } else {
+                return { success: false, message: data.message || 'Failed to fetch scope tags' };
+            }
+        } catch (err) {
+            console.error(err);
+            return { success: false, message: 'Network error' };
+        }
+    };
+
+    const updateUserScopeTags = async (email, scopeTags) => {
+        try {
+            const response = await fetch(`${API_URL}/admin/users/setScopeTags`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, scopeTags }),
+            });
+            const data = await response.json();
+            if (response.ok) {
+                return { success: true };
+            } else {
+                return { success: false, message: data.message || 'Failed to update scope tags' };
+            }
+        } catch (err) {
+            console.error(err);
+            return { success: false, message: 'Network error' };
+        }
+    };
+
+    const fetchScopeTags = async () => {
+        try {
+            const response = await fetch(`${API_URL}/admin/tickets/scope`, { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                setScopeTags(data);
+            } else {
+                setError(data.message || 'Failed to fetch scope tags');
+            }
+        } catch (err) {
+            setError('Network error: Could not connect to the server.');
+            console.error(err);
+        }
+    };
+
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
@@ -67,6 +124,8 @@ export const useUserManagement = () => {
         loading,
         error,
         fetchUsers,
-        updateUserRole
+        updateUserRole,
+        fetchUserScopeTags,
+        updateUserScopeTags
     };
 };

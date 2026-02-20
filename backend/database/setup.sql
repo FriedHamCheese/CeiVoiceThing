@@ -5,6 +5,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 START TRANSACTION;
 
 -- DROP ALL TABLES (REVERSE FK ORDER)
+DROP TABLE IF EXISTS Category;
 DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS TicketUserRequest;
 DROP TABLE IF EXISTS TicketCategory;
@@ -124,6 +125,12 @@ CREATE TABLE TicketUserRequest(
 	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE,
 	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
+
+CREATE TABLE Category(
+	name VARCHAR(32) PRIMARY KEY
+);
+
+INSERT INTO Category (name) VALUES ('Hardware'), ('Software'), ('Network'), ('Security'), ('Other');
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

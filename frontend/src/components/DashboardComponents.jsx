@@ -96,7 +96,7 @@ export function DraftTicketComponent({ ticket, setErrorMessage, isSelected, onTo
                         startIcon={<ArrowUpwardIcon />}
                         onClick={handleRequestChange}
                     >
-                        Promote
+                        Submit
                     </Button>
                 )}
             </Box>

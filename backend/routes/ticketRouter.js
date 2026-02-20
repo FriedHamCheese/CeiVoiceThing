@@ -156,6 +156,19 @@ router.get('/assignees', isAuthenticated, async (request, response) => {
         response.status(500).json({ error: "Failed to fetch assignees." });
     }
 });
+// GET Categories (Generic - all authenticated users)
+// Mounted at /tickets/scope
+router.get('/scope', isAuthenticated, async (request, response) => {
+    try {
+        const [rows] = await mysqlConnection.execute(`
+            SELECT name FROM Category ORDER BY name ASC
+        `);
+        response.json(rows.map(row => row.name));
+    } catch (error) {
+        console.error(error);
+        response.status(500).json({ error: "Failed to fetch categories." });
+    }
+});
 
 // GET Comments (Generic - all authenticated users)
 // Mounted at /tickets/:id/comments
@@ -251,91 +264,92 @@ router.post('/:id/comment', isAuthenticated, async (request, response) => {
         );
 
         // --- Notification Logic ---
+        if (userPerm === 2) {
+            // 1. Fetch Ticket Info (Title)
+            const [ticketRows] = await mysqlConnection.execute("SELECT title FROM Ticket WHERE id = ?", [ticketID]);
+            const ticketTitle = ticketRows[0]?.title || "Support Ticket";
 
-        // 1. Fetch Ticket Info (Title)
-        const [ticketRows] = await mysqlConnection.execute("SELECT title FROM Ticket WHERE id = ?", [ticketID]);
-        const ticketTitle = ticketRows[0]?.title || "Support Ticket";
+            // Set to track who has been emailed to prevent duplicates
+            const processedEmails = new Set();
+            // Don't notify the author
+            processedEmails.add(userEmail);
 
-        // Set to track who has been emailed to prevent duplicates
-        const processedEmails = new Set();
-        // Don't notify the author
-        processedEmails.add(userEmail);
+            // 2. Notify Assignees
+            const [assignees] = await mysqlConnection.execute(
+                "SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?",
+                [ticketID]
+            );
 
-        // 2. Notify Assignees
-        const [assignees] = await mysqlConnection.execute(
-            "SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?",
-            [ticketID]
-        );
+            // Link for assignees (Admin/Specialist Dashboard)
+            const dashboardLink = `http://localhost:${process.env.FRONTEND_PORT}/admin/tickets/${ticketID}`;
 
-        // Link for assignees (Admin/Specialist Dashboard)
-        const dashboardLink = `http://localhost:${process.env.FRONTEND_PORT}/admin/tickets/${ticketID}`;
-
-        for (const assignee of assignees) {
-            if (!processedEmails.has(assignee.assigneeEmail)) {
-                processedEmails.add(assignee.assigneeEmail);
-                sendCommentNotificationEmail(
-                    assignee.assigneeEmail,
-                    ticketTitle,
-                    userEmail,
-                    text,
-                    dashboardLink,
-                    finalIsInternal
-                ).catch(console.error);
-            }
-        }
-
-        // 3. Notify Followers
-        // Fetch ALL followers
-        const [followers] = await mysqlConnection.execute(
-            "SELECT userEmail FROM TicketFollower WHERE ticketID = ?",
-            [ticketID]
-        );
-
-        // Fetch Tokens for Creators (to distinguish staff vs creators)
-        const [creatorTokens] = await mysqlConnection.execute(
-            `SELECT ur.userEmail, ur.tracking_token 
-             FROM UserRequest ur
-             JOIN TicketUserRequest tur ON ur.id = tur.userRequestID
-             WHERE tur.ticketID = ?`,
-            [ticketID]
-        );
-
-        const emailToTokenMap = {};
-        for (const row of creatorTokens) {
-            emailToTokenMap[row.userEmail] = row.tracking_token;
-        }
-
-        for (const follower of followers) {
-            if (!processedEmails.has(follower.userEmail)) {
-                const isCreator = !!emailToTokenMap[follower.userEmail];
-
-                // If it's a creator, they ONLY get notified if it's NOT internal
-                if (isCreator) {
-                    if (!finalIsInternal) {
-                        processedEmails.add(follower.userEmail);
-                        const publicLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${emailToTokenMap[follower.userEmail]}`;
-                        sendCommentNotificationEmail(
-                            follower.userEmail,
-                            ticketTitle,
-                            userEmail,
-                            text,
-                            publicLink,
-                            false
-                        ).catch(console.error);
-                    }
-                } else {
-                    // It's a staff follower (or someone without a request link)
-                    // They get notified regardless (assuming they have perm to view)
-                    // We assume followers are authorized if they managed to follow.
-                    processedEmails.add(follower.userEmail);
+            for (const assignee of assignees) {
+                if (!processedEmails.has(assignee.assigneeEmail)) {
+                    processedEmails.add(assignee.assigneeEmail);
                     sendCommentNotificationEmail(
-                        follower.userEmail,
+                        assignee.assigneeEmail,
                         ticketTitle,
                         userEmail,
                         text,
                         dashboardLink,
                         finalIsInternal
                     ).catch(console.error);
+                }
+            }
+
+            // 3. Notify Followers
+            // Fetch ALL followers
+            const [followers] = await mysqlConnection.execute(
+                "SELECT userEmail FROM TicketFollower WHERE ticketID = ?",
+                [ticketID]
+            );
+
+            // Fetch Tokens for Creators (to distinguish staff vs creators)
+            const [creatorTokens] = await mysqlConnection.execute(
+                `SELECT ur.userEmail, ur.tracking_token 
+                 FROM UserRequest ur
+                 JOIN TicketUserRequest tur ON ur.id = tur.userRequestID
+                 WHERE tur.ticketID = ?`,
+                [ticketID]
+            );
+
+            const emailToTokenMap = {};
+            for (const row of creatorTokens) {
+                emailToTokenMap[row.userEmail] = row.tracking_token;
+            }
+
+            for (const follower of followers) {
+                if (!processedEmails.has(follower.userEmail)) {
+                    const isCreator = !!emailToTokenMap[follower.userEmail];
+
+                    // If it's a creator, they ONLY get notified if it's NOT internal
+                    if (isCreator) {
+                        if (!finalIsInternal) {
+                            processedEmails.add(follower.userEmail);
+                            const publicLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${emailToTokenMap[follower.userEmail]}`;
+                            sendCommentNotificationEmail(
+                                follower.userEmail,
+                                ticketTitle,
+                                userEmail,
+                                text,
+                                publicLink,
+                                false
+                            ).catch(console.error);
+                        }
+                    } else {
+                        // It's a staff follower (or someone without a request link)
+                        // They get notified regardless (assuming they have perm to view)
+                        // We assume followers are authorized if they managed to follow.
+                        processedEmails.add(follower.userEmail);
+                        sendCommentNotificationEmail(
+                            follower.userEmail,
+                            ticketTitle,
+                            userEmail,
+                            text,
+                            dashboardLink,
+                            finalIsInternal
+                        ).catch(console.error);
+                    }
                 }
             }
         }
