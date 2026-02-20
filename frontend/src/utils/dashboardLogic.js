@@ -70,14 +70,10 @@ export const useDashboardTickets = () => {
 
     const fetchCategories = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/categories`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/tickets/scope`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setCategories(data);
-            } else {
-                // Not found on admin base path, try common base path
-                const fallbackResponse = await fetch(`${API_URL}/tickets/categories`, { credentials: 'include' });
-                if (fallbackResponse.ok) setCategories(await fallbackResponse.json());
             }
         } catch (err) { console.error("Failed to fetch categories", err); }
     }, [API_URL]);

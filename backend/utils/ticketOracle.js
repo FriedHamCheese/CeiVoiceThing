@@ -8,7 +8,7 @@ const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
 
-const category_raw = await pool.query("SELECT name FROM CATEGORY");
+const category_raw = await pool.query("SELECT name FROM Category");
 const CATEGORY_LIST = category_raw.map(x => x.name);
 
 export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {

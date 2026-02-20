@@ -138,19 +138,6 @@ router.post('/setScopeTags', async (request, response) => {
     const HTTP_STATUS_FOR_OK = 200;
     const HTTP_STATUS_FOR_BAD_REQUEST = 400;    
     
-    const PREDEFINED_TAGS = [
-        'Scholarship',
-        'Internship',
-        'Medical',
-        'Building',
-        'Finance',
-        'Academics',
-        'Transporation',
-        'Administration',
-        'Facility',
-        'Organised Events',
-    ];
-    
     const {email, scopeTags} = request.body;
     if((typeof email) !== 'string')
         return response.status(HTTP_STATUS_FOR_BAD_REQUEST).json({
