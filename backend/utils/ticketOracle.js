@@ -1,3 +1,4 @@
+// backend/utils/ticketOracle.js
 import axios from "axios";
 import 'dotenv/config';
 import { pipeline, cos_sim } from '@xenova/transformers';
@@ -72,12 +73,26 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             ),
             // Categories
             askOracle(
-                `which of the following categories best describes this request. Answer as short as possible. No introduction. Here is the available categories. ${category_raw}`,
+                `which of the following categories best describes this request. Answer as short as possible. No introduction. Here is the available categories. ${CATEGORY_LIST.join(", ")}.`,
                 userRequestText
             ),
             // Assignee
             askOracle(
-                `Pick the best assignee email for this request. as short as possible. No introduction. Consider the expertise available: ${contextInfo}. Return ONLY the email.`,
+                `You are a strict automated ticket routing system. Your ONLY job is to output a single valid email address from the provided list.
+
+                AVAILABLE ASSIGNEES:
+                ${contextInfo}
+
+                ROUTING LOGIC:
+                1. First, analyze the User Request to determine the required expertise.
+                2. Second, filter the assignees to only those whose scope tags match the required expertise.
+                3. Third, from the matching assignees, prioritize selecting one who is currently available.
+                4. Finally, return ONLY the chosen email address.
+
+                CRITICAL RULES:
+                - Output ONLY the raw email address (e.g., tech@example.com).
+                - DO NOT output any conversational text, explanations, or warnings, even for emergencies.
+                - If no assignee matches the scope, or if you are unsure, output EXACTLY the word "null".`,
                 userRequestText
             )
         ]);
@@ -95,15 +110,21 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
         };
 
-        // Process the raw category string directly
         const cleanedCategory = cleanString(categoriesRaw, MAX_CATEGORY_CHARACTERS);
+        
+        let finalAssignee = cleanString(assignee, MAX_ASSIGNEE_CHARACTERS);
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (finalAssignee.toLowerCase() === "null" || !emailRegex.test(finalAssignee)) {
+            finalAssignee = null; 
+        }
 
         return {
             title: cleanString(title, MAX_TITLE_CHARACTERS),
             summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
             suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
             categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"],
-            suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
+            suggestedAssignee: finalAssignee 
         };
 
     } catch (error) {

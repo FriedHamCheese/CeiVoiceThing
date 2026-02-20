@@ -1,3 +1,4 @@
+// backend/routes/ticketRouter.js
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -113,6 +114,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
         );
 
         // 6. Create Assignee link
+        // Add this right before your connection.execute(...) call
         await connection.execute(
             "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
             [insertedTicketID, draftTicketSuggestions.suggestedAssignee]

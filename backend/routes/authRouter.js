@@ -1,3 +1,4 @@
+// backend/routes/authRouter.js
 import { loginLocal, register } from '../utils/auth.js'
 import express from 'express';
 import passport from 'passport';

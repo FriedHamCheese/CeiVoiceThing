@@ -1,3 +1,4 @@
+// backend/utils/auth.js
 import mysqlConnection from './mysqlConnection.js';
 import axios from 'axios';
 import passport from 'passport';

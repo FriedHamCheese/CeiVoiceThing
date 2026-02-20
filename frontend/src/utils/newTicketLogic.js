@@ -1,3 +1,4 @@
+// frontend/src/utils/newTicketLogic.js
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 

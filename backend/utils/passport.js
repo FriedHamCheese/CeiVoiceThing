@@ -1,3 +1,4 @@
+// backend/utils/passport.js
 import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import mysqlConnection from './mysqlConnection.js';

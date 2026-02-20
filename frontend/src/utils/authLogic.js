@@ -1,3 +1,4 @@
+// frontend/src/utils/authLogic.js
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 
