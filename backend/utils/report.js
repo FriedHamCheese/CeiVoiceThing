@@ -6,27 +6,27 @@ const getAdminOverview = async ({ startDate, endDate }) => {
 
     try {
         const [[totalRow]] = await connection.execute(
-            "SELECT COUNT(*) AS totalTickets FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT COUNT(*) AS totalTickets FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [[resolvedRow]] = await connection.execute(
-            "SELECT COUNT(*) AS solvedCount FROM Ticket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT COUNT(*) AS solvedCount FROM Ticket WHERE status = 'solved' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [[avgRow]] = await connection.execute(
-            "SELECT AVG(TIMESTAMPDIFF(HOUR, createdAt, updatedAt)) AS avgResolutionHours FROM Ticket WHERE status = 'solved' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT AVG(TIMESTAMPDIFF(HOUR, createdAt, updatedAt)) AS avgResolutionHours FROM Ticket WHERE status = 'solved' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 
         const [statusRows] = await connection.execute(
-            "SELECT status, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY status",
+            "SELECT status, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY status",
             dateParams
         );
 
         const [volumeByDateRows] = await connection.execute(
-            "SELECT DATE(createdAt) AS day, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY DATE(createdAt) ORDER BY day ASC",
+            "SELECT DATE(createdAt) AS day, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY DATE(createdAt) ORDER BY day ASC",
             dateParams
         );
 
@@ -41,7 +41,7 @@ const getAdminOverview = async ({ startDate, endDate }) => {
         );
 
         const [[backlogRow]] = await connection.execute(
-            "SELECT COUNT(*) AS backlogCount FROM Ticket WHERE status NOT IN ('solved','failed','draft') AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
+            "SELECT COUNT(*) AS backlogCount FROM Ticket WHERE status NOT IN ('solved','failed','draft','merged') AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
             dateParams
         );
 

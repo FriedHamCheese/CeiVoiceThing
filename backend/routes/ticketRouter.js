@@ -329,19 +329,9 @@ router.post('/:id/comment', isAuthenticated, async (request, response) => {
                 if (!processedEmails.has(follower.userEmail)) {
                     const isCreator = !!emailToTokenMap[follower.userEmail];
 
-                    // If it's a creator, they ONLY get notified if it's NOT internal
                     if (isCreator) {
-                        if (!finalIsInternal) {
-                            processedEmails.add(follower.userEmail);
-                            const publicLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${emailToTokenMap[follower.userEmail]}`;
-                            sendCommentNotificationEmail(
-                                follower.userEmail,
-                                ticketTitle,
-                                userEmail,
-                                text,
-                                publicLink,
-                                false
-                            ).catch(console.error);
+                        // Don't notify creators
+                        processedEmails.add(follower.userEmail);
                         }
                     } else {
                         // It's a staff follower (or someone without a request link)
@@ -359,10 +349,9 @@ router.post('/:id/comment', isAuthenticated, async (request, response) => {
                     }
                 }
             }
+            response.json({ message: "Comment added" }); 
         }
-
-        response.json({ message: "Comment added" });
-    } catch (error) {
+        catch (error) {
         console.error(error);
         response.status(500).json({ error: "Failed to add comment" });
     }
@@ -396,6 +385,36 @@ router.get('/:email/requests', isAuthenticated, async (request, response) => {
     } catch (error) {
         console.error(error);
         response.status(500).json({ error: "Failed to fetch user requests." });
+    }
+});
+
+router.get('/creator/:ticketID', async (request, response) => {
+    const { ticketID } = request.params;
+
+    try {
+        const [rows] = await mysqlConnection.execute(
+            `SELECT u.email, u.name FROM Users u WHERE u.email = (SELECT ur.userEmail FROM UserRequest ur WHERE ur.id = (SELECT t.userRequestID FROM Ticket t WHERE t.id = ?))`,
+            [ticketID]
+        );
+        if (rows.length === 0) {
+            try{
+                const [rows2] = await mysqlConnection.execute(
+                    `SELECT u.email, u.name 
+                     FROM Users u 
+                     WHERE u.email IN (SELECT userEmail FROM UserRequest WHERE id IN (SELECT userRequestID FROM Ticket WHERE mergedTo = ?))`,
+                    [ticketID]
+                );
+                response.json([rows2]);
+            } catch(error){
+                console.error(error);
+                response.status(500).json({ error: "Failed to fetch creator." });
+            }
+        } else {
+            response.json([rows]);
+        }
+    } catch (error) {
+        console.error(error);
+        response.status(500).json({ error: "Failed to fetch creator." });
     }
 });
 

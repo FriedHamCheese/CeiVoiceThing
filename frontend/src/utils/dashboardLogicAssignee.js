@@ -15,6 +15,7 @@ export const useDashboardTicketsSpecialist = () => {
     const [isUpdating, setIsUpdating] = useState(false);
     const [isCommentInternal, setIsCommentInternal] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
+    const [linkedRequests, setLinkedRequests] = useState([]);
 
     const fetchAllTickets = useCallback(async () => {
         setIsLoading(true);
@@ -83,11 +84,19 @@ export const useDashboardTicketsSpecialist = () => {
         } catch (err) { console.error("Failed to fetch follow status", err); }
     };
 
+    const fetchLinkedRequests = async (id) => {
+        try {
+            const response = await fetch(`${API_URL}/assignee/tickets/${id}/requests`, { credentials: 'include' });
+            if (response.ok) setLinkedRequests(await response.json());
+        } catch (err) { console.error("Failed to fetch linked requests", err); }
+    };
+
     useEffect(() => {
         if (viewingTicket) {
             fetchComments(viewingTicket.id);
             fetchHistory(viewingTicket.id);
             fetchFollowStatus(viewingTicket.id);
+            fetchLinkedRequests(viewingTicket.id);
         }
     }, [viewingTicket]);
 
@@ -150,7 +159,7 @@ export const useDashboardTicketsSpecialist = () => {
         tickets, errorMessage, setErrorMessage, isLoading,
         viewingTicket, setViewingTicket,
         specialists,
-        comments, history,
+        comments, history, linkedRequests,
         newComment, setNewComment,
         isUpdating,
         isCommentInternal, setIsCommentInternal,

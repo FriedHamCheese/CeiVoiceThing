@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
     Button, Stack, TextField, Divider, Typography, Box, FormControl, InputLabel, Select, MenuItem,
-    List, ListItem, ListItemText, Chip, Autocomplete
+    List, ListItem, ListItemText, Chip, Autocomplete, CircularProgress
 } from '@mui/material';
+import { useAuth } from '../context/AuthContext';
 
 export default function DashboardTicketView({
     viewingTicket, setViewingTicket, assignees, categories = [], isAdmin, user,
@@ -21,6 +22,11 @@ export default function DashboardTicketView({
         if (Array.isArray(ticket.categories)) return ticket.categories;
         return ticket.categories.split(',').map(s => s.trim()).filter(Boolean);
     };
+
+    const { API_URL } = useAuth();
+    const [creatorInfo, setCreatorInfo] = useState(null);
+    const [loadingCreator, setLoadingCreator] = useState(false);
+
 
     // Helper to get assignee emails as array
     const getAssigneeEmails = (ticket) => {
@@ -41,8 +47,36 @@ export default function DashboardTicketView({
             setLocalCategories(getCategoriesArray(viewingTicket));
             setLocalStatus(viewingTicket.status || '');
             setLocalResolutionComment(viewingTicket.resolutionComment || '');
+
+            // Fetch creator info
+            const fetchCreatorInfo = async () => {
+                setLoadingCreator(true);
+                try {
+                    const response = await fetch(`${API_URL}/tickets/creator/${viewingTicket.id}`, {
+                        credentials: 'include'
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (Array.isArray(data) && data.length > 0) {
+                            setCreatorInfo(data[0]);
+                        } else {
+                            setCreatorInfo(null);
+                        }
+                    } else {
+                        setCreatorInfo(null);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch creator info", err);
+                    setCreatorInfo(null);
+                } finally {
+                    setLoadingCreator(false);
+                }
+            };
+            fetchCreatorInfo();
+        } else {
+            setCreatorInfo(null);
         }
-    }, [viewingTicket?.id, viewingTicket?.assignees, viewingTicket?.categories, viewingTicket?.status, viewingTicket?.resolutionComment]);
+    }, [viewingTicket?.id, viewingTicket?.assignees, viewingTicket?.categories, viewingTicket?.status, viewingTicket?.resolutionComment, API_URL]);
 
     const handleStatusChange = (newStatus) => {
         setLocalStatus(newStatus);
@@ -75,6 +109,13 @@ export default function DashboardTicketView({
                 {viewingTicket.status === 'draft' ? (
                     /* DRAFT TICKET EDIT MODE */
                     <Stack spacing={3}>
+                        {loadingCreator ? (
+                            <CircularProgress size={24} />
+                        ) : creatorInfo ? (
+                            <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                Creator: {creatorInfo?.map((user) => `${user.name} (${user.email})`).join(', ')}
+                            </Typography>
+                        ) : null}
                         <TextField
                             fullWidth
                             label="Title"
@@ -253,7 +294,7 @@ export default function DashboardTicketView({
                             {linkedRequests.map(req => (
                                 <ListItem key={req.id} sx={{ bgcolor: '#f5f5f5', mb: 1, borderRadius: 1 }}>
                                     <ListItemText primary={req.userEmail} secondary={req.requestContents.substring(0, 100) + '...'} />
-                                    {linkedRequests.length > 1 && (
+                                    {isAdmin && linkedRequests.length > 1 && (
                                         <Button color="error" size="small" onClick={() => handleUnlinkRequest(viewingTicket.id, req.id)}>Unlink</Button>
                                     )}
                                 </ListItem>
@@ -275,7 +316,16 @@ export default function DashboardTicketView({
                 ) : (
                     /* ACTIVE TICKET MODE */
                     <Stack spacing={3}>
-                        <Box display="flex" justifyContent="flex-end">
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                            {loadingCreator ? (
+                                <CircularProgress size={24} />
+                            ) : creatorInfo ? (
+                                <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                    Creator: {creatorInfo?.map((user) => `${user.name} (${user.email})`).join(', ')}
+                                </Typography>
+                            ) : (
+                                <Box /> // Placeholder to keep flex-end layout for button
+                            )}
                             <Button
                                 variant={isFollowing ? "outlined" : "contained"}
                                 color={isFollowing ? "secondary" : "primary"}
@@ -443,70 +493,51 @@ export default function DashboardTicketView({
                                     onChange={(e) => handleUpdateTicket(viewingTicket.id, { deadline: e.target.value })}
                                 />
 
-                                {isAdmin || localAssignees.includes(user?.email) ? (
-                                    <Autocomplete
-                                        multiple
-                                        fullWidth
-                                        options={assignees}
-                                        getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.email})`}
-                                        value={localAssignees.map(email => assignees.find(a => a.email === email) || email)}
-                                        onChange={(event, newValue) => {
-                                            const emails = newValue.map(val => typeof val === 'string' ? val : val.email);
-                                            setLocalAssignees(emails);
-                                            handleUpdateTicket(viewingTicket.id, { assigneeEmail: emails });
-                                        }}
-                                        freeSolo
-                                        renderTags={(value, getTagProps) =>
-                                            value.map((option, index) => {
-                                                const { key, ...tagProps } = getTagProps({ index });
-                                                return (
-                                                    <Chip
-                                                        key={key}
-                                                        label={typeof option === 'string' ? option : option.email}
-                                                        {...tagProps}
-                                                    />
-                                                );
-                                            })
-                                        }
-                                        sx={{
-                                            flexGrow: 1,
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            '& .MuiFormControl-root': {
-                                                flexGrow: 1,
-                                            },
-                                            '& .MuiInputBase-root': {
-                                                height: '100%',
-                                                alignItems: 'flex-start',
-                                                alignContent: 'flex-start',
-                                            }
-                                        }}
-                                        renderInput={(params) => (
-                                            <TextField
-                                                {...params}
-                                                label="Assignees"
-                                                placeholder="Add assignee email"
-                                            />
-                                        )}
-                                    />
-                                ) : (
-                                    <Box sx={{
+                                <Autocomplete
+                                    multiple
+                                    fullWidth
+                                    options={assignees}
+                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.email})`}
+                                    value={localAssignees.map(email => assignees.find(a => a.email === email) || email)}
+                                    onChange={(event, newValue) => {
+                                        const emails = newValue.map(val => typeof val === 'string' ? val : val.email);
+                                        setLocalAssignees(emails);
+                                        handleUpdateTicket(viewingTicket.id, { assigneeEmail: emails });
+                                    }}
+                                    freeSolo
+                                    renderTags={(value, getTagProps) =>
+                                        value.map((option, index) => {
+                                            const { key, ...tagProps } = getTagProps({ index });
+                                            return (
+                                                <Chip
+                                                    key={key}
+                                                    label={typeof option === 'string' ? option : option.email}
+                                                    {...tagProps}
+                                                />
+                                            );
+                                        })
+                                    }
+                                    sx={{
                                         flexGrow: 1,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        borderRadius: 1,
-                                        p: 2
-                                    }}>
-                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                                            Assignees
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                                            {localAssignees.length > 0 ? localAssignees.map(email => (
-                                                <Chip key={email} label={email} size="small" />
-                                            )) : <Typography variant="body2">Unassigned</Typography>}
-                                        </Box>
-                                    </Box>
-                                )}
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        '& .MuiFormControl-root': {
+                                            flexGrow: 1,
+                                        },
+                                        '& .MuiInputBase-root': {
+                                            height: '100%',
+                                            alignItems: 'flex-start',
+                                            alignContent: 'flex-start',
+                                        }
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            label="Assignees"
+                                            placeholder="Add assignee email"
+                                        />
+                                    )}
+                                />
                             </Box>
                         </Box>
 
@@ -521,9 +552,33 @@ export default function DashboardTicketView({
                                 <Typography variant="body2" color="text.secondary">No followers</Typography>
                             )}
                         </Box>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="h6" gutterBottom>Audit Trail (Activity)</Typography>
+                        <List sx={{ maxHeight: 200, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
+                            {history.length > 0 ? history.map(h => (
+                                <ListItem key={h.id} dense divider>
+                                    <ListItemText
+                                        primary={h.action}
+                                        secondary={`${h.details} • By ${h.performer} on ${new Date(h.timestamp).toLocaleString()}`}
+                                    />
+                                </ListItem>
+                            )) : <Box p={2}><Typography variant="body2" color="text.secondary">No activity logged.</Typography></Box>}
+                        </List>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="subtitle1" fontWeight="bold">Linked Requests ({linkedRequests?.length || 0})</Typography>
+                        <List size="small">
+                            {linkedRequests?.map(req => (
+                                <ListItem key={req.id} sx={{ bgcolor: '#f5f5f5', mb: 1, borderRadius: 1 }}>
+                                    <ListItemText primary={req.userEmail} secondary={req.requestContents.substring(0, 100) + '...'} />
+                                    {isAdmin && linkedRequests.length > 1 && (
+                                        <Button color="error" size="small" onClick={() => handleUnlinkRequest(viewingTicket.id, req.id)}>Unlink</Button>
+                                    )}
+                                </ListItem>
+                            ))}
+                        </List>
 
                         <Divider sx={{ my: 1 }} />
-                        <Typography variant="h6" gutterBottom>Internal Comments</Typography>
+                        <Typography variant="h6" gutterBottom>Comments</Typography>
                         {comments.length > 0 ? comments.map(c => (
                             <ListItem key={c.id} alignItems="flex-start" divider>
                                 <ListItemText
@@ -558,19 +613,6 @@ export default function DashboardTicketView({
                                 <label htmlFor="internal" style={{ cursor: 'pointer', fontSize: '0.875rem' }}>Mark as Internal</label>
                             </Box>
                         </Box>
-
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant="h6" gutterBottom>Audit Trail (Activity)</Typography>
-                        <List sx={{ maxHeight: 200, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                            {history.length > 0 ? history.map(h => (
-                                <ListItem key={h.id} dense divider>
-                                    <ListItemText
-                                        primary={h.action}
-                                        secondary={`${h.details} • By ${h.performer} on ${new Date(h.timestamp).toLocaleString()}`}
-                                    />
-                                </ListItem>
-                            )) : <Box p={2}><Typography variant="body2" color="text.secondary">No activity logged.</Typography></Box>}
-                        </List>
                     </Stack>
 
                 )}

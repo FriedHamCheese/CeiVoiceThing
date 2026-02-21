@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { DraftTicketComponent, NewTicketComponent } from './components/DashboardComponents.jsx';
 import DashboardMergeWindow from './components/DashboardMergeWindow.jsx';
 import DashboardTicketView from './components/DashboardTicketView.jsx';
 import {
-    Container, Typography, Box, Button, Stack, CircularProgress, Alert
+    Container, Typography, Box, Button, Stack, CircularProgress, Alert,
+    FormControl, InputLabel, Select, MenuItem
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import { useDashboardTickets } from './utils/dashboardLogic.js';
+import { useDashboardTickets } from './utils/dashboardLogicAdmin.js';
 
 export default function AdminDashboard() {
     const {
@@ -31,8 +32,37 @@ export default function AdminDashboard() {
         window.location.href = '/';
     }
 
-    const draftTickets = tickets.filter(t => t.status === 'draft');
-    const otherTickets = tickets.filter(t => t.status !== 'draft');
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortOrder, setSortOrder] = useState('desc');
+
+    const sortedTickets = useMemo(() => {
+        return [...tickets].sort((a, b) => {
+            let valA = a[sortBy];
+            let valB = b[sortBy];
+
+            if (sortBy === 'deadline') {
+                if (!valA && !valB) return 0;
+                if (!valA) return 1; // Put nulls at the end
+                if (!valB) return -1;
+            } else {
+                if (!valA && !valB) return 0;
+                if (!valA) return 1;
+                if (!valB) return -1;
+            }
+
+            valA = valA ? new Date(valA).getTime() : 0;
+            valB = valB ? new Date(valB).getTime() : 0;
+
+            if (sortOrder === 'asc') {
+                return valA - valB;
+            } else {
+                return valB - valA;
+            }
+        });
+    }, [tickets, sortBy, sortOrder]);
+
+    const draftTickets = sortedTickets.filter(t => t.status === 'draft');
+    const otherTickets = sortedTickets.filter(t => t.status !== 'draft');
 
     return (
         <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
@@ -40,13 +70,6 @@ export default function AdminDashboard() {
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     Admin Dashboard
                 </Typography>
-                <Button
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    onClick={redirectToHomePage}
-                >
-                    Back to Home
-                </Button>
             </Box>
 
             {errorMessage && <Alert severity="error" sx={{ mb: 2 }}>{errorMessage}</Alert>}
@@ -71,7 +94,28 @@ export default function AdminDashboard() {
                 </Box>
             ) : (
                 <>
-                    <Typography variant="h5" sx={{ mb: 2, mt: 4 }}>Active Tickets</Typography>
+                    <Box display="flex" justifyContent="flex-end" mb={2}>
+                        <FormControl size="small" sx={{ minWidth: 200 }}>
+                            <InputLabel id="sort-by-label-admin">Sort By</InputLabel>
+                            <Select
+                                labelId="sort-by-label-admin"
+                                value={`${sortBy}-${sortOrder}`}
+                                label="Sort By"
+                                onChange={(e) => {
+                                    const [newSortBy, newSortOrder] = e.target.value.split('-');
+                                    setSortBy(newSortBy);
+                                    setSortOrder(newSortOrder);
+                                }}
+                            >
+                                <MenuItem value="createdAt-desc">Creation Date (Newest)</MenuItem>
+                                <MenuItem value="createdAt-asc">Creation Date (Oldest)</MenuItem>
+                                <MenuItem value="deadline-asc">Deadline (Soonest)</MenuItem>
+                                <MenuItem value="deadline-desc">Deadline (Latest)</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Box>
+
+                    <Typography variant="h5" sx={{ mb: 2 }}>Active Tickets</Typography>
                     {otherTickets.length > 0 ? (
                         <Stack spacing={2}>
                             {otherTickets.map(ticket => (
@@ -87,7 +131,7 @@ export default function AdminDashboard() {
                     )}
 
                     <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2, mt: 4 }}>
-                        <Typography variant="h5">Draft Tickets (Review Queue)</Typography>
+                        <Typography variant="h5">Draft Tickets</Typography>
                         <Button
                             variant="contained"
                             onClick={() => {

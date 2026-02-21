@@ -107,10 +107,21 @@ export const TrackDetails = ({ ticketStatus, getStep, steps, user, setTicketStat
         <Divider sx={{ my: 4 }} />
 
         <Box sx={{ mb: 4 }}>
-            <Typography variant="h6" gutterBottom fontWeight="bold">Details</Typography>
-            <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', bgcolor: '#f8f9fa', p: 2, borderRadius: 1 }}>
-                {ticketStatus.details || "Initial processing..."}
-            </Typography>
+            <Typography variant="h6" gutterBottom fontWeight="bold">History</Typography>
+            <List sx={{ bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #eee', maxHeight: 300, overflow: 'auto' }}>
+                {ticketStatus.history && ticketStatus.history.length > 0 ? ticketStatus.history.map((h, i) => (
+                    <ListItem key={i} divider={i < ticketStatus.history.length - 1} dense>
+                        <ListItemText
+                            primary={h.action}
+                            secondary={`${h.details} • By ${h.performer} on ${new Date(h.timestamp).toLocaleString()}`}
+                        />
+                    </ListItem>
+                )) : (
+                    <ListItem>
+                        <ListItemText secondary="No activity logged yet." />
+                    </ListItem>
+                )}
+            </List>
         </Box>
 
         {ticketStatus.assignees && ticketStatus.assignees.length > 0 && (

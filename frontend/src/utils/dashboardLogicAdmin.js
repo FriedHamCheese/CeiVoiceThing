@@ -124,9 +124,8 @@ export const useDashboardTickets = () => {
 
     useEffect(() => {
         if (viewingTicket?.id) {
-            if (viewingTicket.status === 'draft') {
-                fetchLinkedRequests(viewingTicket.id);
-            } else {
+            fetchLinkedRequests(viewingTicket.id);
+            if (viewingTicket.status !== 'draft') {
                 fetchComments(viewingTicket.id);
                 fetchHistory(viewingTicket.id);
                 fetchFollowStatus(viewingTicket.id);

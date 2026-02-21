@@ -87,15 +87,18 @@ CREATE TABLE TicketComments(
     FOREIGN KEY (authorEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE TicketHistory(
+CREATE TABLE TicketHistory (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ticketID INT,
     action VARCHAR(128),
     performer VARCHAR(64),
     details VARCHAR(2048),
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
+    -- Using RESTRICT ensures the Ticket cannot be deleted while History exists
+    FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE RESTRICT
 );
+
+
 
 CREATE TABLE TicketFollower(
     ticketID INT,
@@ -129,6 +132,11 @@ BEGIN
 	DELETE FROM TicketFollower WHERE userEmail = OLD.email;
 END;
 
+
+--Change permission when deploying
+REVOKE ALL PRIVILEGES ON TicketHistory FROM 'cei'@'localhost';
+GRANT SELECT, INSERT ON TicketHistory TO 'cei'@'localhost';
+FLUSH PRIVILEGES;
 
 INSERT INTO Users (email, name, password_hash, perm) VALUES 
 ('admin@example.com', 'Admin User', '$2b$10$example_hash_here', 3),

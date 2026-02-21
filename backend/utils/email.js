@@ -123,3 +123,38 @@ export const sendCommentNotificationEmail = async (toEmail, ticketTitle, comment
         console.error('Error sending comment email:', error);
     }
 };
+
+export const sendAssignmentNotificationEmail = async (toEmail, ticketTitle, assignerEmail, link) => {
+    const subject = `You have been assigned to "${ticketTitle}"`;
+
+    const mailOptions = {
+        from: `"CEiVoice Support" <${process.env.SMTP_USER}>`,
+        to: toEmail,
+        subject: subject,
+        text: `Hello,\n\nYou have been assigned to the ticket "${ticketTitle}" by ${assignerEmail}.\n\nView the ticket here: ${link}`,
+        html: `
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2>Ticket Assignment</h2>
+                <p>Hello,</p>
+                <p>You have been assigned to the ticket <strong>"${ticketTitle}"</strong> by <strong>${assignerEmail}</strong>.</p>
+                <p>View the ticket using the link below:</p>
+                <div style="margin: 20px 0;">
+                    <a href="${link}" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View Ticket</a>
+                </div>
+                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
+                <p style="font-size: 12px; color: #888;">This is an automated message, please do not reply.</p>
+            </div>
+        `,
+    };
+
+    try {
+        if (!process.env.SMTP_HOST) {
+            console.log("SMTP not configured, skipping assignment email.");
+            return;
+        }
+        await transporter.sendMail(mailOptions);
+        console.log(`Assignment email sent to ${toEmail}`);
+    } catch (error) {
+        console.error('Error sending assignment email:', error);
+    }
+};

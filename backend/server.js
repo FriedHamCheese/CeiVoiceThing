@@ -61,12 +61,13 @@ app.use(passport.session());
 configurePassport(passport);
 
 app.use('/auth', authRouter);
-app.use('/tickets', ticketRouter);
+app.use('/tickets', isAuthenticated, ticketRouter);
 app.use('/public/tickets', ticketRouterPublic);
 
 //Assignee
 app.use('/assignee/reports', isAssignee, reportRouter);
 app.use('/assignee/tickets', isAssignee, ticketRouterAssignee);
+app.use('/assignee/tickets', isAssignee, ticketRouterAdminAssignee);
 app.use('/assignee', isAssignee, assigneeRouter);
 
 //Admin

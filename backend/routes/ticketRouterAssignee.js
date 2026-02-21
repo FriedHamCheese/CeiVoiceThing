@@ -1,158 +1,225 @@
 import express from 'express';
 import mysqlConnection from '../utils/mysqlConnection.js';
+import { z } from 'zod';
+import { sendStatusUpdateEmail, sendAssignmentNotificationEmail } from '../utils/email.js';
 
 const router = express.Router();
-const logHistory = async (connection, ticketID, action, performedBy, details) => {
-    try {
-        await connection.execute(
-            "INSERT INTO TicketHistory (ticketID, action, performer, details) VALUES (?, ?, ?, ?)",
-            [ticketID, action, performedBy, details]
-        );
-    } catch (error) {
-        console.error("Failed to log history:", error);
-    }
-};
-// Fetch Active Tickets for Specialists
-// Mounted at /specialist/tickets
-router.get('/', async (request, response) => {
-    const userEmail = request.user.email;
-    const includeResolved = request.query.includeResolved === 'true';
-
-    try {
-        let query = `
-            SELECT t.id, t.summary, t.solution, t.title, t.status, t.deadline, t.createdAt, t.updatedAt,
-            (SELECT COUNT(*) FROM TicketUserRequest WHERE ticketID = t.id) as requestCount,
-            GROUP_CONCAT(DISTINCT ta.assigneeEmail SEPARATOR ', ') AS assignees,
-            GROUP_CONCAT(DISTINCT tc.category SEPARATOR ', ') AS categories,
-            GROUP_CONCAT(DISTINCT tf.userEmail SEPARATOR ', ') AS followers
-            FROM Ticket t
-            JOIN TicketAssignee ta ON t.id = ta.ticketID
-            LEFT JOIN TicketCategory tc ON t.id = tc.ticketID
-            LEFT JOIN TicketFollower tf ON t.id = tf.ticketID
-            WHERE ta.assigneeEmail = ?
-        `;
-
-        const params = [userEmail];
-
-        if (!includeResolved) {
-            query += " AND t.status NOT IN ('Solved', 'Failed')";
-        }
-
-        query += " GROUP BY t.id ORDER BY t.createdAt DESC";
-
-        const [rows] = await mysqlConnection.execute(query, params);
-
-        // Standardize output format
-        const formattedTickets = rows.map(t => ({
-            ...t,
-            assignees: t.assignees ? t.assignees.split(', ') : [],
-            categories: t.categories ? t.categories.split(', ') : [],
-            followers: t.followers ? t.followers.split(', ') : []
-        }));
-
-        response.status(200).json({ tickets: formattedTickets });
-    } catch (error) {
-        console.error(error);
-        response.status(500).json({ message: "Failed to fetch tickets." });
-    }
+const historySchema = z.object({
+    ticketID: z.number().min(1),
+    action: z.string().min(1),
+    performer: z.email().min(1),
+    details: z.string().min(1)
 });
 
-router.patch('/:id', async (request, response) => {
-    const ticketID = request.params.id;
-    // Only extract status from the body
-    const { status } = request.body;
-    const adminEmail = request.user.email;
+// Create a schema for the array of history items
+const historyBatchSchema = z.array(historySchema);
 
+const logHistory = async (connection, ticketID, userEmail, historyItems) => {
+    // 1. Prepare the data for validation
+    const dataToValidate = historyItems.map(item => ({
+        ticketID: parseInt(ticketID),
+        action: String(item.action),
+        performer: String(userEmail),
+        details: String(item.details)
+    }));
+    // 2. Validate the batch
+    const validation = historyBatchSchema.safeParse(dataToValidate);
+
+    if (!validation.success) {
+        console.error("Validation failed:", validation.error.format());
+        return;
+    }
+
+    if (validation.data.length === 0) return;
+
+    // 3. Map validated data to SQL values
+    const values = validation.data.map(item => [
+        item.ticketID,
+        item.action,
+        item.performer,
+        item.details,
+        new Date()
+    ]);
+
+    try {
+        await connection.query(
+            "INSERT INTO TicketHistory (ticketID, action, performer, details, timestamp) VALUES ?",
+            [values]
+        );
+    } catch (error) {
+        console.error("Database Error:", error);
+    }
+};
+
+
+const ticketUpdateSchema = z.object({
+    status: z.string().optional(),
+    resolutionComment: z.string().nullable().optional(),
+    assigneeEmail: z.array(z.email("Invalid email format")).optional(),
+});
+router.patch('/:id', async (request, response) => {
+    const email = request.user.email;
+    const ticketID = request.params.id;
+
+    // 1. Validate Input
+    const parsed = ticketUpdateSchema.safeParse(request.body);
+    if (!parsed.success) {
+        return response.status(400).json({ error: "Validation failed", details: parsed.error.issues });
+    }
+
+    // Destructure only the fields we care about
+    const { assigneeEmail, status, resolutionComment } = parsed.data;
     let connection;
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        // Check if ticket exists and get current status
-        const [current] = await connection.execute("SELECT * FROM Ticket WHERE id = ?", [ticketID]);
-        if (current.length === 0) return response.status(404).json({ error: "Ticket not found" });
+        let [currentStatus] = await connection.execute("SELECT status FROM Ticket WHERE id = ?", [ticketID]);
+        let [currentResolutionComment] = await connection.execute("SELECT resolutionComment FROM Ticket WHERE id = ?", [ticketID]);
+        let [currentAssigneeEmail] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
 
-        const old = current[0];
 
-        // Security check: Only the assignee can update the ticket status
-        // (Admins usually use the ticketRouterAdmin, but we check here just in case)
-        const [assignees] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-        const isAssignee = assignees.some(a => a.assigneeEmail === adminEmail);
+        // 2. Fetch current record for history comparison
+        const [rows] = await connection.execute("SELECT title, status, resolutionComment FROM Ticket WHERE id = ?", [ticketID]);
+        if (rows.length === 0) {
+            await connection.rollback();
+            return response.status(404).json({ error: "Ticket not found" });
+        }
+        const current = rows[0];
 
-        // Allow if user is admin (perm >= 4) or if they are the assignee
-        if (request.user.perm < 4 && !isAssignee) {
-            return response.status(403).json({ message: "You are not authorized to update this ticket." });
+        const updates = [];
+        const values = [];
+        const historyItems = [];
+
+        let shouldNotifySolved = false;
+        let shouldNotifyFailed = false;
+        let newAssigneesToNotify = [];
+
+        // 3. Logic for Status & Resolution Comment
+        // Validation: Required comment for Solved/Failed
+        if (status !== undefined && (status === 'Solved' || status === 'Failed')) {
+            if (!resolutionComment || resolutionComment.trim() === "") {
+                await connection.rollback();
+                return response.status(400).json({ error: `Resolution comment is required for status: ${status}.` });
+            }
         }
 
-        // Only proceed if status or assignees are provided and different from the current
-        const { assigneeEmail } = request.body;
+        if (status !== undefined && status !== current.status) {
+            updates.push("status = ?");
+            values.push(status);
 
-        if ((status !== undefined && status !== old.status) || assigneeEmail !== undefined) {
-            const { resolutionComment } = request.body;
+            if (status === 'Solved') {
+                historyItems.push({ action: "Solved", details: "Ticket solved" });
+                shouldNotifySolved = true;
+            } else if (status === 'Failed') {
+                historyItems.push({ action: "Failed", details: "Ticket failed" });
+                shouldNotifyFailed = true;
+            } else {
+                historyItems.push({ action: "Status updated", details: `${current.status} -> ${status}` });
+            }
+        }
 
-            // Validation: Require resolution comment for Solved or Failed
-            if (status !== undefined && (status === 'Solved' || status === 'Failed') && (!resolutionComment || resolutionComment.trim() === "")) {
-                return response.status(400).json({ error: `Resolution comment is required when setting status to ${status}.` });
+        if (resolutionComment !== undefined && resolutionComment !== current.resolutionComment) {
+            updates.push("resolutionComment = ?");
+            // If it's undefined, we pass null to SQL, otherwise the string
+            values.push(resolutionComment ?? null);
+            historyItems.push({ action: "Resolution updated", details: resolutionComment || "Cleared" });
+        }
+
+        // Apply updates to the main Ticket table
+        if (updates.length > 0) {
+            values.push(ticketID); // Add ID for the WHERE clause
+            await connection.execute(`UPDATE Ticket SET ${updates.join(", ")} WHERE id = ?`, values);
+        }
+
+        // 4. Handle Assignee List (The Junction Table)
+        if (assigneeEmail !== undefined) {
+            const oldAssigneeEmails = currentAssigneeEmail.map(a => a.assigneeEmail);
+            newAssigneesToNotify = assigneeEmail.filter(e => !oldAssigneeEmails.includes(e));
+
+            // 1. Clear existing assignees
+            await connection.execute(
+                "DELETE FROM TicketAssignee WHERE ticketID = ?",
+                [ticketID]
+            );
+            // 2. Insert new assignees
+            if (Array.isArray(assigneeEmail) && assigneeEmail.length > 0) {
+                const assValues = assigneeEmail.map(ae =>
+                    connection.execute(
+                        "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+                        [ticketID, ae]
+                    )
+                );
+                await Promise.all(assValues);
             }
 
-            // 1. Update status and resolution if provided
-            if (status !== undefined || resolutionComment !== undefined) {
-                const updateFields = [];
-                const updateValues = [];
-                if (status !== undefined) {
-                    updateFields.push("status = ?");
-                    updateValues.push(status);
-                }
-                if (resolutionComment !== undefined) {
-                    updateFields.push("resolutionComment = ?");
-                    updateValues.push(resolutionComment);
-                }
-                updateValues.push(ticketID);
-                await connection.execute(`UPDATE Ticket SET ${updateFields.join(", ")} WHERE id = ?`, updateValues);
+            historyItems.push({
+                action: "Assignees updated",
+                details: `${currentAssigneeEmail.length > 0 ? currentAssigneeEmail.map(ae => ae.assigneeEmail).join(", ") : "No assignees"} -> ${assigneeEmail.length > 0 ? assigneeEmail.join(", ") : "No assignees"}`
+            });
+        }
 
-                if (status !== undefined && status !== old.status) {
-                    let historyDetails = `Status changed from ${old.status} to ${status}`;
-                    if (resolutionComment) {
-                        historyDetails += `. Resolution: ${resolutionComment}`;
-                    }
-                    await logHistory(connection, ticketID, "Update", adminEmail, historyDetails);
-                }
-            }
+        // 5. Finalize
+        if (historyItems.length > 0) {
+            await logHistory(connection, ticketID, email, historyItems);
+        }
 
-            // 2. Update assignees if provided
-            if (assigneeEmail !== undefined) {
-                const newAssignees = Array.isArray(assigneeEmail) ? assigneeEmail : [assigneeEmail];
-                const [oldAssigneeRows] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-                const oldAssignees = oldAssigneeRows.map(r => r.assigneeEmail);
-
-                // Check for differences
-                const added = newAssignees.filter(email => !oldAssignees.includes(email));
-                const removed = oldAssignees.filter(email => !newAssignees.includes(email));
-
-                if (added.length > 0 || removed.length > 0) {
-                    await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-                    for (const email of newAssignees) {
-                        await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [ticketID, email]);
-                    }
-
-                    const historyDetails = `Assignees changed. Added: [${added.join(', ') || 'none'}], Removed: [${removed.join(', ') || 'none'}]`;
-                    await logHistory(connection, ticketID, "Reassign", adminEmail, historyDetails);
-                }
-            }
+        let followers = [];
+        if (shouldNotifySolved || shouldNotifyFailed) {
+            const [requestLinks] = await connection.execute(
+                `SELECT ur.userEmail, ur.tracking_token 
+                 FROM UserRequest ur 
+                 JOIN TicketUserRequest tur ON ur.id = tur.userRequestID 
+                 WHERE tur.ticketID = ?`,
+                [ticketID]
+            );
+            followers = requestLinks;
         }
 
         await connection.commit();
-        response.json({ message: "Ticket status updated successfully" });
+
+        if (shouldNotifySolved) {
+            for (const req of followers) {
+                if (req.tracking_token) {
+                    sendStatusUpdateEmail(req.userEmail, current.title, "Solved", req.tracking_token)
+                        .catch(err => console.error("Update email failed:", err));
+                }
+            }
+        }
+
+        if (shouldNotifyFailed) {
+            for (const req of followers) {
+                if (req.tracking_token) {
+                    sendStatusUpdateEmail(req.userEmail, current.title, "Failed", req.tracking_token)
+                        .catch(err => console.error("Update email failed:", err));
+                }
+            }
+        }
+
+        // Send Assignment Notifications
+        if (newAssigneesToNotify.length > 0) {
+            const link = `http://localhost:${process.env.FRONTEND_PORT}/`;
+            const displayTitle = current.title;
+            for (const assignee of newAssigneesToNotify) {
+                if (assignee !== email) {
+                    sendAssignmentNotificationEmail(assignee, displayTitle, email, link)
+                        .catch(err => console.error("Assignment email failed:", err));
+                }
+            }
+        }
+
+        response.json({
+            message: "Ticket updated successfully",
+        });
 
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error(error);
-        response.status(500).json({ error: "Failed to update ticket status" });
+        console.error("SQL Error:", error);
+        response.status(500).json({ error: "Internal server error", message: error.message });
     } finally {
         if (connection) connection.release();
     }
 });
-
 
 router.get('/:id/history', async (request, response) => {
     try {

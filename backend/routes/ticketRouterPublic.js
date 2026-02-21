@@ -69,12 +69,19 @@ router.get('/track/:token', async (request, response) => {
 
         const ticket = tickets[0];
 
+        // Fetch history
+        const [history] = await mysqlConnection.execute(
+            "SELECT id, action, details, performer, timestamp FROM TicketHistory WHERE ticketID = ? ORDER BY timestamp DESC",
+            [ticket.id]
+        );
+
         if (ticket.status === 'draft') {
             return response.json({
                 status: "Draft",
                 title: ticket.title,
                 message: "Your request is currently being reviewed by our administrators.",
-                details: ticket.requestContents
+                details: ticket.requestContents,
+                history: history
             });
         }
 
@@ -98,7 +105,8 @@ router.get('/track/:token', async (request, response) => {
             resolutionComment: ticket.resolutionComment,
             message: "Your request has been accepted and is currently in our active workflow.",
             comments: comments,
-            assignees: assignees
+            assignees: assignees,
+            history: history
         });
 
     } catch (error) {

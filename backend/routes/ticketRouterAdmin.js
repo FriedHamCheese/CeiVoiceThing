@@ -1,7 +1,7 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { z } from 'zod';
-import { sendStatusUpdateEmail } from '../utils/email.js';
+import { sendStatusUpdateEmail, sendAssignmentNotificationEmail } from '../utils/email.js';
 import { pipeline, cos_sim } from '@xenova/transformers';
 const router = express.Router();
 
@@ -84,6 +84,10 @@ router.patch('/:id', async (request, response) => {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
+        let [currentStatus] = await connection.execute("SELECT status FROM Ticket WHERE id = ?", [ticketID]);
+        let [currentResolutionComment] = await connection.execute("SELECT resolutionComment FROM Ticket WHERE id = ?", [ticketID]);
+        let [currentAssigneeEmail] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
+
         // 2. Fetch current record to compare changes
         const [rows] = await connection.execute("SELECT * FROM Ticket WHERE id = ?", [ticketID]);
         if (rows.length === 0) {
@@ -120,6 +124,7 @@ router.patch('/:id', async (request, response) => {
         let shouldNotifyNew = false;
         let shouldNotifySolved = false;
         let shouldNotifyFailed = false;
+        let newAssigneesToNotify = [];
 
         if (status !== undefined && status !== current.status) {
             updates.push("status = ?"), values.push(status);
@@ -172,12 +177,29 @@ router.patch('/:id', async (request, response) => {
         }
 
         if (assigneeEmail !== undefined) {
-            await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
-            if (assigneeEmail.length > 0) {
-                const assValues = assigneeEmail.map(ae => [ticketID, ae]);
-                await connection.query("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES ?", [assValues]);
+            const oldAssigneeEmails = currentAssigneeEmail.map(a => a.assigneeEmail);
+            newAssigneesToNotify = assigneeEmail.filter(e => !oldAssigneeEmails.includes(e));
+
+            // 1. Clear existing assignees
+            await connection.execute(
+                "DELETE FROM TicketAssignee WHERE ticketID = ?",
+                [ticketID]
+            );
+            // 2. Insert new assignees
+            if (Array.isArray(assigneeEmail) && assigneeEmail.length > 0) {
+                const assValues = assigneeEmail.map(ae =>
+                    connection.execute(
+                        "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+                        [ticketID, ae]
+                    )
+                );
+                await Promise.all(assValues);
             }
-            historyItems.push({ action: "Assignees updated", details: `${assigneeEmail}` });
+
+            historyItems.push({
+                action: "Assignees updated",
+                details: `${currentAssigneeEmail.length > 0 ? currentAssigneeEmail.map(ae => ae.assigneeEmail).join(", ") : "No assignees"} -> ${assigneeEmail.length > 0 ? assigneeEmail.join(", ") : "No assignees"}`
+            });
         }
 
         await logHistory(connection, ticketID, email, historyItems);
@@ -223,6 +245,18 @@ router.patch('/:id', async (request, response) => {
             }
         }
 
+        // Send Assignment Notifications
+        if (newAssigneesToNotify.length > 0) {
+            const link = `http://localhost:${process.env.FRONTEND_PORT}/`;
+            const displayTitle = title !== undefined ? title : current.title;
+            for (const assignee of newAssigneesToNotify) {
+                if (assignee !== email) {
+                    sendAssignmentNotificationEmail(assignee, displayTitle, email, link)
+                        .catch(err => console.error("Assignment email failed:", err));
+                }
+            }
+        }
+
         response.json({ message: "Ticket updated successfully", changes: historyItems.length });
 
     } catch (error) {
@@ -241,35 +275,46 @@ router.patch('/:id', async (request, response) => {
 // Unlink a UserRequest from a Ticket (now updating mergedTo and status)
 router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, response) => {
     const { childUserRequestID, parentTicketId } = request.params;
+    const email = request.user.email;
     let connection;
 
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        // 1. Unlink the specific child ticket requested by the user
-        const [updateTicketResult] = await connection.execute(
-            `UPDATE Ticket SET mergedTo = NULL, status = 'draft' 
-             WHERE userRequestID = ? AND mergedTo = ?`,
+        // 1. Get the specific child ticket ID requested by the user
+        const [childTickets] = await connection.execute(
+            `SELECT id FROM Ticket WHERE userRequestID = ? AND mergedTo = ?`,
             [childUserRequestID, parentTicketId]
         );
 
-        if (updateTicketResult.affectedRows === 0) {
+        if (childTickets.length === 0) {
             await connection.rollback();
             return response.status(404).json({ error: "UserRequest not found or not linked to this parent." });
         }
+        const childTicketID = childTickets[0].id;
 
-        // 2. Update Mapping Table for the unlinked child
+        // 2. Unlink the specific child ticket
         await connection.execute(
-            `UPDATE TicketUserRequest SET ticketID = (SELECT id FROM Ticket WHERE userRequestID = ?)
-             WHERE userRequestID = ?`,
-            [childUserRequestID, childUserRequestID]
+            `UPDATE Ticket SET mergedTo = NULL, status = 'draft' WHERE id = ?`,
+            [childTicketID]
+        );
+
+        await logHistory(connection, childTicketID, email, [{
+            action: "Status updated",
+            details: `merged -> draft (Unlinked from parent ticket #${parentTicketId})`
+        }]);
+
+        // 3. Update Mapping Table for the unlinked child
+        await connection.execute(
+            `UPDATE TicketUserRequest SET ticketID = ? WHERE userRequestID = ?`,
+            [childTicketID, childUserRequestID]
         );
 
         // ==================================================================================
         // NEW LOGIC: Check if the Parent Ticket is now left with only 1 child
         // ==================================================================================
-        
+
         // Count remaining children in the parent ticket
         const [remainingChildren] = await connection.execute(
             `SELECT id, userRequestID FROM Ticket WHERE mergedTo = ?`,
@@ -288,6 +333,11 @@ router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, respo
                 `UPDATE Ticket SET mergedTo = NULL, status = 'draft' WHERE id = ?`,
                 [lastChild.id]
             );
+
+            await logHistory(connection, lastChild.id, email, [{
+                action: "Status updated",
+                details: `merged -> draft (Parent ticket #${parentTicketId} dissolved)`
+            }]);
 
             // B. Fix Mapping Table for this last remaining child
             await connection.execute(
@@ -323,10 +373,10 @@ router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, respo
 
         await connection.commit();
 
-        response.json({ 
-            message: parentDeleted 
-                ? "Ticket unlinked. Parent merged ticket deleted as only one child remained." 
-                : "Ticket unlinked and followers synchronized." 
+        response.json({
+            message: parentDeleted
+                ? "Ticket unlinked. Parent merged ticket deleted as only one child remained."
+                : "Ticket unlinked and followers synchronized."
         });
 
     } catch (error) {
@@ -347,7 +397,7 @@ router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, respo
 
         response.status(500).json({
             error: "Internal server error.",
-            trackId: Date.now() 
+            trackId: Date.now()
         });
     } finally {
         if (connection) connection.release();
@@ -358,6 +408,7 @@ router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, respo
 // Merge multiple Tickets into one
 router.post("/merge", async (request, response) => {
     const { draftTicketIDs, title, summary, categories, suggestedSolutions, deadline, assigneeEmails } = request.body;
+    const email = request.user.email;
 
     if (!Array.isArray(draftTicketIDs) || draftTicketIDs.length === 0) {
         return response.status(400).json({ error: "Invalid IDs array." });
@@ -368,12 +419,23 @@ router.post("/merge", async (request, response) => {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
+        const finalDeadline = deadline || null;
         // 1. Create Merged Ticket
         const [inserted] = await connection.execute(
             "INSERT INTO Ticket (title, summary, solution, deadline, status, mergedTo) VALUES (?, ?, ?, ?, 'draft', NULL)",
-            [title.trim(), summary.trim(), suggestedSolutions.trim(), deadline || null]
+            [title.trim(), summary.trim(), suggestedSolutions.trim(), finalDeadline]
         );
         const mergedID = inserted.insertId;
+
+        // Log creation for new merged ticket
+        let historyItems = [{
+            action: "Ticket created",
+            details: `Merged from tickets: ${draftTicketIDs.join(', ')}`
+        }];
+        if (finalDeadline) {
+            historyItems.push({ action: "Deadline updated", details: `null -> ${finalDeadline}` });
+        }
+        // Will flush after assignments
 
         // 2. Re-link User Requests and Cleanup old tickets
         for (const oldID of draftTicketIDs) {
@@ -388,17 +450,32 @@ router.post("/merge", async (request, response) => {
                 "UPDATE Ticket SET mergedTo = ?, status = 'merged' WHERE id = ?",
                 [mergedID, oldID]
             );
+
+            await logHistory(connection, oldID, email, [{
+                action: "Status updated",
+                details: `draft -> merged (Merged into ticket #${mergedID})`
+            }]);
         }
 
         // 3. Assign multiple assignees
-        if (assigneeEmails && Array.isArray(assigneeEmails)) {
-            for (const email of assigneeEmails) {
+        let newAssigneesToNotify = [];
+        if (assigneeEmails && Array.isArray(assigneeEmails) && assigneeEmails.length > 0) {
+            for (const assigneeEmail of assigneeEmails) {
                 // Added IGNORE to prevent crashing if user is already assigned
                 await connection.execute(
-                    "INSERT IGNORE INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", 
-                    [mergedID, email]
+                    "INSERT IGNORE INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+                    [mergedID, assigneeEmail]
                 );
             }
+            newAssigneesToNotify = assigneeEmails;
+            historyItems.push({
+                action: "Assignees updated",
+                details: `No assignees -> ${assigneeEmails.join(", ")}`
+            });
+        }
+
+        if (historyItems.length > 0) {
+            await logHistory(connection, mergedID, email, historyItems);
         }
 
         // 4. Insert new unique categories
@@ -406,16 +483,22 @@ router.post("/merge", async (request, response) => {
             const uniqueCategories = [...new Set(categories)];
             for (const cat of uniqueCategories) {
                 await connection.execute(
-                    "INSERT INTO TicketCategory (category, ticketID) VALUES (?, ?)", 
+                    "INSERT INTO TicketCategory (category, ticketID) VALUES (?, ?)",
                     [cat, mergedID]
                 );
+            }
+            if (uniqueCategories.length > 0) {
+                await logHistory(connection, mergedID, email, [{
+                    action: "Categories updated",
+                    details: `${uniqueCategories.join(", ")}`
+                }]);
             }
         }
 
         // ==============================================================================
         // 5. FIX: Insert followers (Optimized)
         // ==============================================================================
-        
+
         // Create a string of placeholders based on the number of IDs (e.g., "?, ?, ?")
         const placeholders = draftTicketIDs.map(() => '?').join(',');
 
@@ -434,6 +517,18 @@ router.post("/merge", async (request, response) => {
         // ==============================================================================
 
         await connection.commit();
+
+        if (newAssigneesToNotify && newAssigneesToNotify.length > 0) {
+            const link = `http://localhost:${process.env.FRONTEND_PORT}/`;
+            const displayTitle = title.trim();
+            for (const assignee of newAssigneesToNotify) {
+                if (assignee !== email) {
+                    sendAssignmentNotificationEmail(assignee, displayTitle, email, link)
+                        .catch(err => console.error("Assignment email failed:", err));
+                }
+            }
+        }
+
         response.status(200).json({ message: "Tickets merged successfully.", mergedTicketId: mergedID });
 
     } catch (error) {
