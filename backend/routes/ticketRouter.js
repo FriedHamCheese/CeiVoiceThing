@@ -2,7 +2,6 @@ import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { isAuthenticated } from '../middleware/authMiddleware.js';
-import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
 import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
 import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
 import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
@@ -75,8 +74,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
 
         const llmProviders = {
             'OPENAI': openai,
-            'ORACLE': oracle,
-            'OLLAMA': ollama
+            'ORACLE': oracle
         };
         // Default to 'ollama' if env var is missing or invalid
         const generateTicket = llmProviders[process.env.LLM_PROVIDER] || oracle;

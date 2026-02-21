@@ -1,10 +1,6 @@
 import express from 'express';
-import { v4 as uuidv4 } from 'uuid';
 import mysqlConnection from '../utils/mysqlConnection.js';
-import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
-import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
-import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
-import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
+import { sendCommentNotificationEmail } from '../utils/email.js';
 
 const router = express.Router();
 

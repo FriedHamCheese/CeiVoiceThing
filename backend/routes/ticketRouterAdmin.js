@@ -1,7 +1,7 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { z } from 'zod';
-import { sendStatusUpdateEmail, sendCommentNotificationEmail } from '../utils/email.js';
+import { sendStatusUpdateEmail } from '../utils/email.js';
 import { pipeline, cos_sim } from '@xenova/transformers';
 const router = express.Router();
 

@@ -1,14 +1,12 @@
 export const PREDEFINED_TAGS = [
-    'Scholarship',
     'Internship',
     'Medical',
-    'Building',
     'Finance',
     'Academics',
-    'Transporation',
-    'Administration',
+    'Transportation',
     'Facility',
     'Organised Events',
+    'Administration',
 ];
 let _commaSeparatedTags = "";
 for(const tag of PREDEFINED_TAGS)
