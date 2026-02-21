@@ -22,27 +22,27 @@ async function runSetup() {
         connection = await mysql.createConnection({
             host: process.env.DATABASE_HOST,
             user: process.env.DATABASE_ROOT_USERNAME || 'root',
-            password: process.env.DATABASE_ROOT_PASSWORD || 'CEiAdmin0', //Change this later when we complete the system
+            password: process.env.DATABASE_ROOT_PASSWORD || 'CEiAdmin0',
             database: process.env.DATABASE_NAME,
-            multipleStatements: true // Essential for running the whole file at once
+            multipleStatements: true 
         });
 
         const sqlFilePath = path.join(__dirname, './', 'setup.sql');
         const sqlFileContent = await fs.readFile(sqlFilePath, 'utf8');
 
-        // --- FIX FOR TRIGGERS ---
-        // We remove DELIMITER lines and replace the custom '//' with ';'
-        // This makes the SQL compatible with the mysql2 driver
+        // --- IMPROVED CLEANUP FOR TRIGGERS ---
+        // 1. Remove DELIMITER lines entirely
+        // 2. Replace // trigger terminators with standard ;
         const cleanSql = sqlFileContent
-            .replace(/DELIMITER \/\/|DELIMITER ;/g, '') 
-            .replace(/\/\/ /g, ';') 
+            .replace(/DELIMITER\s+\/\/|DELIMITER\s+;/g, '') 
+            .replace(/\/\/\s*(\r?\n|$)/g, ';$1') 
             .trim();
 
         console.log(`Executing SQL on ${process.env.DATABASE_NAME}...`);
         
         await connection.query(cleanSql);
 
-        console.log('Database setup successful (Tables & Triggers created)');
+        console.log('Database setup successful (Tables & Immutable Triggers created)');
 
     } catch (error) {
         console.error('Setup failed:');

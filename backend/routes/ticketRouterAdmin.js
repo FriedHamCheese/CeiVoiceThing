@@ -2,7 +2,7 @@ import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { z } from 'zod';
 import { sendStatusUpdateEmail, sendAssignmentNotificationEmail } from '../utils/email.js';
-import { pipeline, cos_sim } from '@xenova/transformers';
+import { findMergeRecommendations } from '../utils/ticketOpenAI.js';
 const router = express.Router();
 
 const historySchema = z.object({
@@ -541,15 +541,6 @@ router.post("/merge", async (request, response) => {
 });
 
 
-let extractor = null;
-
-async function getExtractor() {
-    if (!extractor) {
-        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    }
-    return extractor;
-}
-
 router.get("/recommend-merges", async (request, response) => {
     try {
         const [drafts] = await mysqlConnection.execute(
@@ -557,50 +548,12 @@ router.get("/recommend-merges", async (request, response) => {
         );
 
         // Not enough tickets to compare
-        if (drafts.length < 2) return response.json({ clusters: [] });
+        if (drafts.length < 2) return response.json({ recommendations: [] });
 
-        const model = await getExtractor();
-
-        // Combine text for better context; fallback to empty string if null
-        const ticketTexts = drafts.map(t => `${t.title || ''} ${t.summary || ''}`);
-
-        // Generate embeddings (vectors)
-        // pooling: 'mean' flattens the output into a single vector per ticket
-        // normalize: true allows us to use simple dot product/cosine similarity
-        const output = await model(ticketTexts, { pooling: 'mean', normalize: true });
-
-        const clusters = [];
-        const processedIndices = new Set();
-        const THRESHOLD = 0.8; // 0.8 is usually the "sweet spot" for duplicates
-
-        for (let i = 0; i < drafts.length; i++) {
-            // Skip if this ticket was already added to a previous cluster
-            if (processedIndices.has(i)) continue;
-
-            const currentCluster = [drafts[i].id];
-
-            // Compare the 'Lead' ticket (i) against all others (j)
-            for (let j = i + 1; j < drafts.length; j++) {
-                if (processedIndices.has(j)) continue;
-
-                // .data extracts the raw Float32Array from the Transformer tensor
-                const similarity = cos_sim(output[i].data, output[j].data);
-
-                if (similarity > THRESHOLD) {
-                    currentCluster.push(drafts[j].id);
-                    processedIndices.add(j); // Mark as "used"
-                }
-            }
-
-            // Only add to result if we found at least one match for this ticket
-            if (currentCluster.length > 1) {
-                clusters.push(currentCluster);
-                processedIndices.add(i); // Mark the lead ticket as used
-            }
-        }
+        const recommendations = await findMergeRecommendations(drafts, 0.7);
 
         // Returns: [[1, 5, 12], [3, 8]]
-        response.status(200).json({ recommendations: clusters });
+        response.status(200).json({ recommendations });
     } catch (error) {
         console.error("Clustering error:", error);
         response.status(500).json({ error: "Failed to cluster tickets." });

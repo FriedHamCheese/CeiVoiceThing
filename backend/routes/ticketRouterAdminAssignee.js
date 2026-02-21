@@ -74,13 +74,14 @@ router.get('/:id/requests', async (request, response) => {
 router.get('/assignees', async (request, response) => {
     try {
         const [rows] = await mysqlConnection.execute(`
-            SELECT u.email, u.name, sp.contact, GROUP_CONCAT(ss.scopeTag) as scope
-            FROM Users u
-            LEFT JOIN AssigneeProfile sp ON u.email = sp.userEmail
-            LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
+            SELECT 
+                u.email, 
+                u.name, 
+                GROUP_CONCAT(ss.scopeTag) as scopeTags 
+            FROM Users u 
+            LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail 
             WHERE u.perm = 2
-            GROUP BY u.email
-            ORDER BY u.name ASC
+            GROUP BY u.email, u.name;
         `);
         response.json(rows);
     } catch (error) {

@@ -109,7 +109,7 @@ export async function draftTicketFromUserRequest(userRequestText) {
     }
 }
 
-export async function findMergeRecommendations(drafts, threshold = 0.85) {
+export async function findMergeRecommendations(drafts, threshold = 0.7) {
     if (!drafts || drafts.length < 2) return [];
     try {
         const response = await axios.post(
@@ -119,8 +119,7 @@ export async function findMergeRecommendations(drafts, threshold = 0.85) {
                 threshold: threshold
             },
             {
-                auth: { username: ORACLE_USER, password: ORACLE_PASS },
-                timeout: 5000
+                auth: { username: ORACLE_USER, password: ORACLE_PASS }
             }
         );
 

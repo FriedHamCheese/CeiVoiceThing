@@ -11,7 +11,7 @@ const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
 const SAFETY_FALLBACK_EMAIL = "admin@example.com";
 const CLASSIFIER_URL = `${ORACLE_URL}/classifier/predict`;
-const GROUPING_URL = `${ORACLE_URL}/group-drafts`;
+const GROUPING_URL = `${ORACLE_URL}/group`;
 const GENERATION_URL = `${ORACLE_URL}/api/generate`;
 // --- INITIALIZE SERVICES ---
 

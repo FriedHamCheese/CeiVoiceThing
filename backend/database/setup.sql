@@ -56,7 +56,7 @@ CREATE TABLE AssigneeScope(
 
 CREATE TABLE Ticket(
     id INT AUTO_INCREMENT PRIMARY KEY,
-	userRequestID INT,
+    userRequestID INT,
     summary VARCHAR(2048),
     solution VARCHAR(2048),
     title VARCHAR(256),
@@ -65,8 +65,8 @@ CREATE TABLE Ticket(
     deadline DATETIME,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	mergedTo INT DEFAULT NULL,
-	FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
+    mergedTo INT DEFAULT NULL,
+    FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
 
 CREATE TABLE TicketAssignee(
@@ -94,17 +94,15 @@ CREATE TABLE TicketHistory (
     performer VARCHAR(64),
     details VARCHAR(2048),
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    -- Using RESTRICT ensures the Ticket cannot be deleted while History exists
+    -- Prevent Ticket deletion if History exists
     FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE RESTRICT
 );
-
-
 
 CREATE TABLE TicketFollower(
     ticketID INT,
     userEmail VARCHAR(64),
     PRIMARY KEY (ticketID, userEmail),
-	FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
+    FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE CASCADE
 );
 
 CREATE TABLE TicketCategory(
@@ -122,22 +120,28 @@ CREATE TABLE TicketUserRequest(
     FOREIGN KEY (userRequestID) REFERENCES UserRequest(id) ON DELETE CASCADE
 );
 
--- TRIGGER: Manual Cascade for TicketAssignee
+-- TRIGGERS
+-- Note: Using '// ' with a space at the end to match your JS regex exactly
+DELIMITER //
+
+CREATE TRIGGER tr_DenyDeleteTicketHistory
+BEFORE DELETE ON TicketHistory
+FOR EACH ROW
+BEGIN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Deletions are not allowed on the TicketHistory table.';
+END// 
+
 CREATE TRIGGER tr_DeleteAssigneeOnUserDelete
 AFTER DELETE ON Users
 FOR EACH ROW
-
 BEGIN
     DELETE FROM TicketAssignee WHERE assigneeEmail = OLD.email;
-	DELETE FROM TicketFollower WHERE userEmail = OLD.email;
-END;
+    DELETE FROM TicketFollower WHERE userEmail = OLD.email;
+END// 
 
+DELIMITER ;
 
---Change permission when deploying
-REVOKE ALL PRIVILEGES ON TicketHistory FROM 'cei'@'localhost';
-GRANT SELECT, INSERT ON TicketHistory TO 'cei'@'localhost';
-FLUSH PRIVILEGES;
-
+-- INITIAL DATA
 INSERT INTO Users (email, name, password_hash, perm) VALUES 
 ('admin@example.com', 'Admin User', '$2b$10$example_hash_here', 3),
 ('user@example.com', 'Regular User', '$2b$10$example_hash_here', 1),
@@ -151,7 +155,6 @@ INSERT INTO Users (email, name, password_hash, perm) VALUES
 ('assignee8@example.com', 'Assignee 8', '$2b$10$example_hash_here', 2);
 
 INSERT INTO AssigneeScope (userEmail, scopeTag) VALUES 
-
 ('assignee1@example.com', 'Internship'),
 ('assignee2@example.com', 'Medical'),
 ('assignee3@example.com', 'Finance'),
