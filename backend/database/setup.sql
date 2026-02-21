@@ -93,9 +93,7 @@ CREATE TABLE TicketHistory (
     action VARCHAR(128),
     performer VARCHAR(64),
     details VARCHAR(2048),
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    -- Prevent Ticket deletion if History exists
-    FOREIGN KEY (ticketID) REFERENCES Ticket(id) ON DELETE RESTRICT
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE TicketFollower(
