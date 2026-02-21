@@ -1,155 +1,138 @@
 import OpenAI from "openai";
 import 'dotenv/config';
-import { pipeline, cos_sim } from '@xenova/transformers';
+import pool from './mysqlConnection.js';
+import AssigneeBalancer from './AssigneeBalancer.js';
+
 const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function draftTicketFromUserRequest(userRequestText, commaSeparatedTags, commaSeparatedAssignees = "") {
-    const askOpenAI = async (systemPrompt, userPrompt, jsonMode = false) => {
-        try {
-            const response = await openAIClient.chat.completions.create({ // Corrected from responses.create to chat.completions.create
-                model: "gpt-3.5-turbo",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userPrompt }
-                ],
-                response_format: jsonMode ? { type: "json_object" } : undefined, // OpenAI specific JSON mode
-                stream: false,
-            });
-            return response.choices[0].message.content;
-        } catch (error) {
-            console.error(`OpenAI Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
-            throw error;
-        }
-    };
+// ORACLE for classification and grouping
+const ORACLE_URL = process.env.ORACLE_URL;
+const ORACLE_USER = process.env.ORACLE_USER;
+const ORACLE_PASS = process.env.ORACLE_PASS;
+const SAFETY_FALLBACK_EMAIL = "admin@example.com";
+const CLASSIFIER_URL = `${ORACLE_URL}/classifier/predict`;
+const GROUPING_URL = `${ORACLE_URL}/group-drafts`;
 
+import axios from "axios";
+
+class ClassifierService {
+    constructor(classifierUrl, username, password) {
+        this.apiUrl = classifierUrl;
+        this.auth = { username, password };
+    }
+
+    async predictCategory(text) {
+        if (!text) return "Others";
+        try {
+            const response = await axios.post(
+                this.apiUrl,
+                { text: text },
+                {
+                    auth: this.auth,
+                    timeout: 5000
+                }
+            );
+            return response.data.category || "Others";
+        } catch (error) {
+            console.error(`[Classifier] API Failed: ${error.message}`);
+            return "Others";
+        }
+    }
+}
+
+const classifierService = new ClassifierService(CLASSIFIER_URL, ORACLE_USER, ORACLE_PASS);
+const assigneeBalancer = new AssigneeBalancer(pool);
+
+const cleanString = (str, maxLen) => {
+    if (typeof str !== 'string') return "";
+    return str.trim().slice(0, maxLen).replace(/^"|"$/g, '');
+};
+
+const askOpenAI = async (systemPrompt, userPrompt, jsonMode = false) => {
     try {
-        const [title, summary, solutions, categories, assignee] = await Promise.all([
-            // Title
+        const response = await openAIClient.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
+            ],
+            response_format: jsonMode ? { type: "json_object" } : undefined,
+            stream: false,
+        });
+        return response.choices[0].message.content;
+    } catch (error) {
+        console.error(`OpenAI Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
+        throw error;
+    }
+};
+
+export async function draftTicketFromUserRequest(userRequestText) {
+    try {
+        console.log("Drafting Ticket (OpenAI): Starting Sequential Chain...");
+
+        const [summary, category] = await Promise.all([
             askOpenAI(
-                "Generate a title for this support ticket as short as possible.",
+                `You are a helpful support assistant.
+                 Summarize the user's request below into a clear, professional problem statement.
+                 Do not include any introductory text like "Here is the summary". just the summary.`,
                 userRequestText
             ),
-            // Summary
-            askOpenAI(
-                "Summarize the following user request as short as possible.",
-                userRequestText
-            ),
-            // Solutions
-            askOpenAI(
-                "Suggest potential solutions for this support request. as short as possible.",
-                userRequestText
-            ),
-            // Categories
-            askOpenAI(
-                `Pick the best word for this request only from the given set of words separated by commas. Here are the available words: ${commaSeparatedTags}`,
-                userRequestText
-            ),
-            // Assignee
-            askOpenAI(
-                `Pick the best Assignee Email from the following list. No introduction or explanation. Only the email:${commaSeparatedAssignees}`,
-                userRequestText
-            )
+            classifierService.predictCategory(userRequestText)
         ]);
 
-        // Post-processing limits
-        const FIRST_CHARACTER = 0;
-        const MAX_SUMMARY_CHARACTERS = 2048;
-        const MAX_TITLE_CHARACTERS = 128;
-        const MAX_SOLUTION_CHARACTERS = 2048;
-        const MAX_ASSIGNEE_CHARACTERS = 64;
+        const cleanSummary = cleanString(summary, 2048);
+        console.log(` -> Step 1 Done. Category: ${category}`);
 
-        const cleanString = (str, maxLen) => {
-            if (typeof str !== 'string') return "";
-            return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
-        };
+        const title = await askOpenAI(
+            `Generate a short, concise title (under 10 words) for this support ticket.
+             Based ONLY on this summary: "${cleanSummary}"`,
+            ""
+        );
+        console.log(" -> Step 2 Done (Title).");
 
-        let cleanedCategories;
-        try {
-            cleanedCategories = categories.split(",").map(category => category.trim());
-        } catch (err) {
-            cleanedCategories = ["Uncategorized"];
-        }
+        const solutions = await askOpenAI(
+            `Suggest 3 short, actionable solutions or next steps for this issue.
+             Based ONLY on this summary: "${cleanSummary}"`,
+            ""
+        );
+        console.log(" -> Step 3 Done (Solution).");
+
+        let assignedAgent = await assigneeBalancer.getAssigneeForScope(category);
+        if (!assignedAgent) assignedAgent = SAFETY_FALLBACK_EMAIL;
 
         return {
-            title: cleanString(title, MAX_TITLE_CHARACTERS),
-            summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
-            suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: cleanedCategories,
-            suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
+            title: cleanString(title, 128),
+            summary: cleanSummary,
+            suggestedSolutions: cleanString(solutions, 2048),
+            categories: [category],
+            suggestedAssignee: assignedAgent
         };
 
     } catch (error) {
         console.error("OpenAI connection error:", error.message);
-        return "Error connecting to AI service.";
+        throw new Error("Failed to draft ticket via OpenAI.");
     }
 }
 
-let extractorInstance = null;
-async function getExtractor() {
-    if (!extractorInstance) {
-        extractorInstance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    }
-    return extractorInstance;
-}
-
-/**
- * Finds highly similar drafts and groups their IDs.
- * @param {Array} drafts - Array of objects containing { id, title, summary }
- * @param {number} threshold - Cosine similarity threshold (0.0 to 1.0). 
- * Higher means they must be more similar to be grouped.
- * @returns {Array<Array<number>>} Array of merged ID groups
- */
 export async function findMergeRecommendations(drafts, threshold = 0.85) {
-    if (drafts.length < 2) return [];
-
+    if (!drafts || drafts.length < 2) return [];
     try {
-        const extractor = await getExtractor();
-
-        // 1. Combine title and summary for the model to analyze
-        const textsToEmbed = drafts.map(d => `${d.title}. ${d.summary}`);
-
-        // 2. Generate embeddings for all drafts simultaneously
-        // pooling: 'mean' and normalize: true are required for sentence similarity
-        const output = await extractor(textsToEmbed, { pooling: 'mean', normalize: true });
-
-        // Convert the Tensor output into a standard 2D JavaScript array
-        const embeddings = output.tolist();
-
-        // 3. Compare and Group
-        const groups = [];
-        const visited = new Set(); // Keep track of drafts already placed in a group
-
-        for (let i = 0; i < drafts.length; i++) {
-            // Skip if this draft was already matched with an earlier one
-            if (visited.has(i)) continue;
-
-            const currentGroup = [drafts[i].id];
-            visited.add(i);
-
-            // Compare draft[i] against all subsequent drafts
-            for (let j = i + 1; j < drafts.length; j++) {
-                if (visited.has(j)) continue;
-
-                // Calculate cosine similarity between the two embeddings
-                const similarity = cos_sim(embeddings[i], embeddings[j]);
-
-                // If similarity meets our threshold, group them
-                if (similarity >= threshold) {
-                    currentGroup.push(drafts[j].id);
-                    visited.add(j);
-                }
+        const response = await axios.post(
+            GROUPING_URL,
+            {
+                drafts: drafts,
+                threshold: threshold
+            },
+            {
+                auth: { username: ORACLE_USER, password: ORACLE_PASS },
+                timeout: 5000
             }
+        );
 
-            // Only add to final output if we found at least one match
-            if (currentGroup.length > 1) {
-                groups.push(currentGroup);
-            }
-        }
-
-        return groups;
+        return response.data.groups || [];
 
     } catch (error) {
-        console.error("Similarity analysis failed:", error.message);
+        console.error("Merge Recommendation API failed:", error.message);
         return [];
     }
 }

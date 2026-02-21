@@ -1,219 +1,192 @@
 import axios from "axios";
 import 'dotenv/config';
-import { pipeline, cos_sim } from '@xenova/transformers';
-// Configuration from environment variables
-const ORACLE_URL = process.env.ORACLE_URL || "http://140.245.98.10:8080/api/generate";
+import pool from './mysqlConnection.js';
+
+import AssigneeBalancer from './AssigneeBalancer.js';
+
+// --- CONFIGURATION ---
+const ORACLE_URL = process.env.ORACLE_URL;
 const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
-const SAFTY_FALLBACK_EMAIL = process.env.SAFTY_FALLBACK_EMAIL || "admin@example.com";
+const SAFETY_FALLBACK_EMAIL = "admin@example.com";
+const CLASSIFIER_URL = `${ORACLE_URL}/classifier/predict`;
+const GROUPING_URL = `${ORACLE_URL}/group-drafts`;
+const GENERATION_URL = `${ORACLE_URL}/api/generate`;
+// --- INITIALIZE SERVICES ---
 
-const extractEmails = (text) => {
-    if (!text) return [];
-    // This strict regex stops at the letters of the domain (.com) and ignores the colon
-    const strictEmailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    return text.match(strictEmailRegex) || [];
+const assigneeBalancer = new AssigneeBalancer(pool);
+
+/**
+ * Helper to clean up LLM text output
+ */
+const cleanString = (str, maxLen) => {
+    if (typeof str !== 'string') return "";
+    return str.trim().slice(0, maxLen).replace(/^"|"$/g, '');
 };
 
 /**
- * Asks the Oracle for a response.
- * @param {string} systemPrompt - The system prompt.
- * @param {string} userPrompt - The user prompt.
- * @returns {string} The response from the Oracle.
- * @throws {error} If the Oracle fails.
+ * 
  */
-const askOracle = async (systemPrompt, userPrompt) => {
-    //Api takes a single prompt string.
-    const combinedPrompt = `${systemPrompt} for User Request: ${userPrompt}`;
+class ClassifierService {
+    constructor(classifierUrl, username, password) {
+        // Prepare the specific endpoint
+        // Example: http://140.245.x.x:8080/classifier/predict
+        this.apiUrl = classifierUrl;
+        this.auth = { username, password };
+    }
+
+    /**
+     * Sends text to Python model and returns the category.
+     * @param {string} text - The ticket content
+     * @returns {Promise<string>} - Category name (e.g. "Finance", "Medical", "Others")
+     */
+    async predictCategory(text) {
+        if (!text) return "Others";
+
+        const startTimer = Date.now();
+        try {
+            const response = await axios.post(
+                this.apiUrl,
+                { text: text },
+                {
+                    auth: this.auth
+                }
+            );
+
+            console.log(`[Stopwatch] predictCategory took ${Date.now() - startTimer}ms`);
+            // The Python API returns: { category: "...", confidence: 0.9, ... }
+            return response.data.category || "Others";
+
+        } catch (error) {
+            console.log(`[Stopwatch] predictCategory failed after ${Date.now() - startTimer}ms`);
+            console.error(`[Classifier] API Failed: ${error.message}`);
+            // Fail gracefully so the ticket system doesn't crash
+            return "Others";
+        }
+    }
+}
+
+const classifierService = new ClassifierService(CLASSIFIER_URL, ORACLE_USER, ORACLE_PASS);
+/**
+ * Asks the Oracle (LLM) for a generative response.
+ */
+const askOracle = async (prompt) => {
+    const startTimer = Date.now();
     try {
         const response = await axios.post(
-            ORACLE_URL,
+            GENERATION_URL,
             {
                 model: ORACLE_MODEL,
-                prompt: combinedPrompt,
-                stream: false
+                prompt: prompt,
+                stream: false,
+                options: {
+                    num_predict: 200,    // Hard limit on length (Reasoning models need tokens to think first)
+                    top_k: 1,          // Smaller search space = faster
+                    num_thread: 4,      // Match your Oracle OCPUs
+                    repeat_penalty: 1.2 // Prevents the model from getting stuck in a loop
+                }
             },
             {
-                auth: {
-                    username: ORACLE_USER,
-                    password: ORACLE_PASS
-                }
+                auth: { username: ORACLE_USER, password: ORACLE_PASS }
             }
         );
+        console.log(`[Stopwatch] askOracle took ${Date.now() - startTimer}ms`);
         return response.data.response;
     } catch (error) {
-        console.error(`Oracle Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
-        throw error;
+        console.log(`[Stopwatch] askOracle failed after ${Date.now() - startTimer}ms`);
+        console.error(`Oracle LLM Error:`, error.message);
+        return ""; // Return empty string so Promise.all doesn't crash everything
     }
 };
-
-
-export async function draftTicketFromUserRequest(userRequestText, commaSeparatedTags, commaSeparatedAssignees = "") {
+/**
+ * Main Function: Generates a full ticket draft.
+ * STRATEGY: Sequential Chain-of-Thought for maximum quality.
+ * 1. Summary (Ground Truth)
+ * 2. Title (Derived from Summary)
+ * 3. Solution (Derived from Summary)
+ */
+export async function draftTicketFromUserRequest(userRequestText) {
+    const startTimer = Date.now();
     try {
-        const [title, summary, solutions, categories, assignee] = await Promise.all([
-            // Title
+        console.log("Drafting Ticket: Starting Sequential Chain...");
+
+        // --- STEP 1: The Foundation (Summary & Category) ---
+        // We run these two in parallel because they don't depend on each other.
+        // This saves about ~200ms without hurting quality.
+        const [summary, category] = await Promise.all([
             askOracle(
-                `Generate a title for this support ticket as short as possible.
-                Provide ONLY the title, with no introductory text.`,
-                userRequestText
+                `Summarize the following problem as short as possible.
+                Provide ONLY the summary, with no introductory text."${userRequestText}"`
             ),
-            // Summary
-            askOracle(
-                `Summarize the following user request as short as possible.
-                You must capture all key facts and clearly state the user's ultimate goal.
-                Provide ONLY the summary, with no introductory text.`,
-                userRequestText
-            ),
-            // Solutions
-            askOracle(
-                "Suggest potential solutions for this support request. as short as possible.",
-                userRequestText
-            ),
-            // Categories
-            askOracle(
-                `Which of the following categories best describes this request.
-                Answer only one category name.
-                Available categories: ${commaSeparatedTags}.`,
-                userRequestText
-            ),
-            // Assignee
-            askOracle(
-                `Pick the best Assignee Email from the following list. No introduction or explanation. Only the email:${commaSeparatedAssignees}`,
-                userRequestText
-            )
+            classifierService.predictCategory(userRequestText)
         ]);
 
-        // Post-processing limits
-        const FIRST_CHARACTER = 0;
-        const MAX_SUMMARY_CHARACTERS = 2048;
-        const MAX_TITLE_CHARACTERS = 128;
-        const MAX_SOLUTION_CHARACTERS = 2048;
-        const MAX_ASSIGNEE_CHARACTERS = 64;
+        // Clean the summary immediately so subsequent steps get good input
+        let cleanSummary = cleanString(summary, 128);
+        console.log(` -> Step 1 Done. Category: ${category}`);
 
-        const cleanString = (str, maxLen) => {
-            if (typeof str !== 'string') return "";
-            return str
-                .trim()
-                .slice(FIRST_CHARACTER, maxLen)
-                .replace(/^"|"$/g, '');
-        };
+        const title = await askOracle(
+            `Generate a title for this support ticket as short as possible.
+            Provide ONLY the title, with no introductory text. "${cleanSummary}"`
+        );
+        console.log(" -> Step 2 Done (Title).");
 
-        // Fix 1: Corrected category handling
-        let cleanedCategories;
-        try {
-            cleanedCategories = categories.split(",").map(c => c.trim()).filter(Boolean);
-            if (cleanedCategories.length === 0) throw new Error();
-        } catch (err) {
-            cleanedCategories = ["Uncategorized"];
-        }
 
-        // Fix 2: Variable naming (assigneeList vs commaSeparatedAssignees)
-        let finalAssignee = cleanString(assignee, MAX_ASSIGNEE_CHARACTERS);
-        const availableEmails = typeof extractEmails === 'function' 
-            ? extractEmails(commaSeparatedAssignees) 
-            : [];
+        // --- STEP 3: The Solution (Dependent on Summary) ---
+        // We ask for a solution based on the *Summary*.
+        const solutions = await askOracle(
+            `Suggest 3 solutions for this support request. as short and concise as possible."${cleanSummary}"`
+        );
+        console.log(" -> Step 3 Done (Solution).");
 
-        // Fix 3: Validation logic
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const isEmailInvalid = !finalAssignee || finalAssignee.toLowerCase() === "null" || !emailRegex.test(finalAssignee);
-        const isEmailHallucinated = availableEmails.length > 0 && !availableEmails.includes(finalAssignee);
 
-        if (isEmailInvalid || isEmailHallucinated) {
-            console.warn(`AI failed to pick a valid assignee. Output was: "${finalAssignee}". Falling back.`);
-            if (availableEmails.length > 0) {
-                finalAssignee = availableEmails[Math.floor(Math.random() * availableEmails.length)];
-            } else {
-                // Ensure SAFETY_FALLBACK_EMAIL is defined or use a string
-                finalAssignee = typeof SAFETY_FALLBACK_EMAIL !== 'undefined' ? SAFETY_FALLBACK_EMAIL : "support@company.com";
-            }
-        }
+        // --- STEP 4: The Assignee (Dependent on Category) ---
+        let assignedAgent = await assigneeBalancer.getAssigneeForScope(category);
+        if (!assignedAgent) assignedAgent = SAFETY_FALLBACK_EMAIL;
 
-        // Fix 4: Properly return the object and close the try block
+        console.log(`[Stopwatch] draftTicketFromUserRequest took ${Date.now() - startTimer}ms`);
         return {
-            title: cleanString(title, MAX_TITLE_CHARACTERS),
-            summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
-            suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: cleanedCategories,
-            suggestedAssignee: finalAssignee
+            title: cleanString(title, 256),
+            summary: cleanString(summary, 2048),
+            suggestedSolutions: cleanString(solutions, 2048),
+            categories: [category],
+            suggestedAssignee: assignedAgent
         };
 
     } catch (error) {
-        console.error("Oracle connection error:", error.message);
-        if (error.response && error.response.status === 401) {
-            throw new Error("Authentication failed. Check ORACLE_USER and ORACLE_PASS.");
-        }
-        throw new Error("Error connecting to AI service.");
+        console.log(`[Stopwatch] draftTicketFromUserRequest failed after ${Date.now() - startTimer}ms`);
+        console.error("Drafting failed:", error);
+        throw new Error("Failed to draft ticket.");
     }
-}
-
-
-
-let extractorInstance = null;
-async function getExtractor() {
-    if (!extractorInstance) {
-        extractorInstance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
-    }
-    return extractorInstance;
 }
 
 /**
- * Finds highly similar drafts and groups their IDs.
- * @param {Array} drafts - Array of objects containing { id, title, summary }
- * @param {number} threshold - Cosine similarity threshold (0.0 to 1.0). 
- * Higher means they must be more similar to be grouped.
- * @returns {Array<Array<number>>} Array of merged ID groups
+ * Finds highly similar drafts using the Python Backend.
+ * Replaces the local Xenova transformer.
  */
 export async function findMergeRecommendations(drafts, threshold = 0.85) {
-    if (drafts.length < 2) return [];
-
+    if (!drafts || drafts.length < 2) return [];
+    const startTimer = Date.now();
     try {
-        const extractor = await getExtractor();
-
-        // 1. Combine title and summary for the model to analyze
-        const textsToEmbed = drafts.map(d => `${d.title}. ${d.summary}`);
-
-        // 2. Generate embeddings for all drafts simultaneously
-        // pooling: 'mean' and normalize: true are required for sentence similarity
-        const output = await extractor(textsToEmbed, { pooling: 'mean', normalize: true });
-
-        // Convert the Tensor output into a standard 2D JavaScript array
-        const embeddings = output.tolist();
-
-        // 3. Compare and Group
-        const groups = [];
-        const visited = new Set(); // Keep track of drafts already placed in a group
-
-        for (let i = 0; i < drafts.length; i++) {
-            // Skip if this draft was already matched with an earlier one
-            if (visited.has(i)) continue;
-
-            const currentGroup = [drafts[i].id];
-            visited.add(i);
-
-            // Compare draft[i] against all subsequent drafts
-            for (let j = i + 1; j < drafts.length; j++) {
-                if (visited.has(j)) continue;
-
-                // Calculate cosine similarity between the two embeddings
-                const similarity = cos_sim(embeddings[i], embeddings[j]);
-
-                // If similarity meets our threshold, group them
-                if (similarity >= threshold) {
-                    currentGroup.push(drafts[j].id);
-                    visited.add(j);
-                }
+        const response = await axios.post(
+            GROUPING_URL,
+            {
+                drafts: drafts,
+                threshold: threshold
+            },
+            {
+                auth: { username: ORACLE_USER, password: ORACLE_PASS }
             }
+        );
 
-            // Only add to final output if we found at least one match
-            if (currentGroup.length > 1) {
-                groups.push(currentGroup);
-            }
-        }
-
-        return groups;
+        console.log(`[Stopwatch] findMergeRecommendations took ${Date.now() - startTimer}ms`);
+        // Python returns: { "groups": [[101, 102], [205, 206]] }
+        return response.data.groups || [];
 
     } catch (error) {
-        console.error("Similarity analysis failed:", error.message);
-        return [];
+        console.log(`[Stopwatch] findMergeRecommendations failed after ${Date.now() - startTimer}ms`);
+        console.error("Merge Recommendation API failed:", error.message);
+        return []; // Fail gracefully (return no recommendations)
     }
 }

@@ -15,7 +15,6 @@ DROP TABLE IF EXISTS TicketComments;
 DROP TABLE IF EXISTS TicketAssignee;
 DROP TABLE IF EXISTS Ticket;
 DROP TABLE IF EXISTS AssigneeScope;
-DROP TABLE IF EXISTS AssigneeProfile;
 DROP TABLE IF EXISTS DraftTicketCategory;
 DROP TABLE IF EXISTS DraftTicketAssignee;
 DROP TABLE IF EXISTS DraftTicketUserRequest;
@@ -47,15 +46,10 @@ CREATE TABLE UserRequest(
     FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
 
-CREATE TABLE AssigneeProfile(
-    userEmail VARCHAR(64) PRIMARY KEY,
-    contact VARCHAR(64),
-    FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
-);
-
 CREATE TABLE AssigneeScope(
     userEmail VARCHAR(64),
     scopeTag VARCHAR(64),
+    last_assigned_at DATETIME DEFAULT NULL,
     PRIMARY KEY (userEmail, scopeTag),
     FOREIGN KEY (userEmail) REFERENCES Users(email) ON DELETE CASCADE
 );
@@ -139,13 +133,25 @@ END;
 INSERT INTO Users (email, name, password_hash, perm) VALUES 
 ('admin@example.com', 'Admin User', '$2b$10$example_hash_here', 3),
 ('user@example.com', 'Regular User', '$2b$10$example_hash_here', 1),
-('specialist1@example.com', 'Assignee 1', '$2b$10$example_hash_here', 2),
-('specialist2@example.com', 'Assignee 2', '$2b$10$example_hash_here', 2),
-('specialist3@example.com', 'Assignee 3', '$2b$10$example_hash_here', 2),
-('specialist4@example.com', 'Assignee 4', '$2b$10$example_hash_here', 2),
-('specialist5@example.com', 'Assignee 5', '$2b$10$example_hash_here', 2),
-('specialist6@example.com', 'Assignee 6', '$2b$10$example_hash_here', 2);
+('assignee1@example.com', 'Assignee 1', '$2b$10$example_hash_here', 2),
+('assignee2@example.com', 'Assignee 2', '$2b$10$example_hash_here', 2),
+('assignee3@example.com', 'Assignee 3', '$2b$10$example_hash_here', 2),
+('assignee4@example.com', 'Assignee 4', '$2b$10$example_hash_here', 2),
+('assignee5@example.com', 'Assignee 5', '$2b$10$example_hash_here', 2),
+('assignee6@example.com', 'Assignee 6', '$2b$10$example_hash_here', 2),
+('assignee7@example.com', 'Assignee 7', '$2b$10$example_hash_here', 2),
+('assignee8@example.com', 'Assignee 8', '$2b$10$example_hash_here', 2);
 
+INSERT INTO AssigneeScope (userEmail, scopeTag) VALUES 
+
+('assignee1@example.com', 'Internship'),
+('assignee2@example.com', 'Medical'),
+('assignee3@example.com', 'Finance'),
+('assignee4@example.com', 'Academics'),
+('assignee5@example.com', 'Transportation'),
+('assignee6@example.com', 'Facility'),
+('assignee7@example.com', 'Organised Events'),
+('assignee8@example.com', 'Administration');
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;

@@ -81,7 +81,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
         // Default to 'ollama' if env var is missing or invalid
         const generateTicket = llmProviders[process.env.LLM_PROVIDER] || oracle;
 
-        const draftTicketSuggestions = await generateTicket(requestTextForInsertion, commaSeparatedTags, commaSeparatedAssignees);
+        const draftTicketSuggestions = await generateTicket(requestTextForInsertion);
 
         // Fast Fail
         if (typeof draftTicketSuggestions === "string") {
@@ -151,6 +151,8 @@ router.post('/request', isAuthenticated, async (request, response) => {
         if (connection) connection.release();
     }
 });
+
+
 
 // GET Assignees (Generic - all authenticated active users/staff)
 // Mounted at /tickets/assignees
