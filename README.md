@@ -1,48 +1,54 @@
-# Setup
-Setup Docker:
+# populate .env for backend
 ```
-cd backend/database
-```
-```
-docker-compose -f db-compose-dev.yml up
+#Database
+DATABASE_USERNAME = 
+DATABASE_PASSWORD = 
+DATABASE_NAME = 
+DATABASE_HOST = 
+SERVER_PORT = 5001
+FRONTEND_PORT = 5173
+
+#Authentication
+RECAPTCHA_SECRET_KEY=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+#LLM
+#ORACLE is for LLM hosted on Oracle cloud, adjust the url, model, user, pass accordingly.
+LLM_PROVIDER= #OPENAI, ORACLE
+ORACLE_URL=
+ORACLE_MODEL=
+ORACLE_USER=
+ORACLE_PASS=
+OPENAI_API_KEY=
+SAFTY_FALLBACK_EMAIL=admin@example.com
+
+#Email Notification
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_PASS=
 ```
 
-Setup Ollama:
+# populate .env for frontend
 ```
-ollama run llama3.2
-```
-
-Setup Database:
-```
-cd backend
-```
-```
-npm install
-```
-```
-cd backend/database
-```
-```
-node setup.js
+VITE_API_HOST=localhost
+VITE_API_PORT=5001
+VITE_RECAPTCHA_SITE_KEY=
 ```
 
-Setup Backend:
+# Setup One Shot
 ```
-cd backend
+cd backend/database && \
+docker-compose --env-file ../.env -f db-compose-dev.yml up -d && \
+echo "Docker started... waiting 30s for Database to initialize..." && \
+sleep 30 && \
+cd .. && \
+npm install && \
+cd database && \
+node setup.js && \
+cd ../../frontend && \
+npm install && \
+echo "Environment setup complete!"
 ```
-```
-node server.js
-```
-
-Setup Frontend:
-```
-cd frontend
-```
-```
-npm install
-```
-```
-npm run dev
-```
-
-
