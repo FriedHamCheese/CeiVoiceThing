@@ -1,23 +1,11 @@
 import axios from "axios";
 import 'dotenv/config';
+import { pipeline, cos_sim } from '@xenova/transformers';
+
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434/api/chat";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL;
 
-export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {
-    /*
-    Returns:
-    - {
-        .summary: str (requested at most 220 words, trim and truncate to 2048 characters),
-        .title: str (requested at most 10 words, trim and truncate to 128 characters),
-        .suggested_solutions: str (requested at most 220 words, trim and truncate to 2048 characters),
-        .categories: str[] (Array of strings, max 5)
-        .suggestedAssignee: str (Department or role)
-    }
-    - str: describing error if AI service fails.
-    */
-
-    const contextInfo = assigneeList ? `Available assignees and their specializations: \n${assigneeList} ` : "No specific assignees available.";
-
+export async function draftTicketFromUserRequest(userRequestText, commaSeparatedTags, commaSeparatedAssignees = "") {
     const askOllama = async (systemPrompt, userPrompt, jsonMode = false) => {
         try {
             const response = await axios.post(OLLAMA_URL, {
@@ -37,7 +25,7 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
     };
 
     try {
-        const [title, summary, solutions, categoriesRaw, assignee] = await Promise.all([
+        const [title, summary, solutions, categories, assignee] = await Promise.all([
             // Title
             askOllama(
                 "Generate a title for this support ticket as short as possible.",
@@ -55,19 +43,18 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             ),
             // Categories
             askOllama(
-                `Pick the best keyword for this request. as short as possible. No introduction. Here is the available assignee. ${contextInfo}`,
+                `Pick the best word for this request only from the given set of words separated by commas. Here are the available words: ${commaSeparatedTags}`,
                 userRequestText
             ),
             // Assignee
             askOllama(
-                `Pick the best assignee email for this request. as short as possible. No introduction. Consider the expertise available: ${contextInfo}. Return ONLY the email.`,
+                `Pick the best Assignee Email from the following list. No introduction or explanation. Only the email:${commaSeparatedAssignees}`,
                 userRequestText
             )
         ]);
 
         // Post-processing limits
         const FIRST_CHARACTER = 0;
-        const MAX_CATEGORY_CHARACTERS = 32;
         const MAX_SUMMARY_CHARACTERS = 2048;
         const MAX_TITLE_CHARACTERS = 128;
         const MAX_SOLUTION_CHARACTERS = 2048;
@@ -78,14 +65,18 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
         };
 
-        // Process the raw category string directly
-        const cleanedCategory = cleanString(categoriesRaw, MAX_CATEGORY_CHARACTERS);
+        let cleanedCategories;
+        try {
+            cleanedCategories = categories.split(",").map(category => category.trim());
+        } catch (err) {
+            cleanedCategories = ["Uncategorized"];
+        }
 
         return {
             title: cleanString(title, MAX_TITLE_CHARACTERS),
             summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
             suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"],
+            categories: cleanedCategories,
             suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
         };
 
@@ -99,34 +90,70 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
     }
 }
 
-export async function findMergeRecommendations(drafts) {
+let extractorInstance = null;
+async function getExtractor() {
+    if (!extractorInstance) {
+        extractorInstance = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    }
+    return extractorInstance;
+}
+
+/**
+ * Finds highly similar drafts and groups their IDs.
+ * @param {Array} drafts - Array of objects containing { id, title, summary }
+ * @param {number} threshold - Cosine similarity threshold (0.0 to 1.0). 
+ * Higher means they must be more similar to be grouped.
+ * @returns {Array<Array<number>>} Array of merged ID groups
+ */
+export async function findMergeRecommendations(drafts, threshold = 0.85) {
     if (drafts.length < 2) return [];
 
-    const draftsText = drafts.map(d => `ID ${d.id}: Title: ${d.title}. Summary: ${d.summary}`).join('\n\n');
-    const systemInstruction = "Analyze the following support ticket drafts and identify groups of IDs that are highly similar and could be merged into a single ticket. Return only a JSON array of arrays, where each inner array contains the IDs of tickets that should be merged (e.g., [[1, 3], [4, 7, 8]]). If no similarities are found, return [].";
-
-    const combinedPrompt = `${systemInstruction}\n\nDrafts:\n${draftsText}`;
-
     try {
-        const response = await axios.post(OLLAMA_URL, {
-            model: OLLAMA_MODEL,
-            messages: [
-                { role: "user", content: combinedPrompt }
-            ],
-            stream: false,
-            // format: "json" // Removing explicit json format to be more flexible like Oracle
-        });
+        const extractor = await getExtractor();
 
-        const content = response.data.message.content;
+        // 1. Combine title and summary for the model to analyze
+        const textsToEmbed = drafts.map(d => `${d.title}. ${d.summary}`);
 
-        // Parse the JSON output
-        const jsonStart = content.indexOf('[');
-        const jsonEnd = content.lastIndexOf(']') + 1;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-            const groups = JSON.parse(content.substring(jsonStart, jsonEnd));
-            return Array.isArray(groups) ? groups : [];
+        // 2. Generate embeddings for all drafts simultaneously
+        // pooling: 'mean' and normalize: true are required for sentence similarity
+        const output = await extractor(textsToEmbed, { pooling: 'mean', normalize: true });
+
+        // Convert the Tensor output into a standard 2D JavaScript array
+        const embeddings = output.tolist();
+
+        // 3. Compare and Group
+        const groups = [];
+        const visited = new Set(); // Keep track of drafts already placed in a group
+
+        for (let i = 0; i < drafts.length; i++) {
+            // Skip if this draft was already matched with an earlier one
+            if (visited.has(i)) continue;
+
+            const currentGroup = [drafts[i].id];
+            visited.add(i);
+
+            // Compare draft[i] against all subsequent drafts
+            for (let j = i + 1; j < drafts.length; j++) {
+                if (visited.has(j)) continue;
+
+                // Calculate cosine similarity between the two embeddings
+                const similarity = cos_sim(embeddings[i], embeddings[j]);
+
+                // If similarity meets our threshold, group them
+                if (similarity >= threshold) {
+                    currentGroup.push(drafts[j].id);
+                    visited.add(j);
+                }
+            }
+
+            // Only add to final output if we found at least one match
+            if (currentGroup.length > 1) {
+                groups.push(currentGroup);
+            }
         }
-        return [];
+
+        return groups;
+
     } catch (error) {
         console.error("Similarity analysis failed:", error.message);
         return [];

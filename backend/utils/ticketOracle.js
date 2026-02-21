@@ -1,68 +1,67 @@
 import axios from "axios";
 import 'dotenv/config';
 import { pipeline, cos_sim } from '@xenova/transformers';
-import pool from "./mysqlConnection.js";
 // Configuration from environment variables
 const ORACLE_URL = process.env.ORACLE_URL || "http://140.245.98.10:8080/api/generate";
 const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
+const SAFTY_FALLBACK_EMAIL = process.env.SAFTY_FALLBACK_EMAIL || "admin@example.com";
 
-const category_raw = await pool.query("SELECT name FROM Category");
-const CATEGORY_LIST = category_raw.map(x => x.name);
+const extractEmails = (text) => {
+    if (!text) return [];
+    // This strict regex stops at the letters of the domain (.com) and ignores the colon
+    const strictEmailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    return text.match(strictEmailRegex) || [];
+};
 
-export async function draftTicketFromUserRequest(userRequestText, assigneeList = "") {
-    /*
-    Returns:
-    - {
-        .summary: str,
-        .title: str,
-        .suggestedSolutions: str,
-        .categories: str[],
-        .suggestedAssignee: str
-    }
-    - str: describing error if AI service fails.
-    */
-
-    const contextInfo = assigneeList ? `Available assignees and their specializations:\n${assigneeList}` : "No specific assignees available.";
-
-    const askOracle = async (systemPrompt, userPrompt) => {
-        // The /api/generate endpoint typically takes a single prompt string.
-        // We manually combine the system instruction and user input.
-        const combinedPrompt = `${systemPrompt}\n\nUser Request:\n${userPrompt}`;
-
-        try {
-            const response = await axios.post(
-                ORACLE_URL,
-                {
-                    model: ORACLE_MODEL,
-                    prompt: combinedPrompt,
-                    stream: false
-                },
-                {
-                    auth: {
-                        username: ORACLE_USER,
-                        password: ORACLE_PASS
-                    }
-                }
-            );
-            return response.data.response;
-        } catch (error) {
-            console.error(`Oracle Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
-            throw error;
-        }
-    };
-
+/**
+ * Asks the Oracle for a response.
+ * @param {string} systemPrompt - The system prompt.
+ * @param {string} userPrompt - The user prompt.
+ * @returns {string} The response from the Oracle.
+ * @throws {error} If the Oracle fails.
+ */
+const askOracle = async (systemPrompt, userPrompt) => {
+    //Api takes a single prompt string.
+    const combinedPrompt = `${systemPrompt} for User Request: ${userPrompt}`;
     try {
-        const [title, summary, solutions, categoriesRaw, assignee] = await Promise.all([
+        const response = await axios.post(
+            ORACLE_URL,
+            {
+                model: ORACLE_MODEL,
+                prompt: combinedPrompt,
+                stream: false
+            },
+            {
+                auth: {
+                    username: ORACLE_USER,
+                    password: ORACLE_PASS
+                }
+            }
+        );
+        return response.data.response;
+    } catch (error) {
+        console.error(`Oracle Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
+        throw error;
+    }
+};
+
+
+export async function draftTicketFromUserRequest(userRequestText, commaSeparatedTags, commaSeparatedAssignees = "") {
+    try {
+        const [title, summary, solutions, categories, assignee] = await Promise.all([
             // Title
             askOracle(
-                "Generate a title for this support ticket as short as possible.",
+                `Generate a title for this support ticket as short as possible.
+                Provide ONLY the title, with no introductory text.`,
                 userRequestText
             ),
             // Summary
             askOracle(
-                "Summarize the following user request as short as possible.",
+                `Summarize the following user request as short as possible.
+                You must capture all key facts and clearly state the user's ultimate goal.
+                Provide ONLY the summary, with no introductory text.`,
                 userRequestText
             ),
             // Solutions
@@ -72,19 +71,20 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
             ),
             // Categories
             askOracle(
-                `which of the following categories best describes this request. Answer as short as possible. No introduction. Here is the available categories. ${category_raw}`,
+                `Which of the following categories best describes this request.
+                Answer only one category name.
+                Available categories: ${commaSeparatedTags}.`,
                 userRequestText
             ),
             // Assignee
             askOracle(
-                `Pick the best assignee email for this request. as short as possible. No introduction. Consider the expertise available: ${contextInfo}. Return ONLY the email.`,
+                `Pick the best Assignee Email from the following list. No introduction or explanation. Only the email:${commaSeparatedAssignees}`,
                 userRequestText
             )
         ]);
 
         // Post-processing limits
         const FIRST_CHARACTER = 0;
-        const MAX_CATEGORY_CHARACTERS = 32;
         const MAX_SUMMARY_CHARACTERS = 2048;
         const MAX_TITLE_CHARACTERS = 128;
         const MAX_SOLUTION_CHARACTERS = 2048;
@@ -92,28 +92,62 @@ export async function draftTicketFromUserRequest(userRequestText, assigneeList =
 
         const cleanString = (str, maxLen) => {
             if (typeof str !== 'string') return "";
-            return str.trim().slice(FIRST_CHARACTER, maxLen).replace(/^"|"$/g, '');
+            return str
+                .trim()
+                .slice(FIRST_CHARACTER, maxLen)
+                .replace(/^"|"$/g, '');
         };
 
-        // Process the raw category string directly
-        const cleanedCategory = cleanString(categoriesRaw, MAX_CATEGORY_CHARACTERS);
+        // Fix 1: Corrected category handling
+        let cleanedCategories;
+        try {
+            cleanedCategories = categories.split(",").map(c => c.trim()).filter(Boolean);
+            if (cleanedCategories.length === 0) throw new Error();
+        } catch (err) {
+            cleanedCategories = ["Uncategorized"];
+        }
 
+        // Fix 2: Variable naming (assigneeList vs commaSeparatedAssignees)
+        let finalAssignee = cleanString(assignee, MAX_ASSIGNEE_CHARACTERS);
+        const availableEmails = typeof extractEmails === 'function' 
+            ? extractEmails(commaSeparatedAssignees) 
+            : [];
+
+        // Fix 3: Validation logic
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isEmailInvalid = !finalAssignee || finalAssignee.toLowerCase() === "null" || !emailRegex.test(finalAssignee);
+        const isEmailHallucinated = availableEmails.length > 0 && !availableEmails.includes(finalAssignee);
+
+        if (isEmailInvalid || isEmailHallucinated) {
+            console.warn(`AI failed to pick a valid assignee. Output was: "${finalAssignee}". Falling back.`);
+            if (availableEmails.length > 0) {
+                finalAssignee = availableEmails[Math.floor(Math.random() * availableEmails.length)];
+            } else {
+                // Ensure SAFETY_FALLBACK_EMAIL is defined or use a string
+                finalAssignee = typeof SAFETY_FALLBACK_EMAIL !== 'undefined' ? SAFETY_FALLBACK_EMAIL : "support@company.com";
+            }
+        }
+
+        // Fix 4: Properly return the object and close the try block
         return {
             title: cleanString(title, MAX_TITLE_CHARACTERS),
             summary: cleanString(summary, MAX_SUMMARY_CHARACTERS),
             suggestedSolutions: cleanString(solutions, MAX_SOLUTION_CHARACTERS),
-            categories: cleanedCategory ? [cleanedCategory] : ["Uncategorized"],
-            suggestedAssignee: cleanString(assignee, MAX_ASSIGNEE_CHARACTERS)
+            categories: cleanedCategories,
+            suggestedAssignee: finalAssignee
         };
 
     } catch (error) {
         console.error("Oracle connection error:", error.message);
         if (error.response && error.response.status === 401) {
-            return "Authentication failed. Check ORACLE_USER and ORACLE_PASS.";
+            throw new Error("Authentication failed. Check ORACLE_USER and ORACLE_PASS.");
         }
-        return "Error connecting to AI service.";
+        throw new Error("Error connecting to AI service.");
     }
 }
+
+
+
 let extractorInstance = null;
 async function getExtractor() {
     if (!extractorInstance) {
