@@ -2,10 +2,7 @@ import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { z } from 'zod';
 import { sendStatusUpdateEmail, sendCommentNotificationEmail } from '../utils/email.js';
-import { findMergeRecommendations as ollamaRecommend } from '../utils/ticketOllama.js';
-import { findMergeRecommendations as openaiRecommend } from '../utils/ticketOpenAI.js';
-import { findMergeRecommendations as oracleRecommend } from '../utils/ticketOracle.js';
-
+import { pipeline, cos_sim } from '@xenova/transformers';
 const router = express.Router();
 
 const historySchema = z.object({
@@ -240,43 +237,118 @@ router.patch('/:id', async (request, response) => {
     }
 });
 
-// Unlink a UserRequest from a Ticket
-router.post('/:id/unlink/:requestId', async (request, response) => {
-    const { id: ticketID, requestId } = request.params;
-
+// Unlink a UserRequest from a Ticket (now updating mergedTo and status)
+// Unlink a UserRequest from a Ticket (now updating mergedTo and status)
+router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, response) => {
+    const { childUserRequestID, parentTicketId } = request.params;
     let connection;
+
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        // 1. Check if more than 1 request exists
-        const [links] = await connection.execute("SELECT * FROM TicketUserRequest WHERE ticketID = ?", [ticketID]);
-        if (links.length <= 1) throw new Error("Cannot unlink the last request. Delete the ticket instead.");
-
-        // 2. Remove the link
-        await connection.execute("DELETE FROM TicketUserRequest WHERE ticketID = ? AND userRequestID = ?", [ticketID, requestId]);
-
-        // 3. Create a NEW Ticket for the unlinked request
-        const [requests] = await connection.execute("SELECT * FROM UserRequest WHERE id = ?", [requestId]);
-        const req = requests[0];
-
-        const [newTicket] = await connection.execute(
-            "INSERT INTO Ticket (title, requestContents, suggestedSolutions, status) VALUES (?, ?, ?, 'draft')",
-            [`Unlinked: ${req.userEmail}`, req.requestContents, "No solutions proposed yet."]
+        // 1. Unlink the specific child ticket requested by the user
+        const [updateTicketResult] = await connection.execute(
+            `UPDATE Ticket SET mergedTo = NULL, status = 'draft' 
+             WHERE userRequestID = ? AND mergedTo = ?`,
+            [childUserRequestID, parentTicketId]
         );
-        const newID = newTicket.insertId;
 
+        if (updateTicketResult.affectedRows === 0) {
+            await connection.rollback();
+            return response.status(404).json({ error: "UserRequest not found or not linked to this parent." });
+        }
+
+        // 2. Update Mapping Table for the unlinked child
         await connection.execute(
-            "INSERT INTO TicketUserRequest (ticketID, userRequestID) VALUES (?, ?)",
-            [newID, requestId]
+            `UPDATE TicketUserRequest SET ticketID = (SELECT id FROM Ticket WHERE userRequestID = ?)
+             WHERE userRequestID = ?`,
+            [childUserRequestID, childUserRequestID]
+        );
+
+        // ==================================================================================
+        // NEW LOGIC: Check if the Parent Ticket is now left with only 1 child
+        // ==================================================================================
+        
+        // Count remaining children in the parent ticket
+        const [remainingChildren] = await connection.execute(
+            `SELECT id, userRequestID FROM Ticket WHERE mergedTo = ?`,
+            [parentTicketId]
+        );
+
+        let parentDeleted = false;
+
+        // If only 1 child remains, a "merged" ticket implies at least 2 items.
+        // We must dissolve the merge completely.
+        if (remainingChildren.length === 1) {
+            const lastChild = remainingChildren[0];
+
+            // A. Revert the last remaining child ticket to 'draft' and remove link
+            await connection.execute(
+                `UPDATE Ticket SET mergedTo = NULL, status = 'draft' WHERE id = ?`,
+                [lastChild.id]
+            );
+
+            // B. Fix Mapping Table for this last remaining child
+            await connection.execute(
+                `UPDATE TicketUserRequest SET ticketID = ? WHERE userRequestID = ?`,
+                [lastChild.id, lastChild.userRequestID]
+            );
+
+            // C. Delete any followers associated with the Parent Ticket (to prevent FK errors)
+            await connection.execute(
+                `DELETE FROM TicketFollower WHERE ticketID = ?`,
+                [parentTicketId]
+            );
+
+            // D. Delete the Parent Merged Ticket itself
+            await connection.execute(
+                `DELETE FROM Ticket WHERE id = ?`,
+                [parentTicketId]
+            );
+
+            parentDeleted = true;
+        }
+        // ==================================================================================
+
+
+        // 4. ADD Follower (Re-sync) for the ticket user just unlinked
+        // (We do this regardless of whether the parent was deleted)
+        await connection.execute(
+            `INSERT IGNORE INTO TicketFollower (ticketID, userEmail) 
+             SELECT (SELECT id FROM Ticket WHERE userRequestID = ?), (SELECT userEmail FROM UserRequest WHERE id = Ticket.userRequestID)
+             FROM Ticket WHERE id = (SELECT id FROM Ticket WHERE userRequestID = ?)`,
+            [childUserRequestID, childUserRequestID]
         );
 
         await connection.commit();
-        response.json({ message: "Request unlinked successfully.", newTicketID: newID });
+
+        response.json({ 
+            message: parentDeleted 
+                ? "Ticket unlinked. Parent merged ticket deleted as only one child remained." 
+                : "Ticket unlinked and followers synchronized." 
+        });
+
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error(error);
-        response.status(500).json({ error: error.message });
+
+        // LOGGING SYSTEM
+        console.error("Unlink Transaction Failed:", {
+            code: error.code,      // e.g., 'ER_DUP_ENTRY'
+            errno: error.errno,    // e.g., 1062
+            sqlMessage: error.sqlMessage,
+            params: { childUserRequestID, parentTicketId }
+        });
+
+        // CUSTOM ERROR RESPONSES
+        if (error.code === 'ER_BAD_NULL_ERROR') {
+            return response.status(400).json({ error: "Requester data is missing for this ticket." });
+        }
+
+        response.status(500).json({
+            error: "Internal server error.",
+            trackId: Date.now() 
+        });
     } finally {
         if (connection) connection.release();
     }
@@ -298,32 +370,34 @@ router.post("/merge", async (request, response) => {
 
         // 1. Create Merged Ticket
         const [inserted] = await connection.execute(
-            "INSERT INTO Ticket (title, summary, solution, deadline, status) VALUES (?, ?, ?, ?, 'draft')",
+            "INSERT INTO Ticket (title, summary, solution, deadline, status, mergedTo) VALUES (?, ?, ?, ?, 'draft', NULL)",
             [title.trim(), summary.trim(), suggestedSolutions.trim(), deadline || null]
         );
         const mergedID = inserted.insertId;
 
         // 2. Re-link User Requests and Cleanup old tickets
         for (const oldID of draftTicketIDs) {
+            // Move the UserRequest link to the new ticket
             await connection.execute(
                 "UPDATE IGNORE TicketUserRequest SET ticketID = ? WHERE ticketID = ?",
                 [mergedID, oldID]
             );
-            await connection.execute("DELETE FROM TicketUserRequest WHERE ticketID = ?", [oldID]);
-            await connection.execute("DELETE FROM TicketCategory WHERE ticketID = ?", [oldID]);
-            await connection.execute("DELETE FROM TicketAssignee WHERE ticketID = ?", [oldID]);
-            await connection.execute("DELETE FROM Ticket WHERE id = ?", [oldID]);
-            // Also move comments and history if relevant (optional, but good practice)
-            await connection.execute("UPDATE TicketComments SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
-            await connection.execute("UPDATE TicketHistory SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
-            await connection.execute("UPDATE IGNORE TicketFollower SET ticketID = ? WHERE ticketID = ?", [mergedID, oldID]);
-            await connection.execute("DELETE FROM TicketFollower WHERE ticketID = ?", [oldID]);
+
+            // Mark old ticket as merged
+            await connection.execute(
+                "UPDATE Ticket SET mergedTo = ?, status = 'merged' WHERE id = ?",
+                [mergedID, oldID]
+            );
         }
 
-        // 3. Assign multiple assignees if provided
+        // 3. Assign multiple assignees
         if (assigneeEmails && Array.isArray(assigneeEmails)) {
             for (const email of assigneeEmails) {
-                await connection.execute("INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", [mergedID, email]);
+                // Added IGNORE to prevent crashing if user is already assigned
+                await connection.execute(
+                    "INSERT IGNORE INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)", 
+                    [mergedID, email]
+                );
             }
         }
 
@@ -331,49 +405,110 @@ router.post("/merge", async (request, response) => {
         if (categories && Array.isArray(categories)) {
             const uniqueCategories = [...new Set(categories)];
             for (const cat of uniqueCategories) {
-                await connection.execute("INSERT INTO TicketCategory (category, ticketID) VALUES (?, ?)", [cat, mergedID]);
+                await connection.execute(
+                    "INSERT INTO TicketCategory (category, ticketID) VALUES (?, ?)", 
+                    [cat, mergedID]
+                );
             }
         }
 
+        // ==============================================================================
+        // 5. FIX: Insert followers (Optimized)
+        // ==============================================================================
+        
+        // Create a string of placeholders based on the number of IDs (e.g., "?, ?, ?")
+        const placeholders = draftTicketIDs.map(() => '?').join(',');
+
+        // Perform a direct SQL copy. 
+        // We select the userEmail from the old tickets and insert them into the new one using the new ID.
+        // INSERT IGNORE handles the deduplication automatically.
+        if (draftTicketIDs.length > 0) {
+            await connection.execute(
+                `INSERT IGNORE INTO TicketFollower (ticketID, userEmail)
+                 SELECT ?, userEmail 
+                 FROM TicketFollower 
+                 WHERE ticketID IN (${placeholders})`,
+                [mergedID, ...draftTicketIDs]
+            );
+        }
+        // ==============================================================================
+
         await connection.commit();
-        response.status(200).json({ message: "Tickets merged successfully." });
+        response.status(200).json({ message: "Tickets merged successfully.", mergedTicketId: mergedID });
+
     } catch (error) {
         if (connection) await connection.rollback();
-        console.error(error);
+        console.error("Merge Transaction Failed:", error);
         response.status(500).json({ error: "Merge failed." });
     } finally {
         if (connection) connection.release();
     }
 });
 
-// Recommend Merges using AI
+
+let extractor = null;
+
+async function getExtractor() {
+    if (!extractor) {
+        extractor = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+    }
+    return extractor;
+}
+
 router.get("/recommend-merges", async (request, response) => {
     try {
-        const [drafts] = await mysqlConnection.execute("SELECT id, title, summary FROM Ticket WHERE status = 'draft'");
+        const [drafts] = await mysqlConnection.execute(
+            "SELECT id, title, summary FROM Ticket WHERE status = 'draft'"
+        );
 
-        if (drafts.length < 2) {
-            return response.json({ recommendations: [] });
+        // Not enough tickets to compare
+        if (drafts.length < 2) return response.json({ clusters: [] });
+
+        const model = await getExtractor();
+
+        // Combine text for better context; fallback to empty string if null
+        const ticketTexts = drafts.map(t => `${t.title || ''} ${t.summary || ''}`);
+
+        // Generate embeddings (vectors)
+        // pooling: 'mean' flattens the output into a single vector per ticket
+        // normalize: true allows us to use simple dot product/cosine similarity
+        const output = await model(ticketTexts, { pooling: 'mean', normalize: true });
+
+        const clusters = [];
+        const processedIndices = new Set();
+        const THRESHOLD = 0.8; // 0.8 is usually the "sweet spot" for duplicates
+
+        for (let i = 0; i < drafts.length; i++) {
+            // Skip if this ticket was already added to a previous cluster
+            if (processedIndices.has(i)) continue;
+
+            const currentCluster = [drafts[i].id];
+
+            // Compare the 'Lead' ticket (i) against all others (j)
+            for (let j = i + 1; j < drafts.length; j++) {
+                if (processedIndices.has(j)) continue;
+
+                // .data extracts the raw Float32Array from the Transformer tensor
+                const similarity = cos_sim(output[i].data, output[j].data);
+
+                if (similarity > THRESHOLD) {
+                    currentCluster.push(drafts[j].id);
+                    processedIndices.add(j); // Mark as "used"
+                }
+            }
+
+            // Only add to result if we found at least one match for this ticket
+            if (currentCluster.length > 1) {
+                clusters.push(currentCluster);
+                processedIndices.add(i); // Mark the lead ticket as used
+            }
         }
 
-        let recommendations;
-
-        switch (process.env.LLM_PROVIDER) {
-            case 'OPENAI':
-                recommendations = await openaiRecommend(drafts);
-                break;
-            case 'ORACLE':
-                recommendations = await oracleRecommend(drafts);
-                break;
-            case 'OLLAMA':
-            default:
-                recommendations = await ollamaRecommend(drafts);
-                break;
-        }
-
-        response.status(200).json({ recommendations });
+        // Returns: [[1, 5, 12], [3, 8]]
+        response.status(200).json({ recommendations: clusters });
     } catch (error) {
-        console.error("Recommendation error:", error);
-        response.status(500).json({ error: "Failed to generate recommendations." });
+        console.error("Clustering error:", error);
+        response.status(500).json({ error: "Failed to cluster tickets." });
     }
 });
 

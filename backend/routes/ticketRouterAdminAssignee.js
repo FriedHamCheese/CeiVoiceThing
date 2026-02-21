@@ -30,6 +30,9 @@ router.get('/', async (request, response) => {
                 LEFT JOIN TicketAssignee ta ON t.id = ta.ticketID
                 LEFT JOIN TicketCategory tc ON t.id = tc.ticketID
                 LEFT JOIN TicketFollower tf ON t.id = tf.ticketID
+            WHERE
+                t.mergedTo IS NULL
+                AND t.status != 'merged'
             GROUP BY 
                 t.id, t.title, t.status, t.deadline, t.createdAt
             ORDER BY 

@@ -6,7 +6,7 @@ import { draftTicketFromUserRequest as ollama } from '../utils/ticketOllama.js';
 import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
 import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
 import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
-
+import { commaSeparatedTags, PREDEFINED_TAGS } from '../utils/misc.js'
 const router = express.Router();
 
 
@@ -18,6 +18,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
     const HTTP_STATUS_BAD_REQUEST = 400;
     const HTTP_STATUS_SERVER_ERROR = 500;
 
+    const MAX_CATEGORY_CHARACTERS = 32;
     const MAX_USER_EMAIL_CHARACTERS = 64;
     const MAX_REQUEST_TEXT_CHARACTERS = 2048;
 
@@ -33,95 +34,109 @@ router.post('/request', isAuthenticated, async (request, response) => {
 
     const emailForInsertion = fromEmail.trim().substring(FIRST_CHARACTER, MAX_USER_EMAIL_CHARACTERS);
     const requestTextForInsertion = requestText.trim().substring(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
-
+    const trackingToken = uuidv4();
     let connection;
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        // 0. Ensure user exists (UserRequest has FK to Users)
-        const [userCheck] = await connection.execute('SELECT email FROM Users WHERE email = ?', [emailForInsertion]);
-        if (userCheck.length === 0) {
+        //Optimize database interaction by parallelizing the requests.
+        const userFlowPromise = (async () => {
             await connection.execute(
-                'INSERT INTO Users (email, name, perm) VALUES (?, ?, ?)',
+                'INSERT IGNORE INTO Users (email, name, perm) VALUES (?, ?, ?)',
                 [emailForInsertion, emailForInsertion.split('@')[0], 1]
             );
-        }
 
-        // 1. Insert User Request
-        const trackingToken = uuidv4();
-        const [userRequestRes] = await connection.execute(
-            'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
-            [emailForInsertion, requestTextForInsertion, trackingToken]
-        );
-        const insertedUserRequestID = userRequestRes.insertId;
+            const trackingToken = uuidv4();
+            const [userRequestRes] = await connection.execute(
+                'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
+                [emailForInsertion, requestTextForInsertion, trackingToken]
+            );
 
-        // 2. Get AI Suggestions
-        const [assigneeRows] = await connection.execute(`
-            SELECT u.email, GROUP_CONCAT(ss.scopeTag) as scopes
-            FROM Users u
-            LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
-            WHERE u.perm = 2
-            GROUP BY u.email
-        `);
-        // Format as list of strings "email: [tag1, tag2]"
-        const assigneeList = assigneeRows.map(row => `${row.email}: [${row.scopes || ''}]`).join('\n');
+            return userRequestRes.insertId;
+        })();
 
-        let draftTicketSuggestions;
+        // 2. Define the "Assignee Fetching" flow (Independent)
+        const assigneePromise = (async () => {
+            const [assigneesRows] = await connection.execute(`
+                SELECT u.email, GROUP_CONCAT(ss.scopeTag SEPARATOR ', ') as scopes
+                FROM Users u
+                LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
+                WHERE u.perm = 2
+                GROUP BY u.email
+            `);
+            return assigneesRows.map(row => `${row.email}: [${row.scopes || ''}]`).join('\n');
+        })();
 
-        switch (process.env.LLM_PROVIDER) {
-            case 'OPENAI':
-                draftTicketSuggestions = await openai(requestTextForInsertion, assigneeList);
-                break;
-            case 'ORACLE':
-                draftTicketSuggestions = await oracle(requestTextForInsertion, assigneeList);
-                break;
-            case 'OLLAMA':
-            default:
-                draftTicketSuggestions = await ollama(requestTextForInsertion, assigneeList);
-                break;
-        }
+        const [insertedUserRequestID, commaSeparatedAssignees] = await Promise.all([
+            userFlowPromise,
+            assigneePromise
+        ]);
 
+        const llmProviders = {
+            'OPENAI': openai,
+            'ORACLE': oracle,
+            'OLLAMA': ollama
+        };
+        // Default to 'ollama' if env var is missing or invalid
+        const generateTicket = llmProviders[process.env.LLM_PROVIDER] || oracle;
+
+        const draftTicketSuggestions = await generateTicket(requestTextForInsertion, commaSeparatedTags, commaSeparatedAssignees);
+
+        // Fast Fail
         if (typeof draftTicketSuggestions === "string") {
             console.error("AI Summary Error Body:", draftTicketSuggestions);
             throw new Error(`AI Summary failed: ${draftTicketSuggestions}`);
         }
 
-        // 3. Insert Draft Ticket
+        // Get ID by inserting
         const [draftRes] = await connection.execute(
-            'INSERT INTO Ticket (title, summary, solution, status) VALUES (?, ?, ?, ?)',
-            [draftTicketSuggestions.title, draftTicketSuggestions.summary, draftTicketSuggestions.suggestedSolutions, 'draft']
+            'INSERT INTO Ticket (userRequestID, title, summary, solution, status) VALUES (?, ?, ?, ?, ?)',
+            [insertedUserRequestID, draftTicketSuggestions.title, draftTicketSuggestions.summary, draftTicketSuggestions.suggestedSolutions, 'draft']
         );
         const insertedTicketID = draftRes.insertId;
 
-        // 4. Link Request and Categories
-        await connection.execute(
+        // 3. Prepare Data for Parallel Execution
+        // Database Task, Category, Assignee, Follower
+        const dbTasks = [];
+        const uniqueCategories = new Set(
+            draftTicketSuggestions.categories.map(c => c.trim().substring(FIRST_CHARACTER, MAX_CATEGORY_CHARACTERS))
+        );
+        //Using x.push(sql_queries) does not wait for sql to finish.        
+        dbTasks.push(connection.execute(
             'INSERT INTO TicketUserRequest (userRequestID, ticketID) VALUES (?, ?)',
             [insertedUserRequestID, insertedTicketID]
-        );
-
-        for (const category of draftTicketSuggestions.categories) {
-            await connection.execute(
-                "INSERT INTO TicketCategory (ticketID, category) VALUES (?, ?)",
-                [insertedTicketID, category]
-            );
-        }
-        // 5. Create Follower link
-        await connection.execute(
+        ));
+        dbTasks.push(connection.execute(
             "INSERT INTO TicketFollower (ticketID, userEmail) VALUES (?, ?)",
             [insertedTicketID, emailForInsertion]
-        );
+        ));
+        if (draftTicketSuggestions.suggestedAssignee) {
+            dbTasks.push(connection.execute(
+                "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+                [insertedTicketID, draftTicketSuggestions.suggestedAssignee]
+            ));
+        }
 
-        // 6. Create Assignee link
-        await connection.execute(
-            "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
-            [insertedTicketID, draftTicketSuggestions.suggestedAssignee]
-        );
+        if (uniqueCategories.size > 0) {
+            // Create placeholders: (?, ?), (?, ?)
+            const placeholders = Array.from(uniqueCategories).map(() => '(?, ?)').join(', ');
+            const values = [];
+            uniqueCategories.forEach(cat => values.push(insertedTicketID, cat));
 
+            dbTasks.push(connection.execute(
+                `INSERT INTO TicketCategory (ticketID, category) VALUES ${placeholders}`,
+                values
+            ));
+        }
+
+        //wait for all tasks to complete
+        await Promise.all(dbTasks);
         await connection.commit();
 
-        // Trigger email asynchronously (don't block response)
-        sendConfirmationEmail(emailForInsertion, trackingToken).catch(err => console.error("Email send failed:", err));
+        //Then send email.
+        sendConfirmationEmail(emailForInsertion, trackingToken)
+            .catch(err => console.error("Email send failed:", err));
 
         response.status(HTTP_STATUS_OK).json({
             message: 'Draft ticket created successfully.',
@@ -159,15 +174,7 @@ router.get('/assignees', isAuthenticated, async (request, response) => {
 // GET Categories (Generic - all authenticated users)
 // Mounted at /tickets/scope
 router.get('/scope', isAuthenticated, async (request, response) => {
-    try {
-        const [rows] = await mysqlConnection.execute(`
-            SELECT name FROM Category ORDER BY name ASC
-        `);
-        response.json(rows.map(row => row.name));
-    } catch (error) {
-        console.error(error);
-        response.status(500).json({ error: "Failed to fetch categories." });
-    }
+    response.json(PREDEFINED_TAGS);
 });
 
 // GET Comments (Generic - all authenticated users)

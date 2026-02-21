@@ -181,7 +181,7 @@ router.post('/setScopeTags', async (request, response) => {
         response.json({message: "Failed to write to database."});
     }finally{
         if (connection) connection.release();
-        response.status(HTTP_STATUS_FOR_OK)
+        response.status(HTTP_STATUS_FOR_OK).json({message: "Set scope tags successfully."});
     }
 });
 
