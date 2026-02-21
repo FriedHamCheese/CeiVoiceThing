@@ -68,8 +68,6 @@ const askOpenAI = async (systemPrompt, userPrompt, jsonMode = false) => {
 
 export async function draftTicketFromUserRequest(userRequestText) {
     try {
-        console.log("Drafting Ticket (OpenAI): Starting Sequential Chain...");
-
         const [summary, category] = await Promise.all([
             askOpenAI(
                 `You are a helpful support assistant.
@@ -81,21 +79,18 @@ export async function draftTicketFromUserRequest(userRequestText) {
         ]);
 
         const cleanSummary = cleanString(summary, 2048);
-        console.log(` -> Step 1 Done. Category: ${category}`);
 
         const title = await askOpenAI(
             `Generate a short, concise title (under 10 words) for this support ticket.
              Based ONLY on this summary: "${cleanSummary}"`,
             ""
         );
-        console.log(" -> Step 2 Done (Title).");
 
         const solutions = await askOpenAI(
             `Suggest 3 short, actionable solutions or next steps for this issue.
              Based ONLY on this summary: "${cleanSummary}"`,
             ""
         );
-        console.log(" -> Step 3 Done (Solution).");
 
         let assignedAgent = await assigneeBalancer.getAssigneeForScope(category);
         if (!assignedAgent) assignedAgent = SAFETY_FALLBACK_EMAIL;

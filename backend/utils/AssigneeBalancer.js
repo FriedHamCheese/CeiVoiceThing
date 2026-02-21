@@ -39,7 +39,6 @@ export default class AssigneeBalancer {
             
             await connection.commit();
             
-            console.log(`⚖️  DB-Balanced '${scopeTag}': Assigned to ${selectedAgent}`);
             return selectedAgent;
 
         } catch (error) {

@@ -123,7 +123,7 @@ export async function draftTicketFromUserRequest(userRequestText) {
         ]);
 
         // Clean the summary immediately so subsequent steps get good input
-        let cleanSummary = cleanString(summary, 128);
+        let cleanSummary = cleanString(summary, 2048);
         console.log(` -> Step 1 Done. Category: ${category}`);
 
         const title = await askOracle(
@@ -167,7 +167,6 @@ export async function draftTicketFromUserRequest(userRequestText) {
  */
 export async function findMergeRecommendations(drafts, threshold = 0.85) {
     if (!drafts || drafts.length < 2) return [];
-    const startTimer = Date.now();
     try {
         const response = await axios.post(
             GROUPING_URL,
@@ -179,13 +178,9 @@ export async function findMergeRecommendations(drafts, threshold = 0.85) {
                 auth: { username: ORACLE_USER, password: ORACLE_PASS }
             }
         );
-
-        console.log(`[Stopwatch] findMergeRecommendations took ${Date.now() - startTimer}ms`);
-        // Python returns: { "groups": [[101, 102], [205, 206]] }
         return response.data.groups || [];
 
     } catch (error) {
-        console.log(`[Stopwatch] findMergeRecommendations failed after ${Date.now() - startTimer}ms`);
         console.error("Merge Recommendation API failed:", error.message);
         return []; // Fail gracefully (return no recommendations)
     }
