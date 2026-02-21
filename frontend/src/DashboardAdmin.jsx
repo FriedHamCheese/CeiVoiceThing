@@ -125,7 +125,7 @@ export default function AdminDashboard() {
                 <DashboardMergeWindow
                     closeWindow={() => setShowMergeWindow(null)}
                     selectedDraftTickets={showMergeWindow}
-                    refreshData={fetchAllTickets}
+                    refreshData={() => window.location.reload()}
                     clearSelection={() => setSelectedDraftIds(new Set())}
                     assignees={assignees}
                 />
