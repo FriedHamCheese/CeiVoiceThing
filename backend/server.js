@@ -77,7 +77,6 @@ app.use('/admin/reports', isAdmin, reportRouterAdmin);
 app.use('/admin/users', isAdmin, userRouterAdmin);
 app.use('/admin', isAdmin, adminRouter);
 
-
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });

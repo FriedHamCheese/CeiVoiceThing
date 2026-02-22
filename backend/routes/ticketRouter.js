@@ -2,8 +2,7 @@ import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { isAuthenticated } from '../middleware/authMiddleware.js';
-import { draftTicketFromUserRequest as openai } from '../utils/ticketOpenAI.js';
-import { draftTicketFromUserRequest as oracle } from '../utils/ticketOracle.js';
+import { draftTicketFromUserRequest } from '../utils/ticketOpenAI.js';
 import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
 import { commaSeparatedTags, PREDEFINED_TAGS } from '../utils/misc.js'
 const router = express.Router();
@@ -72,14 +71,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
             assigneePromise
         ]);
 
-        const llmProviders = {
-            'OPENAI': openai,
-            'ORACLE': oracle
-        };
-        // Default to 'ollama' if env var is missing or invalid
-        const generateTicket = llmProviders[process.env.LLM_PROVIDER] || oracle;
-
-        const draftTicketSuggestions = await generateTicket(requestTextForInsertion);
+        const draftTicketSuggestions = await draftTicketFromUserRequest(requestTextForInsertion);
 
         // Fast Fail
         if (typeof draftTicketSuggestions === "string") {

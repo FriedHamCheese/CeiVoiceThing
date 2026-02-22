@@ -1,3 +1,4 @@
+import {sendConfirmationEmailSchema, sendStatusUpdateEmailSchema, sendCommentNotificationEmailSchema, sendAssignmentNotificationEmailSchema} from '../middleware/validate.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -12,7 +13,19 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+/**
+ * sendConfirmationEmail
+ * Sends a confirmation email to the user who submitted a support request.
+ * @param {string} toEmail - The email address of the user.
+ * @param {string} trackingToken - The tracking token for the support request.
+ * @returns {boolean} - True if the email was sent successfully, false otherwise.
+ */
 export const sendConfirmationEmail = async (toEmail, trackingToken) => {
+    const validated = sendConfirmationEmailSchema.safeParse({toEmail, trackingToken});
+    if (!validated.success) {
+        console.error("sendConfirmationEmail Error: ", validated.error.errors);
+        return false;
+    }
     const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
 
     const mailOptions = {
@@ -38,17 +51,32 @@ export const sendConfirmationEmail = async (toEmail, trackingToken) => {
 
     try {
         if (!process.env.SMTP_HOST) {
-            console.log("SMTP not configured, skipping email.");
-            return;
+            console.warn("SMTP not configured, skipping email.");
+            return false;
         }
         await transporter.sendMail(mailOptions);
-        console.log(`Confirmation email sent to ${toEmail}`);
+        return true;
     } catch (error) {
         console.error('Error sending confirmation email:', error);
+        return false;
     }
 };
 
+/**
+ * sendStatusUpdateEmail
+ * Sends a status update email to the user who submitted a support request.
+ * @param {string} toEmail - The email address of the user.
+ * @param {string} ticketTitle - The title of the support request.
+ * @param {string} newStatus - The new status of the support request.
+ * @param {string} trackingToken - The tracking token for the support request.
+ * @returns {boolean} - True if the email was sent successfully, false otherwise.
+ */
 export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, trackingToken) => {
+    const validated = sendStatusUpdateEmailSchema.safeParse({toEmail, ticketTitle, newStatus, trackingToken});
+    if (!validated.success) {
+        console.error("sendStatusUpdateEmail Error: ", validated.error.errors);
+        return false;
+    }
     const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
 
     const mailOptions = {
@@ -83,13 +111,25 @@ export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, tra
     }
 };
 
+/**
+ * sendCommentNotificationEmail
+ * Sends a comment notification email to the user who submitted a support request.
+ * @param {string} toEmail - The email address of the user.
+ * @param {string} ticketTitle - The title of the support request.
+ * @param {string} commenterName - The name of the user who commented.
+ * @param {string} commentText - The text of the comment.
+ * @param {string} link - The link to the comment.
+ * @param {boolean} isInternal - Whether the comment is internal.
+ * @returns {boolean} - True if the email was sent successfully, false otherwise.
+ */
 export const sendCommentNotificationEmail = async (toEmail, ticketTitle, commenterName, commentText, link, isInternal) => {
+    const validated = sendCommentNotificationEmailSchema.safeParse({toEmail, ticketTitle, commenterName, commentText, link, isInternal});
+    if (!validated.success) {
+        console.error("sendCommentNotificationEmail Error: ", validated.error.errors);
+        return false;
+    }
     const subject = `New Comment on "${ticketTitle}"`;
     const internalLabel = isInternal ? '[INTERNAL] ' : '';
-
-    // Check if internal and simple guard (though router should handle this too)
-    // We trust the router to only call this for valid recipients
-
     const mailOptions = {
         from: `"CEiVoice Support" <${process.env.SMTP_USER}>`,
         to: toEmail,
@@ -114,17 +154,32 @@ export const sendCommentNotificationEmail = async (toEmail, ticketTitle, comment
 
     try {
         if (!process.env.SMTP_HOST) {
-            console.log("SMTP not configured, skipping comment email.");
-            return;
+            console.warn("SMTP not configured, skipping comment email.");
+            return false;
         }
         await transporter.sendMail(mailOptions);
-        console.log(`Comment email sent to ${toEmail}`);
+        return true;
     } catch (error) {
         console.error('Error sending comment email:', error);
+        return false;
     }
 };
 
+/**
+ * sendAssignmentNotificationEmail
+ * Sends an assignment notification email to the user who was assigned a support request.
+ * @param {string} toEmail - The email address of the user.
+ * @param {string} ticketTitle - The title of the support request.
+ * @param {string} assignerEmail - The email address of the user who assigned the ticket.
+ * @param {string} link - The link to the ticket.
+ * @returns {boolean} - True if the email was sent successfully, false otherwise.
+ */
 export const sendAssignmentNotificationEmail = async (toEmail, ticketTitle, assignerEmail, link) => {
+    const validated = sendAssignmentNotificationEmailSchema.safeParse({toEmail, ticketTitle, assignerEmail, link});
+    if (!validated.success) {
+        console.error("sendAssignmentNotificationEmail Error: ", validated.error.errors);
+        return false;
+    }
     const subject = `You have been assigned to "${ticketTitle}"`;
 
     const mailOptions = {
@@ -149,12 +204,13 @@ export const sendAssignmentNotificationEmail = async (toEmail, ticketTitle, assi
 
     try {
         if (!process.env.SMTP_HOST) {
-            console.log("SMTP not configured, skipping assignment email.");
-            return;
+            console.warn("SMTP not configured, skipping assignment email.");
+            return false;
         }
         await transporter.sendMail(mailOptions);
-        console.log(`Assignment email sent to ${toEmail}`);
+        return true;
     } catch (error) {
         console.error('Error sending assignment email:', error);
+        return false;
     }
 };

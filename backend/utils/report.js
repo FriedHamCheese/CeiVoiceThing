@@ -1,8 +1,19 @@
-import mysqlConnection from './mysqlConnection.js';
+import pool from './mysqlConnection.js';
+import { reportAdminSchema, reportAssigneeSchema } from '../middleware/validate.js';
 
+/**
+ * Gets the overview of the admin
+ * @param {{startDate: string, endDate: string}} 
+ * @returns {{totals: {totalTickets: number, solvedCount: number, avgResolutionHours: number, backlogCount: number}, statusBreakdown: {status: string, count: number}[], volumeByDate: {day: string, count: number}[], volumeByCategory: {category: string, count: number}[], backlogCount: number}}
+ */
 const getAdminOverview = async ({ startDate, endDate }) => {
-    const dateParams = [startDate, endDate];
-    const connection = await mysqlConnection.getConnection();
+    const validated = reportAdminSchema.safeParse({ startDate, endDate });
+    if (!validated.success) {
+        console.error("getAdminOverview Error: ", validated.error.errors);
+        return { error: "Invalid parameters" };
+    }
+    const dateParams = [validated.data.startDate, validated.data.endDate];
+    const connection = await pool.getConnection();
 
     try {
         const [[totalRow]] = await connection.execute(
@@ -56,13 +67,26 @@ const getAdminOverview = async ({ startDate, endDate }) => {
             volumeByDate: volumeByDateRows,
             volumeByCategory: volumeByCategoryRows,
         };
+    } catch (error) {
+        console.error("getAdminOverview Error: ", error);
+        return { error: "Internal server error" };
     } finally {
         connection.release();
     }
 };
 
+/**
+ * Gets the overview of a specific assignee
+ * @param {{email: string, days: number}} param0 
+ * @returns {{totals: {currentWorkload: number, solvedCount: number, failedCount: number}, workloadByStatus: {status: string, count: number}[]}}
+ */
 const getAssigneeOverview = async ({ email, days }) => {
-    const connection = await mysqlConnection.getConnection();
+    const validated = reportAssigneeSchema.safeParse({ email, days });
+    if (!validated.success) {
+        console.error("getAssigneeOverview Error: ", validated.error.errors);
+        return { error: "Invalid parameters" };
+    }
+    const connection = await pool.getConnection();
 
     try {
         const [[workloadRow]] = await connection.execute(
@@ -104,6 +128,9 @@ const getAssigneeOverview = async ({ email, days }) => {
             },
             workloadByStatus: workloadByStatusRows,
         };
+    } catch (error) {
+        console.error("getAssigneeOverview Error: ", error);
+        return { error: "Internal server error" };
     } finally {
         connection.release();
     }
