@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
 import "../styles/main.css";
+import logo from "../assets/cei.png";
 
 export default function TopBar({ isSidebarOpen, toggleSidebar }) {
     const { user, updateUser, API_URL } = useAuth();
@@ -9,7 +10,7 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
         <header className="top-bar">
             {!isSidebarOpen && (
                 <img
-                    src={`cei.png?v=${new Date().getTime()}`}
+                    src={logo}
                     alt="logo"
                     onClick={toggleSidebar}
                     className="top-bar-logo-toggle"

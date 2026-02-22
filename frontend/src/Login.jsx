@@ -19,13 +19,18 @@ function Login() {
         handleGoogleLogin,
     } = useLogin();
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
     const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
     return (
         <div className={`viewport ${!isSidebarOpen ? "sidebar-hidden" : ""}`}>
+            {/* Mobile overlay */}
+            <div
+                className={`sidebar-overlay ${isSidebarOpen ? "active" : ""}`}
+                onClick={() => setIsSidebarOpen(false)}
+            ></div>
             <SideBar toggleSidebar={toggleSidebar} />
             <div className="main-layout">
                 <TopBar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />

@@ -78,3 +78,31 @@
     margin-top: auto;
     color: #ff6b6b !important;
 }
+
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        height: 100vh;
+        z-index: 1000;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .sidebar-hidden .sidebar {
+        margin-left: calc(var(--sidebar-width) * -1);
+    }
+
+    .sidebar-overlay.active {
+        display: block;
+    }
+}

@@ -2,9 +2,66 @@ import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
     Button, Stack, TextField, Divider, Typography, Box, FormControl, InputLabel, Select, MenuItem,
-    List, ListItem, ListItemText, Chip, Autocomplete, CircularProgress
+    List, ListItem, ListItemText, Chip, Autocomplete, CircularProgress, Collapse, useMediaQuery, useTheme
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
+
+function LinkedRequestItem({ req, isAdmin, linkedRequestsLength, onUnlink, viewingTicketId }) {
+    const [expanded, setExpanded] = useState(false);
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+
+    // Safely get content string
+    const content = req.requestContents || '';
+    const displayContent = content.length > 100 ? content.substring(0, 100) + '...' : content;
+
+    const primaryText = isMobile ? displayContent : req.userEmail;
+    const secondaryText = isMobile ? req.userEmail : displayContent;
+
+    return (
+        <Box sx={{ bgcolor: '#f5f5f5', mb: 1, borderRadius: 1, overflow: 'hidden' }}>
+            <ListItem
+                onClick={() => setExpanded(!expanded)}
+                sx={{
+                    cursor: { xs: 'pointer', md: 'default' },
+                    display: 'flex',
+                    alignItems: { xs: 'flex-start', md: 'center' } // Vertically centered on md and up
+                }}
+            >
+                <ListItemText
+                    primary={primaryText}
+                    secondary={secondaryText}
+                    primaryTypographyProps={isMobile ? { fontSize: '1.1rem', fontWeight: 500 } : {}}
+                />
+                {isAdmin && linkedRequestsLength > 1 && (
+                    <Button
+                        color="error"
+                        size="small"
+                        onClick={(e) => { e.stopPropagation(); onUnlink(viewingTicketId, req.id); }}
+                        sx={{ display: { xs: 'none', md: 'block' }, ml: 2, minWidth: 'auto' }}
+                    >
+                        Unlink
+                    </Button>
+                )}
+            </ListItem>
+            {isAdmin && linkedRequestsLength > 1 && (
+                <Collapse in={expanded} timeout="auto" unmountOnExit sx={{ display: { xs: 'block', md: 'none' } }}>
+                    <Box sx={{ p: 1, pt: 0, display: 'flex', justifyContent: 'center', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                        <Button
+                            color="error"
+                            size="small"
+                            variant="outlined"
+                            onClick={(e) => { e.stopPropagation(); onUnlink(viewingTicketId, req.id); }}
+                            sx={{ width: '100%', maxWidth: '200px' }}
+                        >
+                            Unlink
+                        </Button>
+                    </Box>
+                </Collapse>
+            )}
+        </Box>
+    );
+}
 
 export default function DashboardTicketView({
     viewingTicket, setViewingTicket, assignees, categories = [], isAdmin, user,
@@ -196,7 +253,7 @@ export default function DashboardTicketView({
                                 </Box>
                             </Box>
                         )}
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+                        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'stretch' }}>
                             <TextField
                                 fullWidth
                                 rows={8}
@@ -292,12 +349,14 @@ export default function DashboardTicketView({
                         <Typography variant="subtitle1" fontWeight="bold">Linked Requests ({linkedRequests.length})</Typography>
                         <List size="small">
                             {linkedRequests.map(req => (
-                                <ListItem key={req.id} sx={{ bgcolor: '#f5f5f5', mb: 1, borderRadius: 1 }}>
-                                    <ListItemText primary={req.userEmail} secondary={req.requestContents.substring(0, 100) + '...'} />
-                                    {isAdmin && linkedRequests.length > 1 && (
-                                        <Button color="error" size="small" onClick={() => handleUnlinkRequest(viewingTicket.id, req.id)}>Unlink</Button>
-                                    )}
-                                </ListItem>
+                                <LinkedRequestItem
+                                    key={req.id}
+                                    req={req}
+                                    isAdmin={isAdmin}
+                                    linkedRequestsLength={linkedRequests.length}
+                                    onUnlink={handleUnlinkRequest}
+                                    viewingTicketId={viewingTicket.id}
+                                />
                             ))}
                         </List>
 
@@ -418,7 +477,7 @@ export default function DashboardTicketView({
                             </Box>
                         )}
 
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+                        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'stretch' }}>
                             <TextField
                                 fullWidth
                                 rows={10}
@@ -568,12 +627,14 @@ export default function DashboardTicketView({
                         <Typography variant="subtitle1" fontWeight="bold">Linked Requests ({linkedRequests?.length || 0})</Typography>
                         <List size="small">
                             {linkedRequests?.map(req => (
-                                <ListItem key={req.id} sx={{ bgcolor: '#f5f5f5', mb: 1, borderRadius: 1 }}>
-                                    <ListItemText primary={req.userEmail} secondary={req.requestContents.substring(0, 100) + '...'} />
-                                    {isAdmin && linkedRequests.length > 1 && (
-                                        <Button color="error" size="small" onClick={() => handleUnlinkRequest(viewingTicket.id, req.id)}>Unlink</Button>
-                                    )}
-                                </ListItem>
+                                <LinkedRequestItem
+                                    key={req.id}
+                                    req={req}
+                                    isAdmin={isAdmin}
+                                    linkedRequestsLength={linkedRequests?.length || 0}
+                                    onUnlink={handleUnlinkRequest}
+                                    viewingTicketId={viewingTicket.id}
+                                />
                             ))}
                         </List>
 

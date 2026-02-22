@@ -37,3 +37,13 @@
 .request-form button:disabled {
     background-color: #ccc;
 }
+
+@media (max-width: 768px) {
+    .request-form {
+        max-width: 100%;
+    }
+
+    .request-form textarea {
+        min-height: 200px;
+    }
+}

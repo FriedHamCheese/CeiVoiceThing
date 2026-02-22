@@ -213,7 +213,7 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
                         )}
                     />
 
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+                    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, alignItems: 'stretch' }}>
                         <TextField
                             fullWidth
                             rows={10}

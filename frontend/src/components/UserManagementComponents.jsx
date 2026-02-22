@@ -60,8 +60,8 @@ export function UserElement({ userObject, setErrorMessage, API_URL, refreshPage,
     const WAIT_FOR_SERVER_TO_WRITE_MS = 200;
 
     return (
-        <Grid container sx={{ mb: '5px' }}>
-            <Grid size={4} sx={{ mr: '20px' }}>
+        <Grid container sx={{ mb: '5px', alignItems: 'center', rowGap: 1 }}>
+            <Grid size={{ xs: 12, sm: 4 }} sx={{ mr: '20px' }}>
                 <Typography variant='h6' sx={{ color: '#666666' }}>{userObject.name}</Typography>
                 <Typography variant='subtitle2' sx={{ color: '#AAAAAA' }}>{userObject.email}</Typography>
             </Grid>

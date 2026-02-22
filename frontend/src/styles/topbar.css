@@ -49,3 +49,14 @@
     border-radius: 4px;
     cursor: pointer;
 }
+
+@media (max-width: 768px) {
+    .top-bar {
+        padding: var(--spacing-md);
+    }
+
+    .top-bar h2 {
+        display: none;
+        /* Hide welcome text on very small screens to save space */
+    }
+}

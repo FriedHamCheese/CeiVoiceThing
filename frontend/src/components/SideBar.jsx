@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "../styles/main.css";
+import logo from "../assets/cei.png";
 
 export default function SideBar({ toggleSidebar }) {
     const { user, logout } = useAuth();
@@ -14,7 +15,7 @@ export default function SideBar({ toggleSidebar }) {
         <aside className="sidebar">
             <div className="sidebar-brand">
                 <img
-                    src={`cei.png?v=${new Date().getTime()}`}
+                    src={logo}
                     alt="logo"
                     onClick={toggleSidebar}
                     style={{ cursor: 'pointer' }}

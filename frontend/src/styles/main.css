@@ -78,3 +78,12 @@ hr {
     border-top: 1px solid #eee;
     margin: var(--spacing-md) 0;
 }
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+    .panel {
+        margin: var(--spacing-xs);
+        padding: var(--spacing-md);
+        border-radius: 8px;
+    }
+}

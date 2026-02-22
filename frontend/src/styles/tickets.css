@@ -151,3 +151,34 @@
 .draft-content-text:last-child {
     margin-bottom: 0;
 }
+
+@media (max-width: 768px) {
+    .ticket-container {
+        width: 100%;
+        padding-left: 0;
+    }
+
+    .ticket-header {
+        height: auto;
+        min-height: 50px;
+        padding: var(--spacing-xs) 0;
+    }
+
+    .ticket-title {
+        margin-left: var(--spacing-sm);
+    }
+
+    .ticket-remove-btn {
+        margin-right: var(--spacing-sm);
+    }
+
+    .ticket-expand-icon {
+        margin-right: var(--spacing-sm);
+    }
+
+    .draft-card-actions {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: var(--spacing-xs);
+    }
+}

@@ -18,7 +18,7 @@ async function promoteTicketToNew(ticketID, userEmail) {
     const response = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
             ticketID: ticketID,
             adminEmail: userEmail,
             status: 'New'
@@ -65,7 +65,7 @@ export function DraftTicketComponent({ ticket, setErrorMessage, isSelected, onTo
                 />
             )}
 
-            <Box sx={{ flexGrow: 1, ml: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ flexGrow: 1, ml: 1, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, gap: { xs: 0.5, md: 2 } }}>
                 <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
                     {ticket.title}
                 </Typography>
@@ -80,7 +80,7 @@ export function DraftTicketComponent({ ticket, setErrorMessage, isSelected, onTo
                 )}
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
                 <Button
                     size="small"
                     startIcon={<VisibilityIcon />}
