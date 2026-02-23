@@ -9,6 +9,7 @@ Use this checklist before running:
 **For basic UAT User.js tests:**
 
 UAT User.js = "Can users submit tickets and see them?"
+
 UAT User E2E Solve.js = "Does the entire workflow from submission to resolution work?"
 
 ```powershell
