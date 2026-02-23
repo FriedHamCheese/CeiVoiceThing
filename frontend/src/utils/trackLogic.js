@@ -33,8 +33,13 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
         if (!user) return;
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/tickets/${user.email}/requests`, {
-                credentials: 'include'
+            const response = await fetch(`${API_URL}/tickets/requests`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: user.email }),
             });
             if (response.ok) {
                 setUserTickets(await response.json());
