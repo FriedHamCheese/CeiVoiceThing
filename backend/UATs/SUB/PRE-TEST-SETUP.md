@@ -31,6 +31,7 @@ node "backend/UATs/SUB/UAT User E2E Solve.js"
 ```
 
 > **Note:** The dummy users from `setup.sql` include `user@example.com` (perm=1) and `admin@example.com` (perm=3). You must set actual passwords for these accounts in your database (the hashes in setup.sql are placeholders). 
+
 > **You may need to leave RECAPTCHA_SECRET_KEY empty in backend .env if you want to skip Captcha**
 
 ---
