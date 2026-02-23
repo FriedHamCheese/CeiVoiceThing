@@ -55,11 +55,13 @@ const googleCallback = async (accessToken, refreshToken, profile, done) => {
 const loginLocal = async (req, res, next) => {
     const { email, password, captchaToken } = req.body;
 
+    // Skip captcha verification if RECAPTCHA_SECRET_KEY is not configured
+    if (process.env.RECAPTCHA_SECRET_KEY) {
+        const isHuman = await verifyCaptcha(captchaToken);
 
-    const isHuman = await verifyCaptcha(captchaToken);
-
-    if (!isHuman) {
-        return res.status(400).json({ message: 'Captcha verification failed' });
+        if (!isHuman) {
+            return res.status(400).json({ message: 'Captcha verification failed' });
+        }
     }
 
     passport.authenticate('local', (err, user, info) => {
@@ -79,14 +81,21 @@ const register = async (req, res) => {
     const { email, password, captchaToken } = req.body;
 
     // 1. Basic Validation
-    if (!email || !password || !captchaToken) {
-        return res.status(400).json({ message: 'Please provide email, password, and captcha token.' });
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Please provide email and password.' });
     }
 
-    // 2. Captcha Verification
-    const isHuman = await verifyCaptcha(captchaToken);
-    if (!isHuman) {
-        return res.status(400).json({ message: 'Captcha verification failed' });
+    // Skip captcha verification if RECAPTCHA_SECRET_KEY is not configured
+    if (process.env.RECAPTCHA_SECRET_KEY) {
+        if (!captchaToken) {
+            return res.status(400).json({ message: 'Please provide captcha token.' });
+        }
+
+        // Captcha Verification
+        const isHuman = await verifyCaptcha(captchaToken);
+        if (!isHuman) {
+            return res.status(400).json({ message: 'Captcha verification failed' });
+        }
     }
 
     try {
