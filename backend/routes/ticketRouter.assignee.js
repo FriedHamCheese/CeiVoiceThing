@@ -4,15 +4,8 @@ import { z } from 'zod';
 import { sendStatusUpdateEmail, sendAssignmentNotificationEmail } from '../utils/email.js';
 
 const router = express.Router();
-const historySchema = z.object({
-    ticketID: z.number().min(1),
-    action: z.string().min(1),
-    performer: z.email().min(1),
-    details: z.string().min(1)
-});
-
-// Create a schema for the array of history items
-const historyBatchSchema = z.array(historySchema);
+import { validateRequest } from '../middleware/validate.js';
+import { historyBatchSchema, ticketUpdateSchema, getHistorySchema } from '../schemas/ticketRouter.assignee.schema.js';
 
 const logHistory = async (connection, ticketID, userEmail, historyItems) => {
     // 1. Prepare the data for validation
@@ -52,23 +45,13 @@ const logHistory = async (connection, ticketID, userEmail, historyItems) => {
 };
 
 
-const ticketUpdateSchema = z.object({
-    status: z.string().optional(),
-    resolutionComment: z.string().nullable().optional(),
-    assigneeEmail: z.array(z.email("Invalid email format")).optional(),
-});
-router.patch('/:id', async (request, response) => {
+
+router.patch('/:id', validateRequest(ticketUpdateSchema), async (request, response) => {
     const email = request.user.email;
     const ticketID = request.params.id;
 
-    // 1. Validate Input
-    const parsed = ticketUpdateSchema.safeParse(request.body);
-    if (!parsed.success) {
-        return response.status(400).json({ error: "Validation failed", details: parsed.error.issues });
-    }
-
     // Destructure only the fields we care about
-    const { assigneeEmail, status, resolutionComment } = parsed.data;
+    const { assigneeEmail, status, resolutionComment } = request.body;
     let connection;
     try {
         connection = await mysqlConnection.getConnection();
@@ -221,7 +204,7 @@ router.patch('/:id', async (request, response) => {
     }
 });
 
-router.get('/:id/history', async (request, response) => {
+router.get('/:id/history', validateRequest(getHistorySchema), async (request, response) => {
     try {
         const [rows] = await mysqlConnection.execute("SELECT * FROM TicketHistory WHERE ticketID = ? ORDER BY timestamp DESC", [request.params.id]);
         response.json(rows);

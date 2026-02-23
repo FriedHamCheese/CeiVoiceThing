@@ -1,27 +1,30 @@
-import dotenv from 'dotenv';
-dotenv.config();
-import express from 'express';
-import helmet from 'helmet';
 import cors from 'cors';
+import dotenv from 'dotenv';
+import express from 'express';
 import expressMysqlSession from 'express-mysql-session';
-import session from 'express-session';
+import helmet from 'helmet';
 import passport from 'passport';
-import pool from './utils/mysqlConnection.js'; // Import the pool
-import ticketRouter from './routes/ticketRouter.js';
-import ticketRouterAdmin from './routes/ticketRouterAdmin.js';
-import ticketRouterAssignee from './routes/ticketRouterAssignee.js';
-import ticketRouterPublic from './routes/ticketRouterPublic.js';
-import ticketRouterAdminAssignee from './routes/ticketRouterAdminAssignee.js';
-import authRouter from './routes/authRouter.js';
-import reportRouter from './routes/reportRouterSpecialist.js';
-import reportRouterAdmin from './routes/reportRouterAdmin.js';
-import assigneeRouter from './routes/assigneeRouter.js';
-import adminRouter from './routes/adminRouter.js';
-import configurePassport from './utils/passport.js';
-import userRouterAdmin from './routes/userRouterAdmin.js'
+import session from 'express-session';
 
-//Add isAssignee to prepare for renaming.
-import { isAuthenticated, isAssignee, isSpecialist, isAdmin } from './middleware/authMiddleware.js';
+import { ROLES } from './constants/roles.js';
+import { isAuthenticated, restrictTo } from './middleware/authMiddleware.js';
+
+import adminRoutes from './routes/adminRouter.admin.js';
+import assigneeRoutes from './routes/assigneeRouter.assignee.js';
+import authRoutes from './routes/authRouter.js';
+import reportAdminRoutes from './routes/reportRouter.admin.js';
+import reportAssigneeRoutes from './routes/reportRouter.assignee.js';
+import ticketAdminRoutes from './routes/ticketRouter.admin.js';
+import ticketAssigneeRoutes from './routes/ticketRouter.assignee.js';
+import ticketInternalRoutes from './routes/ticketRouter.internal.js';
+import ticketPublicRoutes from './routes/ticketRouter.public.js';
+import ticketRoutes from './routes/ticketRouter.js';
+import userAdminRoutes from './routes/userRouter.admin.js';
+
+import pool from './utils/mysqlConnection.js';
+import configurePassport from './utils/passport.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.SERVER_PORT;
@@ -35,7 +38,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session configuration (required for Passport)
 // Session configuration (required for Passport)
 const MySQLStore = expressMysqlSession(session);
 const sessionStore = new MySQLStore({}, pool); // Reuse existing pool
@@ -60,22 +62,22 @@ app.use(passport.session());
 // Initialize passport strategies
 configurePassport(passport);
 
-app.use('/auth', authRouter);
-app.use('/tickets', isAuthenticated, ticketRouter);
-app.use('/public/tickets', ticketRouterPublic);
+app.use('/auth', authRoutes);
+app.use('/tickets', isAuthenticated, ticketRoutes);
+app.use('/public/tickets', ticketPublicRoutes);
 
 //Assignee
-app.use('/assignee/reports', isAssignee, reportRouter);
-app.use('/assignee/tickets', isAssignee, ticketRouterAssignee);
-app.use('/assignee/tickets', isAssignee, ticketRouterAdminAssignee);
-app.use('/assignee', isAssignee, assigneeRouter);
+app.use('/assignee/reports', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], reportAssigneeRoutes);
+app.use('/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketAssigneeRoutes);
+app.use('/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketInternalRoutes);
+app.use('/assignee', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], assigneeRoutes);
 
 //Admin
-app.use('/admin/tickets', isAdmin, ticketRouterAdmin);
-app.use('/admin/tickets', isAdmin, ticketRouterAdminAssignee);
-app.use('/admin/reports', isAdmin, reportRouterAdmin);
-app.use('/admin/users', isAdmin, userRouterAdmin);
-app.use('/admin', isAdmin, adminRouter);
+app.use('/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketAdminRoutes);
+app.use('/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketInternalRoutes);
+app.use('/admin/reports', [isAuthenticated, restrictTo(ROLES.ADMIN)], reportAdminRoutes);
+app.use('/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdminRoutes);
+app.use('/admin', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

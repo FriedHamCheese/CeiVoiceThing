@@ -3,14 +3,16 @@ import express from 'express';
 import passport from 'passport';
 import dotenv from 'dotenv';
 import mysqlConnection from '../utils/mysqlConnection.js';
+import { validateRequest } from '../middleware/validate.js';
+import { loginLocalSchema, registerSchema } from '../schemas/authRouter.schema.js';
 dotenv.config();
 
 const router = express.Router();
 
 const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
 
-router.post('/login', loginLocal);
-router.post('/register', register);
+router.post('/login', validateRequest(loginLocalSchema), loginLocal);
+router.post('/register', validateRequest(registerSchema), register);
 
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback',

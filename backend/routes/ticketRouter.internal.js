@@ -1,9 +1,11 @@
 import express from 'express';
 import mysqlConnection from '../utils/mysqlConnection.js';
+import { validateRequest } from '../middleware/validate.js';
+import { ticketRequestsSchema, ticketHistorySchema } from '../schemas/ticketRouter.internal.schema.js';
 
 const router = express.Router();
 
-// Fetch all tickets
+// Fetch all tickets with status != draft, merged.
 router.get('/', async (request, response) => {
     try {
         const [tickets] = await mysqlConnection.execute(`
@@ -55,7 +57,7 @@ router.get('/', async (request, response) => {
 });
 
 // GET Requests linked to a ticket
-router.get('/:id/requests', async (request, response) => {
+router.get('/:id/requests', validateRequest(ticketRequestsSchema), async (request, response) => {
     const ticketID = request.params.id;
     try {
         const [rows] = await mysqlConnection.execute(
@@ -91,7 +93,7 @@ router.get('/assignees', async (request, response) => {
 });
 
 // GET History
-router.get('/:id/history', async (request, response) => {
+router.get('/:id/history', validateRequest(ticketHistorySchema), async (request, response) => {
     try {
         const [rows] = await mysqlConnection.execute("SELECT * FROM TicketHistory WHERE ticketID = ? ORDER BY timestamp DESC", [request.params.id]);
         response.json(rows);

@@ -4,34 +4,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { isAuthenticated } from '../middleware/authMiddleware.js';
 import { draftTicketFromUserRequest } from '../utils/ticketOpenAI.js';
 import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
-import { commaSeparatedTags, PREDEFINED_TAGS } from '../utils/misc.js'
+import { COMMA_SEPARATED_TAGS, PREDEFINED_TAGS } from '../constants/categories.js';
+import { validateRequest } from '../middleware/validate.js';
+import { createRequestSchema, getCommentsSchema, addCommentSchema, toggleFollowSchema, userRequestsSchema, creatorSchema } from '../schemas/ticketRouter.schema.js';
 const router = express.Router();
 
 
 // Create User Request
 // for all authenticated user.
-router.post('/request', isAuthenticated, async (request, response) => {
-    const FIRST_CHARACTER = 0;
+router.post('/request', isAuthenticated, validateRequest(createRequestSchema), async (request, response) => {
     const HTTP_STATUS_OK = 200;
-    const HTTP_STATUS_BAD_REQUEST = 400;
     const HTTP_STATUS_SERVER_ERROR = 500;
 
-    const MAX_CATEGORY_CHARACTERS = 32;
-    const MAX_USER_EMAIL_CHARACTERS = 64;
-    const MAX_REQUEST_TEXT_CHARACTERS = 2048;
-
     const { requestText, fromEmail } = request.body;
-
-    // Validation
-    if (typeof requestText !== 'string') {
-        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .requestText" });
-    }
-    if (typeof fromEmail !== 'string') {
-        return response.status(HTTP_STATUS_BAD_REQUEST).json({ message: "Incorrect type for .fromEmail" });
-    }
-
-    const emailForInsertion = fromEmail.trim().substring(FIRST_CHARACTER, MAX_USER_EMAIL_CHARACTERS);
-    const requestTextForInsertion = requestText.trim().substring(FIRST_CHARACTER, MAX_REQUEST_TEXT_CHARACTERS);
     const trackingToken = uuidv4();
     let connection;
     try {
@@ -42,13 +27,13 @@ router.post('/request', isAuthenticated, async (request, response) => {
         const userFlowPromise = (async () => {
             await connection.execute(
                 'INSERT IGNORE INTO Users (email, name, perm) VALUES (?, ?, ?)',
-                [emailForInsertion, emailForInsertion.split('@')[0], 1]
+                [fromEmail, fromEmail.split('@')[0], 1]
             );
 
             const trackingToken = uuidv4();
             const [userRequestRes] = await connection.execute(
                 'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
-                [emailForInsertion, requestTextForInsertion, trackingToken]
+                [fromEmail, requestText, trackingToken]
             );
 
             return userRequestRes.insertId;
@@ -71,7 +56,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
             assigneePromise
         ]);
 
-        const draftTicketSuggestions = await draftTicketFromUserRequest(requestTextForInsertion);
+        const draftTicketSuggestions = await draftTicketFromUserRequest(requestText);
 
         // Fast Fail
         if (typeof draftTicketSuggestions === "string") {
@@ -90,7 +75,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
         // Database Task, Category, Assignee, Follower
         const dbTasks = [];
         const uniqueCategories = new Set(
-            draftTicketSuggestions.categories.map(c => c.trim().substring(FIRST_CHARACTER, MAX_CATEGORY_CHARACTERS))
+            draftTicketSuggestions.categories.map(c => c.trim().substring(0, 32))
         );
         //Using x.push(sql_queries) does not wait for sql to finish.        
         dbTasks.push(connection.execute(
@@ -99,7 +84,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
         ));
         dbTasks.push(connection.execute(
             "INSERT INTO TicketFollower (ticketID, userEmail) VALUES (?, ?)",
-            [insertedTicketID, emailForInsertion]
+            [insertedTicketID, fromEmail]
         ));
         if (draftTicketSuggestions.suggestedAssignee) {
             dbTasks.push(connection.execute(
@@ -125,7 +110,7 @@ router.post('/request', isAuthenticated, async (request, response) => {
         await connection.commit();
 
         //Then send email.
-        sendConfirmationEmail(emailForInsertion, trackingToken)
+        sendConfirmationEmail(fromEmail, trackingToken)
             .catch(err => console.error("Email send failed:", err));
 
         response.status(HTTP_STATUS_OK).json({
@@ -170,7 +155,7 @@ router.get('/scope', isAuthenticated, async (request, response) => {
 
 // GET Comments (Generic - all authenticated users)
 // Mounted at /tickets/:id/comments
-router.get('/:id/comments', isAuthenticated, async (request, response) => {
+router.get('/:id/comments', isAuthenticated, validateRequest(getCommentsSchema), async (request, response) => {
     try {
         const ticketID = request.params.id;
         const userPerm = request.user.perm || 1;
@@ -195,7 +180,7 @@ router.get('/:id/comments', isAuthenticated, async (request, response) => {
 // ADD Comment (Generic - all authenticated users)
 // Mounted at /tickets/:id/comment
 // CHECK Follow Status
-router.get('/:id/is_following', isAuthenticated, async (request, response) => {
+router.get('/:id/is_following', isAuthenticated, validateRequest(toggleFollowSchema), async (request, response) => {
     const ticketID = request.params.id;
     const userEmail = request.user.email;
 
@@ -212,7 +197,7 @@ router.get('/:id/is_following', isAuthenticated, async (request, response) => {
 });
 
 // TOGGLE Follow Status
-router.post('/:id/follow', isAuthenticated, async (request, response) => {
+router.post('/:id/follow', isAuthenticated, validateRequest(toggleFollowSchema), async (request, response) => {
     const ticketID = request.params.id;
     const userEmail = request.user.email;
 
@@ -244,13 +229,11 @@ router.post('/:id/follow', isAuthenticated, async (request, response) => {
 
 // ADD Comment (Generic - all authenticated users)
 // Mounted at /tickets/:id/comment
-router.post('/:id/comment', isAuthenticated, async (request, response) => {
+router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), async (request, response) => {
     const { text, isInternal } = request.body;
     const ticketID = request.params.id;
     const userEmail = request.user.email;
     const userPerm = request.user.perm || 1;
-
-    if (!text) return response.status(400).json({ error: "Comment text required" });
 
     // Force internal to false if user is not specialist/admin
     const finalIsInternal = (userPerm >= 2) ? (isInternal || false) : false;
@@ -323,35 +306,36 @@ router.post('/:id/comment', isAuthenticated, async (request, response) => {
                     if (isCreator) {
                         // Don't notify creators
                         processedEmails.add(follower.userEmail);
-                        }
-                    } else {
-                        // It's a staff follower (or someone without a request link)
-                        // They get notified regardless (assuming they have perm to view)
-                        // We assume followers are authorized if they managed to follow.
-                        processedEmails.add(follower.userEmail);
-                        sendCommentNotificationEmail(
-                            follower.userEmail,
-                            ticketTitle,
-                            userEmail,
-                            text,
-                            dashboardLink,
-                            finalIsInternal
-                        ).catch(console.error);
                     }
+                } else {
+                    // It's a staff follower (or someone without a request link)
+                    // They get notified regardless (assuming they have perm to view)
+                    // We assume followers are authorized if they managed to follow.
+                    processedEmails.add(follower.userEmail);
+                    sendCommentNotificationEmail(
+                        follower.userEmail,
+                        ticketTitle,
+                        userEmail,
+                        text,
+                        dashboardLink,
+                        finalIsInternal
+                    ).catch(console.error);
                 }
             }
-            response.json({ message: "Comment added" }); 
         }
-        catch (error) {
+        response.json({ message: "Comment added" });
+    }
+    catch (error) {
         console.error(error);
         response.status(500).json({ error: "Failed to add comment" });
     }
 });
 
-// GET User Requests (Generic - authenticated users fetching their own)
-// Mounted at /tickets/:email/requests
-router.get('/:email/requests', isAuthenticated, async (request, response) => {
-    const { email } = request.params;
+// Post User Requests (Generic - authenticated users fetching their own)
+// Mounted at /tickets/requests
+// Is post to move email to body section.
+router.post('/requests', isAuthenticated, validateRequest(userRequestsSchema), async (request, response) => {
+    const { email } = request.body;
 
     try {
         // Fetch All Tickets for this user
@@ -379,7 +363,7 @@ router.get('/:email/requests', isAuthenticated, async (request, response) => {
     }
 });
 
-router.get('/creator/:ticketID', async (request, response) => {
+router.get('/creator/:ticketID', validateRequest(creatorSchema), async (request, response) => {
     const { ticketID } = request.params;
 
     try {
@@ -388,7 +372,7 @@ router.get('/creator/:ticketID', async (request, response) => {
             [ticketID]
         );
         if (rows.length === 0) {
-            try{
+            try {
                 const [rows2] = await mysqlConnection.execute(
                     `SELECT u.email, u.name 
                      FROM Users u 
@@ -396,7 +380,7 @@ router.get('/creator/:ticketID', async (request, response) => {
                     [ticketID]
                 );
                 response.json([rows2]);
-            } catch(error){
+            } catch (error) {
                 console.error(error);
                 response.status(500).json({ error: "Failed to fetch creator." });
             }

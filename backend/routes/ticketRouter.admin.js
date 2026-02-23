@@ -1,91 +1,25 @@
 import mysqlConnection from '../utils/mysqlConnection.js';
 import express from 'express';
-import { z } from 'zod';
+import { z } from 'zod'; // Keeping zod for historyBatchSchema
 import { sendStatusUpdateEmail, sendAssignmentNotificationEmail } from '../utils/email.js';
 import { findMergeRecommendations } from '../utils/ticketOpenAI.js';
+import { validateRequest } from '../middleware/validate.js';
+import { ticketMergeSchema, ticketUpdateAdminSchema, ticketUnlinkSchema } from '../schemas/ticketRouter.admin.schema.js';
+import { logHistory } from '../utils/history.js';
+
 const router = express.Router();
 
-const historySchema = z.object({
-    ticketID: z.number().min(1),
-    action: z.string().min(1),
-    performer: z.email().min(1),
-    details: z.string().min(1)
-});
-
-// Create a schema for the array of history items
-const historyBatchSchema = z.array(historySchema);
-
-const logHistory = async (connection, ticketID, userEmail, historyItems) => {
-    // 1. Prepare the data for validation
-    const dataToValidate = historyItems.map(item => ({
-        ticketID: parseInt(ticketID),
-        action: String(item.action),
-        performer: String(userEmail),
-        details: String(item.details)
-    }));
-    // 2. Validate the batch
-    const validation = historyBatchSchema.safeParse(dataToValidate);
-
-    if (!validation.success) {
-        console.error("Validation failed:", validation.error.format());
-        return;
-    }
-
-    if (validation.data.length === 0) return;
-
-    // 3. Map validated data to SQL values
-    const values = validation.data.map(item => [
-        item.ticketID,
-        item.action,
-        item.performer,
-        item.details,
-        new Date()
-    ]);
-
-    try {
-        await connection.query(
-            "INSERT INTO TicketHistory (ticketID, action, performer, details, timestamp) VALUES ?",
-            [values]
-        );
-    } catch (error) {
-        console.error("Database Error:", error);
-    }
-};
-// Update Ticket
-// Ticket schema
-const ticketUpdateSchema = z.object({
-    title: z.string().optional(),
-    summary: z.string().optional(),
-    solution: z.string().optional(),
-    deadline: z.string().optional().nullable(),
-    categories: z.array(z.string()).optional(),
-    assigneeEmail: z.array(z.email("Invalid email format")).optional(),
-    status: z.string().optional(),
-    resolutionComment: z.string().optional(),
-});
-
-router.patch('/:id', async (request, response) => {
+router.patch('/:id', validateRequest(ticketUpdateAdminSchema), async (request, response) => {
     const email = request.user.email;
     const ticketID = request.params.id;
 
-    // 1. Validate Input
-    const parsed = ticketUpdateSchema.safeParse(request.body);
-    if (!parsed.success) {
-        return response.status(400).json({
-            error: "Validation failed",
-            details: parsed.error.issues
-        });
-    }
-
-    const { title, summary, solution, deadline, categories, assigneeEmail, status, resolutionComment } = parsed.data;
+    const { title, summary, solution, deadline, categories, assigneeEmail, status, resolutionComment } = request.body;
     let connection;
 
     try {
         connection = await mysqlConnection.getConnection();
         await connection.beginTransaction();
 
-        let [currentStatus] = await connection.execute("SELECT status FROM Ticket WHERE id = ?", [ticketID]);
-        let [currentResolutionComment] = await connection.execute("SELECT resolutionComment FROM Ticket WHERE id = ?", [ticketID]);
         let [currentAssigneeEmail] = await connection.execute("SELECT assigneeEmail FROM TicketAssignee WHERE ticketID = ?", [ticketID]);
 
         // 2. Fetch current record to compare changes
@@ -150,7 +84,6 @@ router.patch('/:id', async (request, response) => {
                 historyItems.push({ action: "Status updated", details: details });
             }
         } else if (resolutionComment !== undefined && resolutionComment !== current.resolutionComment) {
-            // Case where status didn't change but comment was updated (maybe? or just allow it)
             updates.push("resolutionComment = ?"), values.push(resolutionComment);
             historyItems.push({ action: "Resolution comment updated", details: resolutionComment });
         }
@@ -271,9 +204,7 @@ router.patch('/:id', async (request, response) => {
     }
 });
 
-// Unlink a UserRequest from a Ticket (now updating mergedTo and status)
-// Unlink a UserRequest from a Ticket (now updating mergedTo and status)
-router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, response) => {
+router.post('/:parentTicketId/unlink/:childUserRequestID', validateRequest(ticketUnlinkSchema), async (request, response) => {
     const { childUserRequestID, parentTicketId } = request.params;
     const email = request.user.email;
     let connection;
@@ -405,14 +336,9 @@ router.post('/:parentTicketId/unlink/:childUserRequestID', async (request, respo
 });
 
 
-// Merge multiple Tickets into one
-router.post("/merge", async (request, response) => {
+router.post("/merge", validateRequest(ticketMergeSchema), async (request, response) => {
     const { draftTicketIDs, title, summary, categories, suggestedSolutions, deadline, assigneeEmails } = request.body;
     const email = request.user.email;
-
-    if (!Array.isArray(draftTicketIDs) || draftTicketIDs.length === 0) {
-        return response.status(400).json({ error: "Invalid IDs array." });
-    }
 
     let connection;
     try {

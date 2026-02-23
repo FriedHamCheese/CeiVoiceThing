@@ -1,5 +1,7 @@
 import express from 'express';
 import mysqlConnection from '../utils/mysqlConnection.js';
+import { validateRequest } from '../middleware/validate.js';
+import { adminPatchUserSchema } from '../schemas/adminRouter.admin.schema.js';
 
 const router = express.Router();
 
@@ -23,13 +25,9 @@ router.get('/users', async (req, res) => {
  * PATCH /admin/users/:email/role
  * Update the permission level (role) for a specific user.
  */
-router.patch('/users/:email/role', async (req, res) => {
+router.patch('/users/:email/role', validateRequest(adminPatchUserSchema), async (req, res) => {
     const { email } = req.params;
     const { perm } = req.body;
-
-    if (perm === undefined || isNaN(perm)) {
-        return res.status(400).json({ success: false, message: 'Invalid permission level' });
-    }
 
     try {
         const [result] = await mysqlConnection.execute(
