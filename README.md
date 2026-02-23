@@ -1,6 +1,7 @@
 # populate .env for backend
 ```
 #Database
+DATABASE_ROOT_PASSWORD = 
 DATABASE_USERNAME = 
 DATABASE_PASSWORD = 
 DATABASE_NAME = 
