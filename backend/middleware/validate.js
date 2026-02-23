@@ -1,85 +1,44 @@
-import { z } from 'zod';
-
 /**
- * auth.js
+ * Validate request middleware
+ * @param {import('zod').ZodSchema} schema 
+ * @returns {import('express').RequestHandler}
  */
-export const loginLocalSchema = z.object({
-    email: z.email("Invalid email"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
-    captchaToken: z.string().min(1, "Captcha token is required"),
-});
+export const validateRequest = (schema) => (req, res, next) => {
+    try {
+        // 1. Parse the request components
+        const result = schema.parse({
+            headers: req.headers,
+            body: req.body,
+            query: req.query,
+            params: req.params,
+        });
 
-export const registerSchema = z.object({
-    email: z.string().email({ message: "Invalid email address" }),
-    // Enforce a minimum length for security
-    password: z.string().min(8, { message: "Password must be at least 8 characters long" }),
-    captchaToken: z.string().min(1, { message: "Captcha token is required" })
-});
+        // 2. Update request objects with validated/transformed data
+        // We use Object.assign or direct assignment depending on the property
+        if (result.body) req.body = result.body;
+        if (result.params) req.params = result.params;
+        if (result.headers) req.headers = { ...req.headers, ...result.headers };
 
-export const googleCallbackSchema = z.object({
-    googleId: z.string(),
-    email: z.email(),
-    name: z.string()
-});
+        if (result.query) {
+            // Some versions of Express make req.query read-only, 
+            // so we redefine it to be safe.
+            Object.defineProperty(req, 'query', {
+                value: result.query,
+                writable: true,
+                configurable: true,
+                enumerable: true
+            });
+        }
 
-/**
- * balancer.js
- */
-export const balancerSchema = z.object({
-    pool: z.any(),
-    scopeTag: z.string().min(1, "Scope tag is required"),
-    fallbackEmail: z.email("Invalid fallback email"),
-});
+        return next();
+    } catch (error) {
+        // 3. Fix: 'result' is not available here, use 'error'
+        console.error("Validation Error:", error.errors || error.message);
 
-/**
- * classifier.js
- */
-export const classifierSchema = z.object({
-    classifierUrl: z.url("Invalid URL"),
-    username: z.string().min(1, "Username is required"),
-    password: z.string().min(1, "Password is required"),
-    text: z.string().min(1, "Text is required"),
-});
-
-/**
- * email.js
- */
-export const sendConfirmationEmailSchema = z.object({
-    toEmail: z.email("Invalid email"),
-    trackingToken: z.string().min(1, "Tracking token is required"),
-});
-
-export const sendStatusUpdateEmailSchema = z.object({
-    toEmail: z.email("Invalid email"),
-    ticketTitle: z.string().min(1, "Ticket title is required"),
-    newStatus: z.string().min(1, "New status is required"),
-    trackingToken: z.string().min(1, "Tracking token is required"),
-});
-
-export const sendCommentNotificationEmailSchema = z.object({
-    toEmail: z.email("Invalid email"),
-    ticketTitle: z.string().min(1, "Ticket title is required"),
-    commenterName: z.string().min(1, "Commenter name is required"),
-    commentText: z.string().min(1, "Comment text is required"),
-    link: z.url("Invalid URL"),
-    isInternal: z.boolean("isInternal must be a boolean"),
-});
-
-export const sendAssignmentNotificationEmailSchema = z.object({
-    toEmail: z.email("Invalid email"),
-    ticketTitle: z.string().min(1, "Ticket title is required"),
-    assignerEmail: z.email("Invalid email"),
-    link: z.url("Invalid URL"),
-});
-
-/**
- * report.js
- */
-export const reportAdminSchema = z.object({
-    startDate: z.string().min(1, "Start date is required"),
-    endDate: z.string().min(1, "End date is required"),
-});
-export const reportAssigneeSchema = z.object({
-    email: z.email("Invalid email"),
-    days: z.number().min(1, "Days is required"),
-});
+        return res.status(400).json({
+            success: false,
+            message: 'Validation failed',
+            errors: error.errors || error.message
+        });
+    }
+};
