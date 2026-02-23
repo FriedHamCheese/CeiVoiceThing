@@ -24,13 +24,13 @@ export const ticketUpdateAdminSchema = z.object({
         resolutionComment: z.string().optional(),
     }),
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     })
 });
 
 export const ticketUnlinkSchema = z.object({
     params: z.object({
-        parentTicketId: z.string().min(1, "Parent ticket ID is required"),
-        childUserRequestID: z.string().min(1, "Child user request ID is required")
+        parentTicketId: z.string().trim().min(1, "Parent ticket ID is required"),
+        childUserRequestID: z.string().trim().min(1, "Child user request ID is required")
     })
 });

@@ -30,7 +30,6 @@ router.post('/request', isAuthenticated, validateRequest(createRequestSchema), a
                 [fromEmail, fromEmail.split('@')[0], 1]
             );
 
-            const trackingToken = uuidv4();
             const [userRequestRes] = await connection.execute(
                 'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
                 [fromEmail, requestText, trackingToken]

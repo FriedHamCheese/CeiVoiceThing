@@ -1,0 +1,100 @@
+  Test                                                     Status  Message
+  ──────────────────────────────────────────────────────── ──────  ────────────────────────────── 
+  [VALIDATE] POST /auth/login — empty body                 ✓ PASS  Rejected
+  [VALIDATE] POST /auth/login — invalid email              ✓ PASS  Rejected
+  [VALIDATE] POST /auth/login — short password             ✓ PASS  Rejected
+  [VALIDATE] POST /auth/login — missing captchaToken       ✓ PASS  Rejected
+  [VALIDATE] POST /auth/login — empty captchaToken         ✓ PASS  Rejected
+  [VALIDATE] POST /auth/register — empty body              ✓ PASS  Rejected
+  [VALIDATE] POST /auth/register — invalid email           ✓ PASS  Rejected
+  [VALIDATE] POST /auth/register — short password          ✓ PASS  Rejected
+  [VALIDATE] POST /auth/register — missing captchaToken    ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/request — empty body            ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/request — empty requestText     ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/request — requestText too long  ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/request — invalid fromEmail     ✓ PASS  Rejected
+  [VALIDATE] GET /tickets/:id/comments — whitespace id     ✗ FAIL  Expected 400 for whitespace id, got 200
+  [VALIDATE] POST /tickets/:id/comment — missing text      ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/:id/comment — empty text        ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/requests — missing email        ✓ PASS  Rejected
+  [VALIDATE] POST /tickets/requests — invalid email        ✓ PASS  Rejected
+  [VALIDATE] GET /public/ticket/:id — non-numeric id       ✓ PASS  Rejected
+  [VALIDATE] GET /public/ticket/:id — special chars        ✓ PASS  Rejected
+  [VALIDATE] GET /public/track/:token — missing email      ✓ PASS  Rejected
+  [VALIDATE] GET /public/track/:token — empty email        ✓ PASS  Rejected
+  [VALIDATE] POST /public/track/comment — missing text     ✓ PASS  Rejected
+  [VALIDATE] POST /public/track/comment — empty text       ✓ PASS  Rejected
+  [VALIDATE] GET /internal/tickets/:id/requests — white... ✗ FAIL  Expected 400 for whitespace id, got 404
+  [VALIDATE] GET /internal/tickets/:id/history — whites... ✗ FAIL  Expected 400 for whitespace id, got 404
+  [VALIDATE] PATCH /admin/tickets/:id — invalid assigne... ✓ PASS  Rejected
+  [VALIDATE] PATCH /admin/tickets/:id — non-array assig... ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — empty body        ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — missing title     ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — missing summary   ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — empty draftTic... ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — non-integer dr... ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — float draftTic... ✓ PASS  Rejected
+  [VALIDATE] POST /admin/tickets/merge — invalid assign... ✓ PASS  Rejected
+  [VALIDATE] POST unlink — whitespace parentTicketId       ✗ FAIL  Expected 400 for whitespace parentTicketId, got 404
+  [VALIDATE] POST unlink — whitespace childUserRequestID   ✗ FAIL  Expected 400 for whitespace childUserRequestID, got 404
+  [VALIDATE] GET /reports/admin/ — no required params      ✓ PASS  Status 404 (no validation to test)
+  [VALIDATE] POST setUserRole — empty body                 ✓ PASS  Rejected
+  [VALIDATE] POST setUserRole — missing userEmail          ✓ PASS  Rejected
+  [VALIDATE] POST setUserRole — invalid userEmail          ✓ PASS  Rejected
+  [VALIDATE] POST setUserRole — missing perm               ✓ PASS  Rejected
+  [VALIDATE] POST setUserRole — non-integer perm           ✓ PASS  Rejected
+  [VALIDATE] POST setUserRole — float perm                 ✓ PASS  Rejected
+  [VALIDATE] GET getScopeTags — missing email header       ✓ PASS  Rejected
+  [VALIDATE] GET getScopeTags — invalid email header       ✓ PASS  Rejected
+  [VALIDATE] POST setScopeTags — empty body                ✓ PASS  Rejected
+  [VALIDATE] POST setScopeTags — missing email             ✓ PASS  Rejected
+  [VALIDATE] POST setScopeTags — invalid email             ✓ PASS  Rejected
+  [VALIDATE] POST setScopeTags — empty scopeTags           ✓ PASS  Rejected
+  [VALIDATE] POST setScopeTags — non-array scopeTags       ✓ PASS  Rejected
+  [VALIDATE] PATCH users/:email/role — invalid email param ✓ PASS  Rejected
+  [VALIDATE] PATCH users/:email/role — missing perm        ✓ PASS  Rejected
+  [VALIDATE] PATCH users/:email/role — non-number perm     ✓ PASS  Rejected
+  [VALIDATE] PATCH users/:email/role — both invalid        ✓ PASS  Rejected
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+  [VALIDATE] GET /reports/assignee/ — empty email          ✗ FAIL  Expected 400 for empty email, got 404
+  [VALIDATE] GET /assignee/self-scope — missing email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — invalid email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — empty email        ✓ PASS  Rejected
+
+  ──────────────────────────────────────────────────────────────────────────────────────────────
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+  [VALIDATE] GET /reports/assignee/ — empty email          ✗ FAIL  Expected 400 for empty email, got 404
+  [VALIDATE] GET /assignee/self-scope — missing email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — invalid email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — empty email        ✓ PASS  Rejected
+
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+  [VALIDATE] GET /reports/assignee/ — empty email          ✗ FAIL  Expected 400 for empty email, got 404
+  [VALIDATE] GET /assignee/self-scope — missing email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — invalid email      ✓ PASS  Rejected
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+  [VALIDATE] GET /reports/assignee/ — empty email          ✗ FAIL  Expected 400 for empty email, got 404
+  [VALIDATE] GET /assignee/self-scope — missing email      ✓ PASS  Rejected
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+ got 200
+ got 200
+  [VALIDATE] GET /reports/assignee/ — missing email        ✗ FAIL  Expected 400 for missing email, got 404
+  [VALIDATE] GET /reports/assignee/ — invalid email        ✗ FAIL  Expected 400 for invalid email, got 404
+  [VALIDATE] GET /reports/assignee/ — empty email          ✗ FAIL  Expected 400 for empty email, got 404
+  [VALIDATE] GET /assignee/self-scope — missing email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — invalid email      ✓ PASS  Rejected
+  [VALIDATE] GET /assignee/self-scope — empty email        ✓ PASS  Rejected
+
+  ──────────────────────────────────────────────────────────────────────────────────────────────

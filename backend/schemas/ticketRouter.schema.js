@@ -9,13 +9,13 @@ export const createRequestSchema = z.object({
 
 export const getCommentsSchema = z.object({
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     })
 });
 
 export const addCommentSchema = z.object({
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     }),
     body: z.object({
         text: z.string().min(1, "Comment text required"),
@@ -25,7 +25,7 @@ export const addCommentSchema = z.object({
 
 export const toggleFollowSchema = z.object({
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     })
 });
 

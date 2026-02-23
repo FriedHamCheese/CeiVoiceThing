@@ -16,12 +16,12 @@ export const ticketUpdateSchema = z.object({
         assigneeEmail: z.array(z.email("Invalid email format")).optional(),
     }),
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     })
 });
 
 export const getHistorySchema = z.object({
     params: z.object({
-        id: z.string().min(1, "Ticket ID is required")
+        id: z.string().trim().min(1, "Ticket ID is required")
     })
 });

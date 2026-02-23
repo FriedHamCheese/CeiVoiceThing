@@ -1,0 +1,8 @@
+{
+  "type": "module",
+  "dependencies": {
+    "axios": "^1.13.5",
+    "chromedriver": "^145.0.5",
+    "selenium-webdriver": "^4.41.0"
+  }
+}
