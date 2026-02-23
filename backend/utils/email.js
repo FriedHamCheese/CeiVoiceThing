@@ -1,4 +1,3 @@
-import {sendConfirmationEmailSchema, sendStatusUpdateEmailSchema, sendCommentNotificationEmailSchema, sendAssignmentNotificationEmailSchema} from '../middleware/validate.js';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -21,11 +20,6 @@ const transporter = nodemailer.createTransport({
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendConfirmationEmail = async (toEmail, trackingToken) => {
-    const validated = sendConfirmationEmailSchema.safeParse({toEmail, trackingToken});
-    if (!validated.success) {
-        console.error("sendConfirmationEmail Error: ", validated.error.errors);
-        return false;
-    }
     const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
 
     const mailOptions = {
@@ -72,11 +66,6 @@ export const sendConfirmationEmail = async (toEmail, trackingToken) => {
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, trackingToken) => {
-    const validated = sendStatusUpdateEmailSchema.safeParse({toEmail, ticketTitle, newStatus, trackingToken});
-    if (!validated.success) {
-        console.error("sendStatusUpdateEmail Error: ", validated.error.errors);
-        return false;
-    }
     const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
 
     const mailOptions = {
@@ -123,11 +112,6 @@ export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, tra
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendCommentNotificationEmail = async (toEmail, ticketTitle, commenterName, commentText, link, isInternal) => {
-    const validated = sendCommentNotificationEmailSchema.safeParse({toEmail, ticketTitle, commenterName, commentText, link, isInternal});
-    if (!validated.success) {
-        console.error("sendCommentNotificationEmail Error: ", validated.error.errors);
-        return false;
-    }
     const subject = `New Comment on "${ticketTitle}"`;
     const internalLabel = isInternal ? '[INTERNAL] ' : '';
     const mailOptions = {
@@ -175,11 +159,6 @@ export const sendCommentNotificationEmail = async (toEmail, ticketTitle, comment
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendAssignmentNotificationEmail = async (toEmail, ticketTitle, assignerEmail, link) => {
-    const validated = sendAssignmentNotificationEmailSchema.safeParse({toEmail, ticketTitle, assignerEmail, link});
-    if (!validated.success) {
-        console.error("sendAssignmentNotificationEmail Error: ", validated.error.errors);
-        return false;
-    }
     const subject = `You have been assigned to "${ticketTitle}"`;
 
     const mailOptions = {

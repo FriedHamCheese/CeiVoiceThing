@@ -1,5 +1,4 @@
 import pool from './mysqlConnection.js';
-import { reportAdminSchema, reportAssigneeSchema } from '../middleware/validate.js';
 
 /**
  * Gets the overview of the admin
@@ -7,12 +6,7 @@ import { reportAdminSchema, reportAssigneeSchema } from '../middleware/validate.
  * @returns {{totals: {totalTickets: number, solvedCount: number, avgResolutionHours: number, backlogCount: number}, statusBreakdown: {status: string, count: number}[], volumeByDate: {day: string, count: number}[], volumeByCategory: {category: string, count: number}[], backlogCount: number}}
  */
 const getAdminOverview = async ({ startDate, endDate }) => {
-    const validated = reportAdminSchema.safeParse({ startDate, endDate });
-    if (!validated.success) {
-        console.error("getAdminOverview Error: ", validated.error.errors);
-        return { error: "Invalid parameters" };
-    }
-    const dateParams = [validated.data.startDate, validated.data.endDate];
+    const dateParams = [startDate, endDate];
     const connection = await pool.getConnection();
 
     try {
@@ -81,11 +75,6 @@ const getAdminOverview = async ({ startDate, endDate }) => {
  * @returns {{totals: {currentWorkload: number, solvedCount: number, failedCount: number}, workloadByStatus: {status: string, count: number}[]}}
  */
 const getAssigneeOverview = async ({ email, days }) => {
-    const validated = reportAssigneeSchema.safeParse({ email, days });
-    if (!validated.success) {
-        console.error("getAssigneeOverview Error: ", validated.error.errors);
-        return { error: "Invalid parameters" };
-    }
     const connection = await pool.getConnection();
 
     try {

@@ -32,10 +32,10 @@ const askOpenAI = async (prompt, jsonMode = false) => {
             ],
             response_format: jsonMode ? { type: "json_object" } : undefined,
             stream: false,
-        });
+        }, { timeout: 15000 }); // 15 seconds timeout
         return response.choices[0].message.content;
     } catch (error) {
-        console.error(`OpenAI Error for prompt: ${systemPrompt.substring(0, 50)}...`, error.message);
+        console.error(`OpenAI Error for prompt: ${prompt.substring(0, 50)}...`, error.message);
         throw error;
     }
 };
@@ -48,22 +48,23 @@ export async function draftTicketFromUserRequest(userRequestText) {
                  Summarize the user's request below into a clear, professional problem statement.
                  Do not include any introductory text like "Here is the summary". just the summary. ${userRequestText}`
             ),
-            predictCategory(CLASSIFIER_URL, ORACLE_PASS, userRequestText)
+            predictCategory(CLASSIFIER_URL, ORACLE_USER, ORACLE_PASS, userRequestText)
         ]);
 
         const cleanSummary = cleanString(summary, 2048);
 
-        const title = await askOpenAI(
-            `Generate a short, concise title (under 10 words) for this support ticket.
-             Based ONLY on this summary: "${cleanSummary}"`
-        );
+        const [title, solutions] = await Promise.all([
+            askOpenAI(
+                `Generate a short, concise title (under 10 words) for this support ticket.
+                 Based ONLY on this summary: "${cleanSummary}"`
+            ),
+            askOpenAI(
+                `Suggest 3 short, actionable solutions or next steps for this issue.
+                 Based ONLY on this summary: "${cleanSummary}"`
+            )
+        ]);
 
-        const solutions = await askOpenAI(
-            `Suggest 3 short, actionable solutions or next steps for this issue.
-             Based ONLY on this summary: "${cleanSummary}"`
-        );
-
-        const assignedAgent = getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL);
+        const assignedAgent = await getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL);
 
         return {
             title: cleanString(title, 128),

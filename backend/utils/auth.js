@@ -78,11 +78,6 @@ const loginLocal = async (req, res, next) => {
 const register = async (req, res) => {
     const { email, password, captchaToken } = req.body;
 
-    // 1. Basic Validation
-    if (!email || !password || !captchaToken) {
-        return res.status(400).json({ message: 'Please provide email, password, and captcha token.' });
-    }
-
     // 2. Captcha Verification
     const isHuman = await verifyCaptcha(captchaToken);
     if (!isHuman) {

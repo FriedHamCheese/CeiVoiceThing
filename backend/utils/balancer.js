@@ -1,5 +1,3 @@
-import {balancerSchema} from '../middleware/validate.js';
-
 /**
  * Selects an assignee for a given scope tag using a round-robin algorithm.
  * Round robin only applies in the same scopeTag.
@@ -9,14 +7,10 @@ import {balancerSchema} from '../middleware/validate.js';
  * @returns {string} The email of the selected assignee or fallbackEmail.
  */
 async function getAssigneeForScope(pool, scopeTag, fallbackEmail = "placeholder@example.com") {
-    const validated = balancerSchema.safeParse({pool, scopeTag, fallbackEmail});
-    if (!validated.success) {
-        console.error("getAssigneeForScope Error: ", validated.error.errors);
-        return fallbackEmail;
-    }
-    try{
+    const connection = await pool.getConnection();
+    try {
         // Get connection from pool
-        const connection = await pool.getConnection();
+        
         await connection.beginTransaction();
 
         // Select the user with the least recent assignment
@@ -31,7 +25,7 @@ async function getAssigneeForScope(pool, scopeTag, fallbackEmail = "placeholder@
         // No assinee with this scopeTag, return fallback email
         if (rows.length === 0) {
             await connection.rollback();
-            return fallbackEmail; 
+            return fallbackEmail;
         }
 
         // Get email from db response.
