@@ -1,21 +1,39 @@
 import React from 'react';
 import {
-  Box, CircularProgress, Divider, Grid, Stack, TextField, Typography, Alert
+  Box,
+  CircularProgress,
+  Divider,
+  Grid,
+  Stack,
+  TextField,
+  Typography,
+  Alert,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import { useReportLogic } from './utils/reportLogic';
-import { MetricCard, BreakdownList } from './components/ReportComponents';
+import { MetricCard, BreakdownList, BreakdownPie } from './components/ReportComponents';
+
+const SPACING = { xs: 1.5, sm: 2 };
+const PADDING = { xs: 1.5, sm: 2, md: 3 };
 
 export default function ReportingDashboard({ mode }) {
+  const theme = useTheme();
+  const isSmUp = useMediaQuery(theme.breakpoints.up('sm'));
+  const isLgUp = useMediaQuery(theme.breakpoints.up('lg'));
+
   const {
     data,
     isLoading,
     errorMessage,
-    adminRange, setAdminRange,
-    days, setDays,
+    adminRange,
+    setAdminRange,
+    days,
+    setDays,
     statusItems,
     categoryItems,
     workloadItems,
-    isAdmin
+    isAdmin,
   } = useReportLogic(mode);
 
   const totalForStatus = statusItems.reduce((sum, item) => sum + item.count, 0);
@@ -24,101 +42,205 @@ export default function ReportingDashboard({ mode }) {
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: 200,
+          width: '100%',
+        }}
+      >
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Stack spacing={3}>
-      <Box>
-        <Typography variant="h4" sx={{ mb: 1 }}>
+    <Box
+      sx={{
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
+        px: PADDING,
+        py: PADDING,
+        pb: 4,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+      }}
+    >
+      {/* ─── Header ─── */}
+      <Box sx={{ mb: 2 }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          fontWeight="bold"
+          sx={{
+            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.75rem', lg: '2rem' },
+            lineHeight: 1.3,
+            mb: 0.5,
+            wordBreak: 'break-word',
+          }}
+        >
           {isAdmin ? 'Admin Reporting Dashboard' : 'My Reporting Dashboard'}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
+        >
           {isAdmin
             ? 'Monitor ticket volume, resolution time, and current backlog.'
             : 'Track your workload and recent resolution activity.'}
         </Typography>
       </Box>
 
-      {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-
-      {isAdmin ? (
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="Start date"
-              type="date"
-              value={adminRange.startDate}
-              onChange={(event) => setAdminRange((prev) => ({ ...prev, startDate: event.target.value }))}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              fullWidth
-              label="End date"
-              type="date"
-              value={adminRange.endDate}
-              onChange={(event) => setAdminRange((prev) => ({ ...prev, endDate: event.target.value }))}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-        </Grid>
-      ) : (
-        <TextField
-          label="Lookback (days)"
-          type="number"
-          value={days}
-          onChange={(event) => setDays(Number(event.target.value) || 1)}
-          inputProps={{ min: 1, max: 365 }}
-        />
+      {errorMessage && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errorMessage}
+        </Alert>
       )}
 
-      <Divider />
+      {/* ─── Filters ─── */}
+      <Stack spacing={SPACING} sx={{ width: '100%', minWidth: 0, mb: 2 }}>
+        {isAdmin ? (
+          <Grid container spacing={SPACING} sx={{ width: '100%', margin: 0 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                size={isSmUp ? 'medium' : 'small'}
+                label="Start date"
+                type="date"
+                value={adminRange.startDate}
+                onChange={(e) =>
+                  setAdminRange((prev) => ({ ...prev, startDate: e.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                size={isSmUp ? 'medium' : 'small'}
+                label="End date"
+                type="date"
+                value={adminRange.endDate}
+                onChange={(e) =>
+                  setAdminRange((prev) => ({ ...prev, endDate: e.target.value }))
+                }
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          </Grid>
+        ) : (
+          <TextField
+            fullWidth
+            size={isSmUp ? 'medium' : 'small'}
+            label="Lookback (days)"
+            type="number"
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value) || 1)}
+            inputProps={{ min: 1, max: 365 }}
+            sx={{ maxWidth: { xs: '100%', sm: 200 } }}
+          />
+        )}
+        <Divider />
+      </Stack>
 
+      {/* ─── Admin: KPI cards (CSS Grid so they fill the row evenly) ─── */}
       {data && isAdmin && (
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
+        <>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(4, 1fr)',
+              },
+              gap: SPACING,
+              width: '100%',
+              minWidth: 0,
+              mb: 2,
+            }}
+          >
             <MetricCard label="Total tickets" value={data.totals.totalTickets} />
-          </Grid>
-          <Grid item xs={12} md={3}>
             <MetricCard label="Solved tickets" value={data.totals.solvedCount} />
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <MetricCard label="Avg resolution (hrs)" value={Number(data.totals.avgResolutionHours).toFixed(1)} />
-          </Grid>
-          <Grid item xs={12} md={3}>
+            <MetricCard
+              label="Avg resolution (hrs)"
+              value={Number(data.totals.avgResolutionHours).toFixed(1)}
+            />
             <MetricCard label="Current backlog" value={data.totals.backlogCount} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <BreakdownList title="Status breakdown" items={statusItems} total={totalForStatus} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <BreakdownList title="Category breakdown" items={categoryItems} total={totalForCategory} />
-          </Grid>
-        </Grid>
+          </Box>
+
+          {/* ─── Admin: Pie charts (fill width; side-by-side on lg) ─── */}
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+              gap: SPACING,
+              width: '100%',
+              minWidth: 0,
+              alignItems: 'stretch',
+            }}
+          >
+            <Box sx={{ minWidth: 0, minHeight: isLgUp ? 320 : 260 }}>
+              <BreakdownPie
+                title="Status breakdown"
+                items={statusItems}
+                total={totalForStatus}
+              />
+            </Box>
+            <Box sx={{ minWidth: 0, minHeight: isLgUp ? 320 : 260 }}>
+              <BreakdownPie
+                title="Category breakdown"
+                items={categoryItems}
+                total={totalForCategory}
+              />
+            </Box>
+          </Box>
+        </>
       )}
 
+      {/* ─── Assignee: workload cards + list (grid fills width) ─── */}
       {data && !isAdmin && (
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <MetricCard label="Current workload" value={data.totals.currentWorkload} />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <MetricCard label={`Solved (last ${days} days)`} value={data.totals.solvedCount} />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <MetricCard label={`Failed (last ${days} days)`} value={data.totals.failedCount} />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <BreakdownList title="Workload by status" items={workloadItems} total={totalForWorkload} />
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+            },
+            gap: SPACING,
+            width: '100%',
+            minWidth: 0,
+            '& > :nth-of-type(4)': {
+              gridColumn: { xs: '1', md: '1 / -1' },
+            },
+          }}
+        >
+          <MetricCard
+            label="Current workload"
+            value={data.totals.currentWorkload}
+          />
+          <MetricCard
+            label={`Solved (last ${days} days)`}
+            value={data.totals.solvedCount}
+          />
+          <MetricCard
+            label={`Failed (last ${days} days)`}
+            value={data.totals.failedCount}
+          />
+          <BreakdownList
+            title="Workload by status"
+            items={workloadItems}
+            total={totalForWorkload}
+          />
+        </Box>
       )}
-    </Stack>
+    </Box>
   );
 }

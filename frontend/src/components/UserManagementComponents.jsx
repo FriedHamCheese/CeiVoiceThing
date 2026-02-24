@@ -10,7 +10,6 @@ import {
     MenuItem,
     Box,
     Typography,
-    Grid,
     ToggleButtonGroup,
     ToggleButton,
 } from '@mui/material';
@@ -60,37 +59,36 @@ export function UserElement({ userObject, setErrorMessage, API_URL, refreshPage,
     const WAIT_FOR_SERVER_TO_WRITE_MS = 200;
 
     return (
-        <Grid container sx={{ mb: '5px', alignItems: 'center', rowGap: 1 }}>
-            <Grid size={{ xs: 12, sm: 4 }} sx={{ mr: '20px' }}>
-                <Typography variant='h6' sx={{ color: '#666666' }}>{userObject.name}</Typography>
-                <Typography variant='subtitle2' sx={{ color: '#AAAAAA' }}>{userObject.email}</Typography>
-            </Grid>
-
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ minWidth: 0, flex: '1 1 180px' }}>
+                <Typography variant="h6" sx={{ color: '#666666' }} noWrap title={userObject.name}>{userObject.name}</Typography>
+                <Typography variant="subtitle2" sx={{ color: '#AAAAAA' }} noWrap title={userObject.email}>{userObject.email}</Typography>
+            </Box>
             <ToggleButtonGroup
                 value={userObject.perm}
                 exclusive
+                size="small"
                 onChange={async (_, value) => {
                     changePermission(value);
                     await new Promise(r => setTimeout(r, WAIT_FOR_SERVER_TO_WRITE_MS));
                     await refreshPage();
                 }}
-                sx={{ mr: '10px' }}
             >
-                <ToggleButton value={1} color='primary'>User</ToggleButton>
-                <ToggleButton value={2} color='primary'>Specialist</ToggleButton>
-                <ToggleButton value={4} color='primary'>Admin</ToggleButton>
+                <ToggleButton value={1} color="primary">User</ToggleButton>
+                <ToggleButton value={2} color="primary">Specialist</ToggleButton>
+                <ToggleButton value={4} color="primary">Admin</ToggleButton>
             </ToggleButtonGroup>
-
-            {
-                (userObject.perm === 2) ? <Button
-                    onClick={(e) => { editScopeTagWindow(userObject); }}
+            {(userObject.perm === 2) && (
+                <Button
+                    onClick={() => editScopeTagWindow(userObject)}
                     variant="outlined"
-                    sx={{ borderRadius: '30px', mt: '10px', minWidth: 0, width: '30px', height: '30px' }}
+                    size="small"
+                    sx={{ borderRadius: '30px', minWidth: 0, width: '36px', height: '36px' }}
                 >
-                    <CreateIcon sx={{ width: '15px', padding: 0 }} />
-                </Button> : null
-            }
-        </Grid>
+                    <CreateIcon sx={{ width: 18, height: 18 }} />
+                </Button>
+            )}
+        </Box>
     );
 }
 

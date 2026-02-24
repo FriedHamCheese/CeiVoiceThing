@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Container,
     Typography,
@@ -22,6 +22,7 @@ function Register() {
         confirmPassword, setConfirmPassword,
         setCaptchaToken,
         error,
+        emailError,
         success,
         captchaRef,
         handleSubmit,
@@ -42,9 +43,9 @@ function Register() {
     const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
     return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom fontWeight="bold" textAlign="center">
-                Create Account
+        <Container maxWidth="sm" sx={{ py: 4 }}>
+            <Typography variant="h4" align='center' component="h1" gutterBottom fontWeight="bold" color="primary">
+                Create an Account
             </Typography>
 
             {success ? (
@@ -63,6 +64,17 @@ function Register() {
                             fullWidth
                             required
                         />
+                        <Typography
+                            component="p"
+                            variant="caption"
+                            sx={{
+                                fontSize: '0.75rem',
+                                mt: -1.5,
+                                color: email.length === 0 ? 'text.secondary' : emailError ? 'error.main' : 'success.main',
+                            }}
+                        >
+                            {email.length === 0 ? 'Enter a valid email address' : emailError ?? 'Valid Email.'}
+                        </Typography>
                         <TextField
                             label="Password"
                             variant="outlined"
@@ -72,6 +84,25 @@ function Register() {
                             fullWidth
                             required
                         />
+                        <Typography
+                            component="p"
+                            variant="caption"
+                            sx={{
+                                fontSize: '0.75rem',
+                                mt: -1.5,
+                                color: password.length === 0
+                                    ? 'text.secondary'
+                                    : password.length >= 8
+                                        ? 'success.main'
+                                        : 'error.main',
+                            }}
+                        >
+                            {password.length === 0
+                                ? 'The password must be 8 digits long or more.'
+                                : password.length >= 8
+                                    ? 'Valid Password.'
+                                    : 'The password must be 8 digits long or more.'}
+                         </Typography>
                         <TextField
                             label="Confirm Password"
                             variant="outlined"
@@ -81,6 +112,17 @@ function Register() {
                             fullWidth
                             required
                         />
+                        <Typography
+                            component="p"
+                            variant="caption"
+                            sx={{
+                                fontSize: '0.75rem',
+                                mt: -1.5,
+                                color: confirmPassword.length === 0 ? 'text.secondary' : password !== confirmPassword ? 'error.main' : 'success.main',
+                            }}
+                        >
+                            {confirmPassword.length === 0 ? '' : password !== confirmPassword ? 'Passwords do not match.' : 'Password Matches.'}
+                        </Typography>
 
                         {/* Captcha Widget */}
                         <Box sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -97,11 +139,12 @@ function Register() {
                             type="submit"
                             size="large"
                             fullWidth
+                            disabled={!!emailError || password.length < 8 || password !== confirmPassword}
                             sx={{ py: 1.5, fontWeight: 'bold' }}
                         >
                             Register with Email
                         </Button>
-
+                        
                         {error && <Alert severity="error">{error}</Alert>}
 
                         <Divider sx={{ my: 2 }}>
@@ -116,8 +159,13 @@ function Register() {
                             sx={{ py: 1.5 }}
                         >
                             Sign up with Google
+                        
                         </Button>
+                        <p className="auth-footer">
+                            Have an account? <Link to="/login">Login.</Link>
+                        </p>
                     </Stack>
+
                 </Box>
             )}
         </Container>

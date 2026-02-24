@@ -1,9 +1,12 @@
 /* Horizontal Top Bar styling */
 .top-bar {
+    position: relative;
     width: 100%;
-    height: var(--header-height);
+    min-height: var(--header-height);
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    flex-wrap: nowrap;
     padding: var(--spacing-md) var(--spacing-xl);
     background-color: var(--bg-white);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -17,15 +20,70 @@
     margin: 0;
 }
 
-.top-bar-logo-toggle {
-    height: 30px;
-    width: 30px;
+/* Burger button (left) */
+.top-bar-burger {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: transparent;
     cursor: pointer;
-    transition: transform 0.2s;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+.top-bar-burger:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+.top-bar-burger-line {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background-color: var(--text-primary);
+    border-radius: 1px;
+    transition: transform 0.2s, opacity 0.2s;
 }
 
-.top-bar-logo-toggle:hover {
-    transform: scale(1.1);
+/* Centered logo + text */
+.top-bar-logo-wrap {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.top-bar-logo {
+    height: 32px;
+    width: auto;
+    display: block;
+}
+
+.top-bar-brand-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    margin-left: var(--spacing-sm);
+    line-height: 1.2;
+}
+
+.top-bar-brand-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.top-bar-brand-tagline {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 .user-welcome-container {
@@ -34,20 +92,51 @@
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.user-welcome-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 40vw;
 }
 
 .role-buttons-container {
     display: flex;
     gap: var(--spacing-xs);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
 }
 
 .role-btn {
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: 0.8rem;
+    font-weight: 500;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 999px;
     cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        background-color 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.role-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.role-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    opacity: 0.95;
 }
 
 @media (max-width: 768px) {
@@ -58,5 +147,27 @@
     .top-bar h2 {
         display: none;
         /* Hide welcome text on very small screens to save space */
+    }
+
+    .user-welcome-text {
+        display: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-welcome-container {
+        padding-right: var(--spacing-xs);
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .role-buttons-container {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .role-btn {
+        font-size: 0.7rem;
+        padding: var(--spacing-xs) 6px;
     }
 }

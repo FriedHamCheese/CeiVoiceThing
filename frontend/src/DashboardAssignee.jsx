@@ -65,7 +65,7 @@ export default function SpecialistDashboard() {
     );
 
     return (
-        <Container maxWidth={false} sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth={false} sx={{ width: '100%', maxWidth: '100%', mt: 4, mb: 4, px: { xs: 1, sm: 2, md: 3 } }}>
             <Box display="flex" justifyContent="space-between" alignItems="left" mb={3}>
                 <Typography variant="h4" component="h1" fontWeight="bold">
                     Specialist Dashboard

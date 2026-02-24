@@ -13,7 +13,7 @@ const Unauthorized = () => {
     }, [navigate]);
 
     return (
-        <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
+        <div className="page-transition flex flex-col items-center justify-center h-screen bg-gray-100">
             <h1 className="text-4xl font-bold text-red-600 mb-4">403 - Unauthorized</h1>
             <p className="text-lg text-gray-700 mb-2">You do not have permission to view this page.</p>
             <p className="text-sm text-gray-500 mb-8">Redirecting to home in 3 seconds...</p>

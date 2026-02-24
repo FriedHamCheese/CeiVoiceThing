@@ -36,34 +36,63 @@
     --font-size-base: 1rem;
 }
 
+html,
 body {
     margin: 0;
     padding: 0;
-    overflow: hidden;
+    /* Ensure the app is usable down to 360px wide screens */
+    min-width: 360px;
+}
+
+body {
+    /* Prevent page-level scrolling; internal panels handle overflow */
+    overflow-x: hidden;
+    overflow-y: hidden;
 }
 
 .viewport {
     height: 100vh;
     width: 100vw;
-    background-color: var(--bg-light);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     display: flex;
     overflow-y: hidden;
     transition: all 0.3s ease;
+
+    background: linear-gradient(
+        -45deg,
+        #ffb26b,
+        #6ba1ff
+    );
+    background-size: 300% 300%;
+    animation: gradientShift 18s ease-in-out infinite;
+    position: relative;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
 }
 
 /* --- Main Layout Wrapper --- */
 .main-layout {
     flex: 1;
+    min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    
 }
 
-/* Content Panel */
+
+/* Content Panel - inset below top bar, no horizontal spill (flex-sized so margin is inside) */
 .panel {
-    flex: 1;
+    flex: 1 1 0%;
+    min-width: 0;
     margin: var(--spacing-lg);
+    box-sizing: border-box;
+    max-width: 100%;
     background: var(--bg-white);
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
@@ -71,6 +100,25 @@ body {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.panel .page-transition {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ================= GLASS HOVER BUTTON ================= */
+
+button,
+.MuiButton-root {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
 }
 
 hr {
@@ -79,11 +127,34 @@ hr {
     margin: var(--spacing-md) 0;
 }
 
+/* Page transitions (rise + bounce) */
+@keyframes page-enter {
+    0% {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Responsive Overrides */
 @media (max-width: 768px) {
+    .viewport {
+        flex-direction: column;
+    }
+
+
+    
     .panel {
         margin: var(--spacing-xs);
         padding: var(--spacing-md);
         border-radius: 8px;
     }
+}
+.page-transition {
+  animation: page-enter 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }

@@ -375,13 +375,7 @@ export default function DashboardTicketView({
                 ) : (
                     /* ACTIVE TICKET MODE */
                     <Stack spacing={3}>
-                        <Box
-                            display="flex"
-                            flexDirection={{ xs: 'column', md: 'row' }}
-                            justifyContent="space-between"
-                            alignItems={{ xs: 'stretch', md: 'center' }}
-                            gap={{ xs: 2, md: 0 }}
-                        >
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
                             {loadingCreator ? (
                                 <CircularProgress size={24} />
                             ) : creatorInfo ? (
@@ -389,7 +383,7 @@ export default function DashboardTicketView({
                                     Creator: {creatorInfo?.map((user) => `${user.name} (${user.email})`).join(', ')}
                                 </Typography>
                             ) : (
-                                <Box sx={{ display: { xs: 'none', md: 'block' } }} /> // Placeholder to keep flex-end layout for button
+                                <Box /> // Placeholder to keep flex-end layout for button
                             )}
                             <Button
                                 variant={isFollowing ? "outlined" : "contained"}

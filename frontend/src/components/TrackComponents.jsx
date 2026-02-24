@@ -7,7 +7,7 @@ import {
 
 export const TrackSearch = ({ inputToken, setInputToken, email, setEmail, error, loading, user, fetchStatus, setViewMode }) => (
     <Box component="form" onSubmit={(e) => fetchStatus(e)} sx={{ maxWidth: 500, mx: 'auto', mt: 4 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="body2" align='center' color="text.secondary" sx={{ mb: 4 }}>
             Enter the email you used to submit your request to see its current status.
         </Typography>
         <TextField
@@ -37,11 +37,6 @@ export const TrackSearch = ({ inputToken, setInputToken, email, setEmail, error,
         >
             {loading ? <CircularProgress size={24} /> : "Check Status"}
         </Button>
-        {user && (
-            <Button fullWidth variant="text" onClick={() => setViewMode('list')} sx={{ mt: 2 }}>
-                Back to My Requests
-            </Button>
-        )}
     </Box>
 );
 
@@ -127,6 +122,12 @@ export const TrackDetails = ({ ticketStatus, getStep, steps, user, setTicketStat
 
     return (
         <Box>
+                <Button variant="text" onClick={() => {
+                    setTicketStatus(null);
+                    setViewMode(user ? 'list' : 'search');
+                }} sx={{ mt: 4 }}>
+                    ← Back to {user ? 'My Requests' : 'Search'}
+                </Button>
             <Box
                 display="flex"
                 justifyContent="space-between"

@@ -1,49 +1,41 @@
-import axios from "axios";
+import OpenAI from "openai";
 import 'dotenv/config';
 import pool from './mysqlConnection.js';
 import getAssigneeForScope from './balancer.js';
 import predictCategory from './classifier.js';
 
-// --- CONFIGURATION ---
+const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// ORACLE for classification and grouping
 const SAFETY_FALLBACK_EMAIL = process.env.SAFETY_FALLBACK_EMAIL || "admin@example.com";
 const ORACLE_URL = process.env.ORACLE_URL;
-const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
-const CLASSIFIER_URL = `${ORACLE_URL}/predict`;
+const CLASSIFIER_URL = `${ORACLE_URL}/classifier/predict`;
 const GROUPING_URL = `${ORACLE_URL}/group-drafts`;
-const GENERATION_URL = `${ORACLE_URL}/api/generate`;
+
+import axios from "axios";
+
+
 
 const cleanString = (str, maxLen) => {
     if (typeof str !== 'string') return "";
     return str.trim().slice(0, maxLen).replace(/^"|"$/g, '');
 };
 
-/**
- * Asks the Oracle (LLM) for a generative response.
- */
-const askOracle = async (prompt) => {
+const askOpenAI = async (prompt, jsonMode = false) => {
     try {
-        const response = await axios.post(
-            GENERATION_URL,
-            {
-                model: ORACLE_MODEL,
-                prompt: prompt,
-                stream: false,
-                options: {
-                    num_predict: 200,    // Hard limit on length (Reasoning models need tokens to think first)
-                    top_k: 1,          // Smaller search space = faster
-                    num_thread: 4,      // Match your Oracle OCPUs
-                    repeat_penalty: 1.2 // Prevents the model from getting stuck in a loop
-                }
-            },
-            {
-                auth: { username: ORACLE_USER, password: ORACLE_PASS }
-            }
-        );
-        return response.data.response;
+        const response = await openAIClient.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                { role: "system", content: prompt },
+            ],
+            response_format: jsonMode ? { type: "json_object" } : undefined,
+            stream: false,
+        }, { timeout: 15000 }); // 15 seconds timeout
+        return response.choices[0].message.content;
     } catch (error) {
-        console.error(`Oracle LLM Error:`, error.message);
+        console.error(`OpenAI Error for prompt: ${prompt.substring(0, 50)}...`, error.message);
         throw error;
     }
 };
@@ -51,9 +43,10 @@ const askOracle = async (prompt) => {
 export async function draftTicketFromUserRequest(userRequestText) {
     try {
         const [summary, category] = await Promise.all([
-            askOracle(
-                `Summarize the following problem as short as possible.
-                Provide ONLY the summary, with no introductory text."${userRequestText}"`
+            askOpenAI(
+                `You are a helpful support assistant.
+                 Summarize the user's request below into a clear, professional problem statement.
+                 Do not include any introductory text like "Here is the summary". just the summary. ${userRequestText}`
             ),
             predictCategory(CLASSIFIER_URL, ORACLE_USER, ORACLE_PASS, userRequestText)
         ]);
@@ -61,12 +54,13 @@ export async function draftTicketFromUserRequest(userRequestText) {
         const cleanSummary = cleanString(summary, 2048);
 
         const [title, solutions] = await Promise.all([
-            askOracle(
-                `Generate a title for this support ticket as short as possible.
-                Provide ONLY the title, with no introductory text. "${cleanSummary}"`
+            askOpenAI(
+                `Generate a short, concise title (under 10 words) for this support ticket.
+                 Based ONLY on this summary: "${cleanSummary}"`
             ),
-            askOracle(
-                `Suggest 3 solutions for this support request. as short and concise as possible."${cleanSummary}"`
+            askOpenAI(
+                `Suggest 3 short, actionable solutions or next steps for this issue.
+                 Based ONLY on this summary: "${cleanSummary}"`
             )
         ]);
 
@@ -81,8 +75,8 @@ export async function draftTicketFromUserRequest(userRequestText) {
         };
 
     } catch (error) {
-        console.error("Oracle connection error:", error.message);
-        throw new Error("Failed to draft ticket via Oracle.");
+        console.error("OpenAI connection error:", error.message);
+        throw new Error("Failed to draft ticket via OpenAI.");
     }
 }
 

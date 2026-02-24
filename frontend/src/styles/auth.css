@@ -1,4 +1,12 @@
 /* Login.jsx & Register.jsx */
+.auth-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Let the containing panel control height to avoid tiny overflows */
+    min-height: 100%;
+}
+
 .auth-container {
     max-width: 400px;
     margin: var(--spacing-xl) auto;
@@ -14,6 +22,7 @@
 .captcha-container {
     display: flex;
     justify-content: center;
+    overflow: hidden;
 }
 
 .auth-error {
@@ -31,4 +40,58 @@
 
 .google-btn {
     text-transform: none;
+}
+
+.auth-footer {
+    margin-top: var(--spacing-xl);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.auth-footer a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Login/Register panel: avoid scrollbars when content fits comfortably */
+.auth-panel {
+    overflow-y: visible;
+}
+
+@media screen and (max-width: 480px) {
+    .captcha-container>div {
+        transform: scale(0.85);
+        /* Adjust scale as needed */
+        transform-origin: center;
+    }
+}
+
+@media (max-height: 600px) {
+    .auth-panel {
+        overflow-y: auto;
+    }
+}
+
+/* Small-screen tweaks for login/register */
+@media (max-width: 600px) {
+    .auth-page {
+        align-items: flex-start;
+        padding-top: var(--spacing-lg);
+        min-height: auto;
+    }
+
+    .auth-container {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0 var(--spacing-md) var(--spacing-lg);
+    }
+
+    .captcha-container {
+        overflow-x: auto;
+        justify-content: flex-start;
+    }
 }

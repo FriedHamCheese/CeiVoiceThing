@@ -23,10 +23,10 @@ const CreateUserRequestContainer = ({ userEmail }) => {
         message: (
           <span>
             Request submitted successfully!{' '}
-            <a 
-              href={`/track/${result.trackingToken}?email=${encodeURIComponent(userEmail)}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
+            <a
+              href={`/track/${result.trackingToken}?email=${encodeURIComponent(userEmail)}`}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{ fontWeight: 'bold', textDecoration: 'underline' }}
             >
               Track your request here
@@ -40,7 +40,7 @@ const CreateUserRequestContainer = ({ userEmail }) => {
   return (
     <Box component="form" onSubmit={handleFormSubmit} noValidate>
       <Stack spacing={3}>
-        <Typography variant="h5" component="h2" fontWeight="500" color="black">
+       <Typography variant='h4' component="h1" fontWeight="bold" sx={{ mb: '40px' }}>
           Create a new request
         </Typography>
 

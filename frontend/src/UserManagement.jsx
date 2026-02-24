@@ -1,151 +1,157 @@
-import {UserElement, ScopeTagEditWindow} from './components/UserManagementComponents.jsx'
+import { UserElement, ScopeTagEditWindow } from './components/UserManagementComponents.jsx'
 
-import {Box, Typography} from '@mui/material';
-import {useState, useEffect} from 'react';
+import { Box, Typography, Grid, Paper } from '@mui/material';
+import { useState, useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 
-export default function ViewAllUsers(){
+export default function ViewAllUsers() {
     const [editingScopeTag, setEditingScopeTag] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [userObjects, setUserObjects] = useState([]);
     const [scopeEditingUserObject, setScopeEditingUserObject] = useState({});
     const [scope, setScope] = useState([]);
-    
-    const {API_URL} = useAuth();
-    
-    async function getAllUsers(){
+
+    const { API_URL } = useAuth();
+
+    async function getAllUsers() {
         let response;
-        try{
-            response = await fetch(`${API_URL}/admin/users/`, {method: "GET", credentials: 'include'});
-        }catch(err){
-            if(err instanceof TypeError) 
+        try {
+            response = await fetch(`${API_URL}/admin/users/`, { method: "GET", credentials: 'include' });
+        } catch (err) {
+            if (err instanceof TypeError)
                 return setErrorMessage("Couldn't connect to server.");
             throw err;
         }
-        
+
         let objectFromResponse;
-        try{
+        try {
             objectFromResponse = await response.json();
-        }catch(err){
-            if(err instanceof TypeError)
+        } catch (err) {
+            if (err instanceof TypeError)
                 return setErrorMessage("Couldn't decode server response.")
-            if(err instanceof SyntaxError) 
+            if (err instanceof SyntaxError)
                 return setErrorMessage("Server returned invalid JSON.")
             throw err;
         }
-        
-        if(!(response.ok))
+
+        if (!(response.ok))
             return setErrorMessage(`Received HTTP status ${response.status} from server.`);
-        
-        if(!(objectFromResponse instanceof Array))
+
+        if (!(objectFromResponse instanceof Array))
             return setErrorMessage("Object from response not an Array.");
         setUserObjects(objectFromResponse);
         setErrorMessage("");
     }
 
-    async function getAllScopeTags(){
+    async function getAllScopeTags() {
         let response;
-        try{
-            response = await fetch(`${API_URL}/admin/scope-tags/`, {method: "GET", credentials: 'include'});
-        }catch(err){
-            if(err instanceof TypeError) 
+        try {
+            response = await fetch(`${API_URL}/admin/scope-tags/`, { method: "GET", credentials: 'include' });
+        } catch (err) {
+            if (err instanceof TypeError)
                 return setErrorMessage("Couldn't connect to server.");
             throw err;
         }
-        
+
         let objectFromResponse;
-        try{
+        try {
             objectFromResponse = await response.json();
-        }catch(err){
-            if(err instanceof TypeError)
+        } catch (err) {
+            if (err instanceof TypeError)
                 return setErrorMessage("Couldn't decode server response.")
-            if(err instanceof SyntaxError) 
+            if (err instanceof SyntaxError)
                 return setErrorMessage("Server returned invalid JSON.")
             throw err;
         }
-        
-        if(!(response.ok))
+
+        if (!(response.ok))
             return setErrorMessage(`Received HTTP status ${response.status} from server.`);
-        
-        if(!(objectFromResponse instanceof Array))
+
+        if (!(objectFromResponse instanceof Array))
             return setErrorMessage("Object from response not an Array.");
         setScope(objectFromResponse);
         setErrorMessage("");
     }
-    
-    const RUN_FIRST_TIME = [];
-    useEffect(() => {getAllUsers();}, RUN_FIRST_TIME);
 
-    return(
-        <Box>
-        {
-            //Wrap in conditional so the useEffect in the window is triggered per window opening, 
-            //fetching the scope tags
-            editingScopeTag && <ScopeTagEditWindow 
-                userObject={scopeEditingUserObject} 
-                windowOpen={editingScopeTag}
-                closeSelf={() => {
-                    setEditingScopeTag(editingScopeTag => false);
-                }}
-                API_URL={API_URL}
-            />
-        }
-        <Typography variant='h4' sx={{mb: '40px'}}>All Users in the System</Typography>
-        
-        <Typography variant='h5' sx={{mb: '20px'}}>Admins</Typography>
-        <Box sx={{mb: '40px'}}>
+    const RUN_FIRST_TIME = [];
+    useEffect(() => { getAllUsers(); }, RUN_FIRST_TIME);
+
+    return (
+        <Box sx={{ width: '100%', maxWidth: '100%', minWidth: 0, px: { xs: 1, sm: 2 }, py: 1, boxSizing: 'border-box' }}>
             {
-                userObjects.map(userObject => ((userObject.perm === 4) ?
-                    <UserElement 
-                        userObject={userObject} 
-                        refreshPage={getAllUsers}
-                        setErrorMessage={setErrorMessage}
-                        API_URL={API_URL}
-                        editScopeTagWindow={(userObject) => {
-                            setEditingScopeTag(true);
-                            setScopeEditingUserObject(userObject);
-                        }}
-                    /> : null
-                ))
+                editingScopeTag && <ScopeTagEditWindow
+                    userObject={scopeEditingUserObject}
+                    windowOpen={editingScopeTag}
+                    closeSelf={() => {
+                        setEditingScopeTag(editingScopeTag => false);
+                    }}
+                    API_URL={API_URL}
+                />
             }
-        </Box>
-        
-        <Typography variant='h5' sx={{mb: '20px'}}>Specialists</Typography>        
-        <Box sx={{mb: '40px'}}>
-            {
-                userObjects.map(userObject => ((userObject.perm === 2) ?
-                    <UserElement 
-                        userObject={userObject} 
-                        refreshPage={getAllUsers}
-                        setErrorMessage={setErrorMessage}
-                        API_URL={API_URL}
-                        editScopeTagWindow={(userObject) => {
-                            setEditingScopeTag(true);
-                            setScopeEditingUserObject(userObject);
-                        }}
-                    /> : null
-                ))
-            }
-        </Box>
-        
-        <Typography variant='h5' sx={{mb: '20px'}}>Users</Typography>        
-        <Box sx={{mb: '40px'}}>
-            {
-                userObjects.map(userObject => ((userObject.perm === 1) ?
-                    <UserElement 
-                        userObject={userObject} 
-                        refreshPage={getAllUsers}
-                        setErrorMessage={setErrorMessage}
-                        API_URL={API_URL}
-                        editScopeTagWindow={(userObject) => {
-                            setEditingScopeTag(true);
-                            setScopeEditingUserObject(userObject);
-                        }}
-                    /> : null
-                ))
-            }
-        </Box>
-        <p style={{color: 'red'}}>{errorMessage}</p> 
+            <Typography variant="h4" component="h1" fontWeight="bold" sx={{ mb: 3 }}>
+                All Users in the System
+            </Typography>
+
+            <Typography variant="h5" sx={{ mb: 2, mt: 3 }}>Admins</Typography>
+            <Grid container spacing={2} sx={{ width: '100%', mb: 4 }}>
+                {userObjects.filter(u => u.perm === 4).map(userObject => (
+                    <Grid item xs={12} sm={6} lg={4} key={userObject.email}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                            <UserElement
+                                userObject={userObject}
+                                refreshPage={getAllUsers}
+                                setErrorMessage={setErrorMessage}
+                                API_URL={API_URL}
+                                editScopeTagWindow={(obj) => {
+                                    setEditingScopeTag(true);
+                                    setScopeEditingUserObject(obj);
+                                }}
+                            />
+                        </Paper>
+                    </Grid>
+                ))}
+            </Grid>
+
+            <Typography variant="h5" sx={{ mb: 2, mt: 3 }}>Specialists</Typography>
+            <Grid container spacing={2} sx={{ width: '100%', mb: 4 }}>
+                {userObjects.filter(u => u.perm === 2).map(userObject => (
+                    <Grid item xs={12} sm={6} lg={4} key={userObject.email}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                            <UserElement
+                                userObject={userObject}
+                                refreshPage={getAllUsers}
+                                setErrorMessage={setErrorMessage}
+                                API_URL={API_URL}
+                                editScopeTagWindow={(obj) => {
+                                    setEditingScopeTag(true);
+                                    setScopeEditingUserObject(obj);
+                                }}
+                            />
+                        </Paper>
+                    </Grid>
+                ))}
+            </Grid>
+
+            <Typography variant="h5" sx={{ mb: 2, mt: 3 }}>Users</Typography>
+            <Grid container spacing={2} sx={{ width: '100%', mb: 4 }}>
+                {userObjects.filter(u => u.perm === 1).map(userObject => (
+                    <Grid item xs={12} sm={6} lg={4} key={userObject.email}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                            <UserElement
+                                userObject={userObject}
+                                refreshPage={getAllUsers}
+                                setErrorMessage={setErrorMessage}
+                                API_URL={API_URL}
+                                editScopeTagWindow={(obj) => {
+                                    setEditingScopeTag(true);
+                                    setScopeEditingUserObject(obj);
+                                }}
+                            />
+                        </Paper>
+                    </Grid>
+                ))}
+            </Grid>
+            {errorMessage && <Typography color="error" sx={{ mt: 2 }}>{errorMessage}</Typography>}
         </Box>
     );
 }

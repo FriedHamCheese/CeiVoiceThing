@@ -35,7 +35,7 @@ export default function TrackTicket({ token: propToken }) {
 
     return (
         <Container maxWidth="md" sx={{ mt: 2 }}>
-            <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
+            <Typography variant="h4" align='center' component="h1" gutterBottom fontWeight="bold" color="primary">
                 Track Your Request
             </Typography>
 

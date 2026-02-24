@@ -1,8 +1,15 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import SearchIcon from "@mui/icons-material/Search";
+import LoginIcon from "@mui/icons-material/Login";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import PostAddIcon from "@mui/icons-material/PostAdd";
+import DashboardIcon from "@mui/icons-material/Dashboard";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import PeopleIcon from "@mui/icons-material/People";
+import LogoutIcon from "@mui/icons-material/Logout";
 import "../styles/main.css";
-import logo from "../assets/cei.png";
 
 export default function SideBar({ toggleSidebar }) {
     const { user, logout } = useAuth();
@@ -14,12 +21,16 @@ export default function SideBar({ toggleSidebar }) {
     return (
         <aside className="sidebar">
             <div className="sidebar-brand">
-                <img
-                    src={logo}
-                    alt="logo"
+                <button
+                    type="button"
+                    className="top-bar-burger sidebar-burger"
                     onClick={toggleSidebar}
-                    style={{ cursor: 'pointer' }}
-                />
+                    aria-label="Close menu"
+                >
+                    <span className="top-bar-burger-line" />
+                    <span className="top-bar-burger-line" />
+                    <span className="top-bar-burger-line" />
+                </button>
                 <div>
                     <h1>CEiVoice</h1>
                     <h2>AI Request & Ticket System</h2>
@@ -31,22 +42,31 @@ export default function SideBar({ toggleSidebar }) {
                 {!user && (
                     <>
                         <button
+                            className={isActive('/track-request')}
+                            onClick={() => navigate('/track-request')}
+                        >
+                            <span className="sidebar-btn-content">
+                                <SearchIcon sx={{ fontSize: 20 }} />
+                                Track Request
+                            </span>
+                        </button>
+                        <button
                             className={isActive('/login')}
                             onClick={() => navigate('/login')}
                         >
-                            Login
+                            <span className="sidebar-btn-content">
+                                <LoginIcon sx={{ fontSize: 20 }} />
+                                Login
+                            </span>
                         </button>
                         <button
                             className={isActive('/register')}
                             onClick={() => navigate('/register')}
                         >
-                            Register
-                        </button>
-                        <button
-                            className={isActive('/track-request')}
-                            onClick={() => navigate('/track-request')}
-                        >
-                            Track Request
+                            <span className="sidebar-btn-content">
+                                <PersonAddIcon sx={{ fontSize: 20 }} />
+                                Register
+                            </span>
                         </button>
                     </>
                 )}
@@ -55,17 +75,32 @@ export default function SideBar({ toggleSidebar }) {
                 {user && (
                     <>
                         <button
+                            className={isActive('/track-request')}
+                            onClick={() => navigate('/track-request')}
+                        >
+                            <span className="sidebar-btn-content">
+                                <SearchIcon sx={{ fontSize: 20 }} />
+                                Track Request
+                            </span>
+                        </button>
+                        <button
                             className={isActive('/')}
                             onClick={() => navigate('/')}
                         >
-                            Create new ticket
+                            <span className="sidebar-btn-content">
+                                <PostAddIcon sx={{ fontSize: 20 }} />
+                                Create new ticket
+                            </span>
                         </button>
                         {user.perm === 4 && (
                             <button
                                 className={isActive('/admin/dashboard')}
                                 onClick={() => navigate('/admin/dashboard')}
                             >
-                                Admin Dashboard
+                                <span className="sidebar-btn-content">
+                                    <DashboardIcon sx={{ fontSize: 20 }} />
+                                    Admin Dashboard
+                                </span>
                             </button>
                         )}
                         {user.perm === 2 && (
@@ -73,7 +108,10 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/dashboard')}
                                 onClick={() => navigate('/dashboard')}
                             >
-                                Assignee Dashboard
+                                <span className="sidebar-btn-content">
+                                    <DashboardIcon sx={{ fontSize: 20 }} />
+                                    Assignee Dashboard
+                                </span>
                             </button>
                         )}
                         {user.perm === 2 && (
@@ -81,7 +119,10 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/reports')}
                                 onClick={() => navigate('/reports')}
                             >
-                                Assignee Reports
+                                <span className="sidebar-btn-content">
+                                    <AssessmentIcon sx={{ fontSize: 20 }} />
+                                    Assignee Reports
+                                </span>
                             </button>
                         )}
                         {user.perm === 4 && (
@@ -89,7 +130,10 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/admin/reports')}
                                 onClick={() => navigate('/admin/reports')}
                             >
-                                Admin Reports
+                                <span className="sidebar-btn-content">
+                                    <AssessmentIcon sx={{ fontSize: 20 }} />
+                                    Admin Reports
+                                </span>
                             </button>
                         )}
                         {user.perm === 4 && (
@@ -97,23 +141,23 @@ export default function SideBar({ toggleSidebar }) {
                                 className={isActive('/admin/users')}
                                 onClick={() => navigate('/admin/users')}
                             >
-                                User Management
+                                <span className="sidebar-btn-content">
+                                    <PeopleIcon sx={{ fontSize: 20 }} />
+                                    User Management
+                                </span>
                             </button>
                         )}
                         <button
-                            className={isActive('/track-request')}
-                            onClick={() => navigate('/track-request')}
-                        >
-                            Track Request
-                        </button>
-                        <button
+                            className="logout-btn"
                             onClick={async () => {
                                 await logout();
                                 window.location.href = '/login';
                             }}
-                            style={{ marginTop: 'auto', color: '#ff6b6b' }}
                         >
-                            Logout
+                            <span className="sidebar-btn-content">
+                                <LogoutIcon sx={{ fontSize: 20 }} />
+                                Logout
+                            </span>
                         </button>
                     </>
                 )}

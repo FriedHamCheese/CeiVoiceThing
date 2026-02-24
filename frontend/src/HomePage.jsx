@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import React from "react";
 import SideBar from "./components/SideBar";
 import TopBar from "./components/TopBar";
@@ -7,7 +7,8 @@ import TopBar from "./components/TopBar";
 import "./styles/main.css";
 
 export default function HomePage() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth > 768);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
@@ -24,7 +25,9 @@ export default function HomePage() {
         <TopBar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
 
         <main className="panel">
-          <Outlet />
+          <div key={location.pathname} className="page-transition">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

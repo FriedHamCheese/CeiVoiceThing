@@ -8,21 +8,30 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
 
     return (
         <header className="top-bar">
-            {!isSidebarOpen && (
-                <img
-                    src={logo}
-                    alt="logo"
-                    onClick={toggleSidebar}
-                    className="top-bar-logo-toggle"
-                />
-            )}
+            <button
+                type="button"
+                className="top-bar-burger"
+                onClick={toggleSidebar}
+                aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+            >
+                <span className="top-bar-burger-line" />
+                <span className="top-bar-burger-line" />
+                <span className="top-bar-burger-line" />
+            </button>
+            <div className="top-bar-logo-wrap">
+                <img src={logo} alt="" className="top-bar-logo" />
+                <div className="top-bar-brand-text">
+                    <span className="top-bar-brand-title">CEiVoice</span>
+                    <span className="top-bar-brand-tagline">AI Request & Ticket System</span>
+                </div>
+            </div>
             {user && (
-                <div style={{ marginLeft: 'auto', paddingRight: '1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span>Welcome, {user.email}</span>
+                <div className="user-welcome-container">
+                    <span className="user-welcome-text">Welcome, {user.email}</span>
                     <div className="role-buttons-container">
                         {[
                             { label: 'User', value: 1, color: '#2ed573' },
-                            { label: 'Specialist', value: 2, color: '#ffa502' },
+                            { label: 'Assignee', value: 2, color: '#ffa502' },
                             { label: 'Admin', value: 4, color: '#ff4757' }
                         ].map(role => (
                             <button
