@@ -139,18 +139,18 @@ END//
 
 DELIMITER ;
 
--- INITIAL DATA
+-- INITIAL DATA | Pasword is YourUserPassword
 INSERT INTO Users (email, name, password_hash, perm) VALUES 
-('admin@example.com', 'Admin User', '$2b$10$example_hash_here', 3),
-('user@example.com', 'Regular User', '$2b$10$example_hash_here', 1),
-('assignee1@example.com', 'Assignee 1', '$2b$10$example_hash_here', 2),
-('assignee2@example.com', 'Assignee 2', '$2b$10$example_hash_here', 2),
-('assignee3@example.com', 'Assignee 3', '$2b$10$example_hash_here', 2),
-('assignee4@example.com', 'Assignee 4', '$2b$10$example_hash_here', 2),
-('assignee5@example.com', 'Assignee 5', '$2b$10$example_hash_here', 2),
-('assignee6@example.com', 'Assignee 6', '$2b$10$example_hash_here', 2),
-('assignee7@example.com', 'Assignee 7', '$2b$10$example_hash_here', 2),
-('assignee8@example.com', 'Assignee 8', '$2b$10$example_hash_here', 2);
+('admin@example.com', 'Admin User', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 3),
+('user@example.com', 'Regular User', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 1),
+('assignee1@example.com', 'Assignee 1', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee2@example.com', 'Assignee 2', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee3@example.com', 'Assignee 3', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee4@example.com', 'Assignee 4', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee5@example.com', 'Assignee 5', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee6@example.com', 'Assignee 6', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee7@example.com', 'Assignee 7', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2),
+('assignee8@example.com', 'Assignee 8', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2);
 
 INSERT INTO AssigneeScope (userEmail, scopeTag) VALUES 
 ('assignee1@example.com', 'Internship'),
