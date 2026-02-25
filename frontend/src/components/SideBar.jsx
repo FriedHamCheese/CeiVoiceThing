@@ -42,6 +42,15 @@ export default function SideBar({ toggleSidebar }) {
                 {!user && (
                     <>
                         <button
+                            className={isActive('/request')}
+                            onClick={() => navigate('/request')}
+                        >
+                            <span className="sidebar-btn-content">
+                                <PostAddIcon sx={{ fontSize: 20 }} />
+                                Submit Request
+                            </span>
+                        </button>
+                        <button
                             className={isActive('/track-request')}
                             onClick={() => navigate('/track-request')}
                         >

@@ -3,6 +3,7 @@ import Home from './HomePage.jsx';
 import Login from './Login.jsx';
 import Register from './Register.jsx';
 import NewTicket from './NewTicket.jsx';
+import RequestWithoutLogin from './RequestWithoutLogin.jsx';
 import AssigneeDashboard from './DashboardAssignee.jsx';
 import AdminDashboard from './DashboardAdmin.jsx';
 import ReportingDashboard from './Report.jsx';
@@ -25,6 +26,7 @@ export default function App() {
 					<Route element={<Home />}>
 						<Route path="/register" element={<Register />} />
 						<Route path="/track-request" element={<TrackTicket />} />
+						<Route path="/request" element={<RequestWithoutLogin />} />
 						<Route path="/track/:token" element={<TrackTicket />} />
 
 						<Route element={<ProtectedRoute minRole={1} />}>
