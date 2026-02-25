@@ -1,69 +1,78 @@
-import OpenAI from "openai";
-import 'dotenv/config';
 import axios from "axios";
+import 'dotenv/config';
 import pool from './mysqlConnection.js';
 import getAssigneeForScope from './balancer.js';
 import predictCategory from './classifier.js';
 
-const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// ORACLE for classification and grouping
+// --- CONFIGURATION ---
 const SAFETY_FALLBACK_EMAIL = process.env.SAFETY_FALLBACK_EMAIL || "admin@example.com";
 const ORACLE_URL = process.env.ORACLE_URL;
+const ORACLE_MODEL = process.env.ORACLE_MODEL || "qwen2.5:1.5b-instruct";
 const ORACLE_USER = process.env.ORACLE_USER;
 const ORACLE_PASS = process.env.ORACLE_PASS;
 const CLASSIFIER_URL = `${ORACLE_URL}/predict`;
 const GROUPING_URL = `${ORACLE_URL}/group-drafts`;
+const GENERATION_URL = `${ORACLE_URL}/api/generate`;
 
 const cleanString = (str, maxLen) => {
     if (typeof str !== 'string') return "";
     return str.trim().slice(0, maxLen).replace(/^"|"$/g, '');
 };
 
-const askOpenAI = async (prompt, jsonMode = false) => {
-    const start = Date.now(); // Start timer for this specific call
+/**
+ * Asks the Oracle (LLM) for a generative response.
+ * Calculates and logs Tokens Per Second (TPS) if metadata is present.
+ */
+const askOracle = async (prompt) => {
     try {
-        const response = await openAIClient.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [
-                { role: "system", content: "You are a helpful support assistant." },
-                { role: "user", content: prompt }, 
-            ],
-            response_format: jsonMode ? { type: "json_object" } : undefined,
-            stream: false,
-        }, { timeout: 15000 }); // 15 seconds timeout
+        const response = await axios.post(
+            GENERATION_URL,
+            {
+                model: ORACLE_MODEL,
+                prompt: prompt,
+                stream: false,
+                options: {
+                    num_predict: 200,    
+                    top_k: 1,          
+                    num_thread: 4,      
+                    repeat_penalty: 1.2 
+                }
+            },
+            {
+                auth: { username: ORACLE_USER, password: ORACLE_PASS }
+            }
+        );
 
         // --- SPEEDOMETER START ---
-        const end = Date.now();
-        const durationSeconds = (end - start) / 1000;
-        const usage = response.usage; // OpenAI returns { prompt_tokens, completion_tokens, total_tokens }
-        
-        if (usage && usage.completion_tokens > 0) {
-            const tps = (usage.completion_tokens / durationSeconds).toFixed(2);
-            console.log(`⚡ Speed: ${tps} t/s | Tokens: ${usage.completion_tokens} | Time: ${durationSeconds.toFixed(3)}s`);
+        // Most local LLM APIs (Ollama, etc.) return eval_count (tokens) and eval_duration (nanoseconds)
+        const data = response.data;
+        if (data.eval_count && data.eval_duration) {
+            // Convert nanoseconds to seconds
+            const seconds = data.eval_duration / 1e9; 
+            const tps = (data.eval_count / seconds).toFixed(2);
+            console.log(`⚡ Speed: ${tps} t/s | Tokens: ${data.eval_count} | Time: ${seconds.toFixed(3)}s`);
         } else {
-            console.log(`⚡ Time: ${durationSeconds.toFixed(3)}s (Token stats unavailable)`);
+            // Fallback if the API uses different keys or headers
+            console.log("⚠️ Speed metadata unavailable in response");
         }
         // --- SPEEDOMETER END ---
 
-        return response.choices[0].message.content;
+        return response.data.response;
     } catch (error) {
-        console.error(`OpenAI Error for prompt: ${prompt.substring(0, 50)}...`, error.message);
+        console.error(`Oracle LLM Error:`, error.message);
         throw error;
     }
 };
 
 export async function draftTicketFromUserRequest(userRequestText) {
-    // 1. Start Total Timer
     console.time("⏱️  Total Execution Time");
-
+    
     try {
-        // 2. Timer for Phase 1 (Parallel Summary & Classification)
         console.time("⏱️  Step 1: Summary & Classification (Parallel)");
         const [summary, category] = await Promise.all([
-            askOpenAI(
-                `Summarize the user's request below into a clear, professional problem statement.
-                 Do not include any introductory text like "Here is the summary". just the summary. ${userRequestText}`
+            askOracle(
+                `Summarize the following problem as short as possible.
+                Provide ONLY the summary, with no introductory text."${userRequestText}"`
             ),
             predictCategory(CLASSIFIER_URL, ORACLE_USER, ORACLE_PASS, userRequestText)
         ]);
@@ -71,21 +80,18 @@ export async function draftTicketFromUserRequest(userRequestText) {
 
         const cleanSummary = cleanString(summary, 2048);
 
-        // 3. Timer for Phase 2 (Parallel Title & Solution Gen)
         console.time("⏱️  Step 2: Title & Solution Gen (Parallel)");
         const [title, solutions] = await Promise.all([
-            askOpenAI(
-                `Generate a short, concise title (under 10 words) for this support ticket.
-                 Based ONLY on this summary: "${cleanSummary}"`
+            askOracle(
+                `Generate a title for this support ticket as short as possible.
+                Provide ONLY the title, with no introductory text. "${cleanSummary}"`
             ),
-            askOpenAI(
-                `Suggest 3 short, actionable solutions or next steps for this issue.
-                 Based ONLY on this summary: "${cleanSummary}"`
+            askOracle(
+                `Suggest 3 solutions for this support request. as short and concise as possible."${cleanSummary}"`
             )
         ]);
         console.timeEnd("⏱️  Step 2: Title & Solution Gen (Parallel)");
 
-        // 4. Timer for Phase 3 (DB Lookup)
         console.time("⏱️  Step 3: Assignee Lookup");
         const assignedAgent = await getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL);
         console.timeEnd("⏱️  Step 3: Assignee Lookup");
@@ -98,15 +104,14 @@ export async function draftTicketFromUserRequest(userRequestText) {
             suggestedAssignee: assignedAgent
         };
 
-        // 5. End Total Timer
         console.timeEnd("⏱️  Total Execution Time");
-
+        
         return result;
 
     } catch (error) {
-        console.timeEnd("⏱️  Total Execution Time"); // Ensure timer ends even on error
-        console.error("OpenAI connection error:", error.message);
-        throw new Error("Failed to draft ticket via OpenAI.");
+        console.timeEnd("⏱️  Total Execution Time");
+        console.error("Oracle connection error:", error.message);
+        throw new Error("Failed to draft ticket via Oracle.");
     }
 }
 
