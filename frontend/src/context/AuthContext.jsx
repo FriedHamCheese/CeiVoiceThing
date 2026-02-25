@@ -6,7 +6,8 @@ const AuthContext = createContext(null);
 // Construct API URL
 const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
 const API_PORT = import.meta.env.VITE_API_PORT || '5001';
-const API_URL = `http://${API_HOST}:${API_PORT}`;
+const API_URL = (import.meta.env.VITE_USE_HTTPS_BACKEND === "TRUE") ? 
+                `https://${API_HOST}:${API_PORT}` : `http://${API_HOST}:${API_PORT}`;
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
