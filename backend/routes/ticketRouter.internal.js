@@ -14,6 +14,7 @@ router.get('/', async (request, response) => {
                 t.title,
                 t.summary,
                 t.solution,
+                t.resolutionComment,
                 t.status,
                 t.deadline,
                 t.createdAt,

@@ -343,7 +343,7 @@ router.post('/requests', isAuthenticated, validateRequest(userRequestsSchema), a
              FROM UserRequest ur
              JOIN TicketUserRequest tur ON ur.id = tur.userRequestID
              JOIN Ticket t ON tur.ticketID = t.id
-             WHERE ur.userEmail = ?
+             WHERE ur.userEmail = ? AND t.status != 'merged'
              ORDER BY t.createdAt DESC`,
             [email]
         );
