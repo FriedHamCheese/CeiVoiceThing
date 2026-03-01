@@ -6,6 +6,9 @@ import helmet from 'helmet';
 import passport from 'passport';
 import session from 'express-session';
 
+import https from 'https';
+import nodefilesystem from 'node:fs';
+
 import { ROLES } from './constants/roles.js';
 import { isAuthenticated, restrictTo } from './middleware/authMiddleware.js';
 
@@ -28,7 +31,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.SERVER_PORT;
-const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT}`;
+const FRONTEND_URL = `https://localhost:${process.env.FRONTEND_PORT}`;
 
 app.use(helmet());
 app.use(cors({
@@ -79,6 +82,17 @@ app.use('/admin/reports', [isAuthenticated, restrictTo(ROLES.ADMIN)], reportAdmi
 app.use('/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdminRoutes);
 app.use('/admin', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+if (process.env.USE_HTTPS){
+  const httpsServer = https.createServer({
+    cert: nodefilesystem.readFileSync('./localhost.crt'),
+    key: nodefilesystem.readFileSync('./localhost.key'),
+  }, app);
+  
+  httpsServer.listen(PORT, () => {
+      console.log(`Server is running on https://localhost:${PORT}`);
+  });
+}else{
+  app.listen(PORT, () => {
+      console.log(`Server is running on http://localhost:${PORT}`);
+  });
+}

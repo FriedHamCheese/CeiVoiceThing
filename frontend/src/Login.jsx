@@ -134,6 +134,9 @@ function Login() {
                             <p className="auth-footer">
                                 No account? <Link to="/register">Register.</Link>
                             </p>
+                            <p className="auth-footer" style={{ marginTop: '8px' }}>
+                                Need help without login? <Link to="/request">Submit a request</Link>
+                            </p>
                         </div>
                     </div>
                 </main>

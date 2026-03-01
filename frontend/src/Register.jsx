@@ -164,6 +164,9 @@ function Register() {
                         <p className="auth-footer">
                             Have an account? <Link to="/login">Login.</Link>
                         </p>
+                        <p className="auth-footer" style={{ marginTop: '8px' }}>
+                            Want to submit only email + problem? <Link to="/request">Submit a request</Link>
+                        </p>
                     </Stack>
 
                 </Box>
