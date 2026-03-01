@@ -7,28 +7,28 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
     const { user, updateUser, API_URL } = useAuth();
 
     return (
-        <header className="top-bar">
-            <button
-                type="button"
-                className="top-bar-burger"
-                onClick={toggleSidebar}
-                aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
-            >
-                <span className="top-bar-burger-line" />
-                <span className="top-bar-burger-line" />
-                <span className="top-bar-burger-line" />
-            </button>
-            <div className="top-bar-logo-wrap">
-                <img src={logo} alt="" className="top-bar-logo" />
-                <div className="top-bar-brand-text">
-                    <span className="top-bar-brand-title">CEiVoice</span>
-                    <span className="top-bar-brand-tagline">AI Request & Ticket System</span>
+        <>
+            <header className="top-bar">
+                <button
+                    type="button"
+                    className="top-bar-burger"
+                    onClick={toggleSidebar}
+                    aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+                >
+                    <span className="top-bar-burger-line" />
+                    <span className="top-bar-burger-line" />
+                    <span className="top-bar-burger-line" />
+                </button>
+                <div className="top-bar-logo-wrap">
+                    <img src={logo} alt="" className="top-bar-logo" />
+                    <div className="top-bar-brand-text">
+                        <span className="top-bar-brand-title">CEiVoice</span>
+                        <span className="top-bar-brand-tagline">AI Request & Ticket System</span>
+                    </div>
                 </div>
-            </div>
-            {user && (
-                <div className="user-welcome-container">
-                    <span className="user-welcome-text">Welcome, {user.email}</span>
-                    <div className="role-buttons-container">
+                {user && (
+                    <div className="user-welcome-container">
+                        <div className="role-buttons-container">
                         {[
                             { label: 'User', value: 1, color: '#2ed573' },
                             { label: 'Assignee', value: 2, color: '#ffa502' },
@@ -64,9 +64,15 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
                                 {role.label}
                             </button>
                         ))}
+                        </div>
                     </div>
+                )}
+            </header>
+            {user && (
+                <div className="user-welcome-floating-label" aria-label={`Welcome, ${user.email}`}>
+                    Welcome, {user.email}
                 </div>
             )}
-        </header>
+        </>
     );
 }

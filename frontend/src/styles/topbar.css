@@ -96,13 +96,24 @@
     justify-content: flex-end;
 }
 
-.user-welcome-text {
+/* Floating welcome label: top-right, just under the topbar */
+.user-welcome-floating-label {
+    position: fixed;
+    top: calc(var(--header-height) + 26px);
+    right: var(--spacing-md);
+    z-index: 100;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: clamp(0.75rem, 2vw, 0.9rem);
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    background: var(--bg-white);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+    border-radius: 32px;
     white-space: nowrap;
+    max-width: min(90vw, 320px);
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 40vw;
+    pointer-events: none;
+    transition: font-size 0.2s ease, padding 0.2s ease;
 }
 
 .role-buttons-container {
@@ -146,11 +157,13 @@
 
     .top-bar h2 {
         display: none;
-        /* Hide welcome text on very small screens to save space */
     }
 
-    .user-welcome-text {
-        display: none;
+    .user-welcome-floating-label {
+        right: var(--spacing-sm);
+        max-width: min(85vw, 260px);
+        font-size: 0.8rem;
+        padding: 4px var(--spacing-xs);
     }
 }
 
@@ -159,6 +172,12 @@
         padding-right: var(--spacing-xs);
         width: 100%;
         justify-content: flex-end;
+    }
+
+    .user-welcome-floating-label {
+        right: var(--spacing-xs);
+        max-width: min(80vw, 220px);
+        font-size: 0.75rem;
     }
 
     .role-buttons-container {
