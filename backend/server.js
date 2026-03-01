@@ -27,6 +27,8 @@ import userAdminRoutes from './routes/userRouter.admin.js';
 import pool from './utils/mysqlConnection.js';
 import configurePassport from './utils/passport.js';
 
+
+
 dotenv.config();
 
 const app = express();
@@ -35,8 +37,8 @@ const FRONTEND_URL = `https://localhost:${process.env.FRONTEND_PORT}`;
 
 app.use(helmet());
 app.use(cors({
-    origin: FRONTEND_URL,
-    credentials: true
+  origin: FRONTEND_URL,
+  credentials: true
 }));
 
 app.use(express.json());
@@ -46,17 +48,17 @@ const MySQLStore = expressMysqlSession(session);
 const sessionStore = new MySQLStore({}, pool); // Reuse existing pool
 
 app.use(session({
-    key: 'session_cookie_name',
-    secret: process.env.SESSION_SECRET || 'secret_placeholder',
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production', // true for HTTPS in production
-        httpOnly: true, // Prevents JS access to cookie
-        maxAge: 1000 * 60 * 60 * 24, // 1 day
-        sameSite: 'lax' // CSRF protection
-    }
+  key: 'session_cookie_name',
+  secret: process.env.SESSION_SECRET || 'secret_placeholder',
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // true for HTTPS in production
+    httpOnly: true, // Prevents JS access to cookie
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    sameSite: 'lax' // CSRF protection
+  }
 }));
 
 app.use(passport.initialize());
@@ -82,17 +84,17 @@ app.use('/admin/reports', [isAuthenticated, restrictTo(ROLES.ADMIN)], reportAdmi
 app.use('/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdminRoutes);
 app.use('/admin', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
 
-if (process.env.USE_HTTPS){
+if (process.env.USE_HTTPS) {
   const httpsServer = https.createServer({
-    cert: nodefilesystem.readFileSync('./localhost.crt'),
-    key: nodefilesystem.readFileSync('./localhost.key'),
+    cert: nodefilesystem.readFileSync('./creds/.crt'),
+    key: nodefilesystem.readFileSync('./creds/.key'),
   }, app);
-  
+
   httpsServer.listen(PORT, () => {
-      console.log(`Server is running on https://localhost:${PORT}`);
+    console.log(`Server is running on https://localhost:${PORT}`);
   });
-}else{
+} else {
   app.listen(PORT, () => {
-      console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on http://localhost:${PORT}`);
   });
 }

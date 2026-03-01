@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Typography,
     Box,
@@ -10,28 +10,61 @@ import {
     CircularProgress
 } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { z } from 'zod';
 import { useAuth } from './context/AuthContext';
 import './styles/main.css';
 
 const MAX_CHARACTERS = 2048;
 
+const requestSchema = z.object({
+    email: z
+        .email('Please enter a valid email address.')
+        .min(1, 'Email is required.'),
+    problem: z
+        .string()
+        .min(1, 'Problem details are required.')
+        .max(MAX_CHARACTERS, `Problem details must be at most ${MAX_CHARACTERS} characters.`)
+});
+
 export default function RequestWithoutLogin() {
     const { API_URL } = useAuth();
     const [email, setEmail] = useState('');
     const [problem, setProblem] = useState('');
+    const [touched, setTouched] = useState({ email: false, problem: false });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [status, setStatus] = useState({ type: '', message: '', trackingToken: '', submittedEmail: '' });
+
+    // Validate the whole form on every change
+    const validation = useMemo(() => {
+        const result = requestSchema.safeParse({ email: email.trim(), problem: problem.trim() });
+        if (result.success) {
+            return { isValid: true, errors: {} };
+        }
+        const fieldErrors = {};
+        for (const issue of result.error.issues) {
+            const field = issue.path[0];
+            if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+        }
+        return { isValid: false, errors: fieldErrors };
+    }, [email, problem]);
+
+    const handleBlur = (field) => {
+        setTouched((prev) => ({ ...prev, [field]: true }));
+    };
 
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        const normalizedEmail = email.trim();
-        const normalizedProblem = problem.trim();
+        // Mark all fields as touched so errors show
+        setTouched({ email: true, problem: true });
 
-        if (!normalizedEmail || !normalizedProblem) {
-            setStatus({ type: 'error', message: 'Please enter both email and problem details.', trackingToken: '', submittedEmail: '' });
+        if (!validation.isValid) {
+            setStatus({ type: 'error', message: 'Please fix the errors above before submitting.', trackingToken: '', submittedEmail: '' });
             return;
         }
+
+        const normalizedEmail = email.trim();
+        const normalizedProblem = problem.trim();
 
         setIsSubmitting(true);
         setStatus({ type: '', message: '', trackingToken: '', submittedEmail: '' });
@@ -61,6 +94,7 @@ export default function RequestWithoutLogin() {
 
             setEmail('');
             setProblem('');
+            setTouched({ email: false, problem: false });
             setStatus({
                 type: 'success',
                 message: 'Request submitted successfully.',
@@ -95,6 +129,9 @@ export default function RequestWithoutLogin() {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        onBlur={() => handleBlur('email')}
+                        error={touched.email && !!validation.errors.email}
+                        helperText={touched.email && validation.errors.email}
                         required
                         fullWidth
                     />
@@ -105,8 +142,14 @@ export default function RequestWithoutLogin() {
                         rows={6}
                         value={problem}
                         onChange={(e) => setProblem(e.target.value)}
+                        onBlur={() => handleBlur('problem')}
+                        error={touched.problem && !!validation.errors.problem}
                         inputProps={{ maxLength: MAX_CHARACTERS }}
-                        helperText={`${problem.length}/${MAX_CHARACTERS} characters`}
+                        helperText={
+                            touched.problem && validation.errors.problem
+                                ? validation.errors.problem
+                                : `${problem.length}/${MAX_CHARACTERS} characters`
+                        }
                         required
                         fullWidth
                     />
@@ -129,7 +172,7 @@ export default function RequestWithoutLogin() {
                         <Button
                             type="submit"
                             variant="contained"
-                            disabled={isSubmitting || !email.trim() || !problem.trim()}
+                            disabled={isSubmitting || !validation.isValid}
                             sx={{ minWidth: 140 }}
                         >
                             {isSubmitting ? <CircularProgress size={20} color="inherit" /> : 'Submit'}

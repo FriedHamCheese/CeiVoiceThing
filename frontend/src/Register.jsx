@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Container,
@@ -12,8 +12,18 @@ import {
     Stack
 } from '@mui/material';
 import ReCAPTCHA from "react-google-recaptcha";
+import { z } from 'zod';
 import "./styles/main.css";
 import { useRegister } from './utils/authLogic';
+
+const registerSchema = z.object({
+    email: z.email('Enter a valid email address.').min(1, 'Email is required.'),
+    password: z.string().min(8, 'The password must be 8 characters or more.'),
+    confirmPassword: z.string().min(1, 'Please confirm your password.')
+}).refine(data => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"]
+});
 
 function Register() {
     const {
@@ -25,11 +35,35 @@ function Register() {
         emailError,
         success,
         captchaRef,
-        handleSubmit,
+        handleSubmit: authHandleSubmit,
         handleGoogleRegister,
     } = useRegister();
 
     const navigate = useNavigate();
+
+    const [touched, setTouched] = useState({ email: false, password: false, confirmPassword: false });
+
+    const validation = useMemo(() => {
+        const result = registerSchema.safeParse({ email, password, confirmPassword });
+        if (result.success) return { isValid: true, errors: {} };
+        const fieldErrors = {};
+        for (const issue of result.error.issues) {
+            const field = issue.path[0];
+            if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+        }
+        return { isValid: false, errors: fieldErrors };
+    }, [email, password, confirmPassword]);
+
+    const handleBlur = (field) => {
+        setTouched((prev) => ({ ...prev, [field]: true }));
+    };
+
+    const onSubmit = (e) => {
+        e.preventDefault();
+        setTouched({ email: true, password: true, confirmPassword: true });
+        if (!validation.isValid) return;
+        authHandleSubmit(e);
+    };
 
     useEffect(() => {
         if (success) {
@@ -53,7 +87,7 @@ function Register() {
                     Registration successful! Logging you in...
                 </Alert>
             ) : (
-                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+                <Box component="form" onSubmit={onSubmit} sx={{ mt: 2 }} noValidate>
                     <Stack spacing={3}>
                         <TextField
                             label="Email"
@@ -61,6 +95,8 @@ function Register() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            onBlur={() => handleBlur('email')}
+                            error={touched.email && !!validation.errors.email}
                             fullWidth
                             required
                         />
@@ -70,10 +106,22 @@ function Register() {
                             sx={{
                                 fontSize: '0.75rem',
                                 mt: -1.5,
-                                color: email.length === 0 ? 'text.secondary' : emailError ? 'error.main' : 'success.main',
+                                color: touched.email && validation.errors.email
+                                    ? 'error.main'
+                                    : emailError
+                                        ? 'error.main'
+                                        : (!touched.email && email.length === 0)
+                                            ? 'text.secondary'
+                                            : 'success.main',
                             }}
                         >
-                            {email.length === 0 ? 'Enter a valid email address' : emailError ?? 'Valid Email.'}
+                            {touched.email && validation.errors.email
+                                ? validation.errors.email
+                                : emailError
+                                    ? emailError
+                                    : (!touched.email && email.length === 0)
+                                        ? 'Enter a valid email address'
+                                        : 'Valid Email.'}
                         </Typography>
                         <TextField
                             label="Password"
@@ -81,6 +129,8 @@ function Register() {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            onBlur={() => handleBlur('password')}
+                            error={touched.password && !!validation.errors.password}
                             fullWidth
                             required
                         />
@@ -90,25 +140,27 @@ function Register() {
                             sx={{
                                 fontSize: '0.75rem',
                                 mt: -1.5,
-                                color: password.length === 0
-                                    ? 'text.secondary'
-                                    : password.length >= 8
-                                        ? 'success.main'
-                                        : 'error.main',
+                                color: touched.password && validation.errors.password
+                                    ? 'error.main'
+                                    : (!touched.password && password.length === 0)
+                                        ? 'text.secondary'
+                                        : 'success.main',
                             }}
                         >
-                            {password.length === 0
-                                ? 'The password must be 8 digits long or more.'
-                                : password.length >= 8
-                                    ? 'Valid Password.'
-                                    : 'The password must be 8 digits long or more.'}
-                         </Typography>
+                            {touched.password && validation.errors.password
+                                ? validation.errors.password
+                                : (!touched.password && password.length === 0)
+                                    ? 'The password must be 8 characters long or more.'
+                                    : 'Valid Password.'}
+                        </Typography>
                         <TextField
                             label="Confirm Password"
                             variant="outlined"
                             type="password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
+                            onBlur={() => handleBlur('confirmPassword')}
+                            error={touched.confirmPassword && !!validation.errors.confirmPassword}
                             fullWidth
                             required
                         />
@@ -118,10 +170,18 @@ function Register() {
                             sx={{
                                 fontSize: '0.75rem',
                                 mt: -1.5,
-                                color: confirmPassword.length === 0 ? 'text.secondary' : password !== confirmPassword ? 'error.main' : 'success.main',
+                                color: touched.confirmPassword && validation.errors.confirmPassword
+                                    ? 'error.main'
+                                    : (!touched.confirmPassword && confirmPassword.length === 0)
+                                        ? 'text.secondary'
+                                        : 'success.main',
                             }}
                         >
-                            {confirmPassword.length === 0 ? '' : password !== confirmPassword ? 'Passwords do not match.' : 'Password Matches.'}
+                            {touched.confirmPassword && validation.errors.confirmPassword
+                                ? validation.errors.confirmPassword
+                                : (!touched.confirmPassword && confirmPassword.length === 0)
+                                    ? ''
+                                    : 'Password Matches.'}
                         </Typography>
 
                         {/* Captcha Widget */}
@@ -139,12 +199,12 @@ function Register() {
                             type="submit"
                             size="large"
                             fullWidth
-                            disabled={!!emailError || password.length < 8 || password !== confirmPassword}
+                            disabled={!validation.isValid || !!emailError}
                             sx={{ py: 1.5, fontWeight: 'bold' }}
                         >
                             Register with Email
                         </Button>
-                        
+
                         {error && <Alert severity="error">{error}</Alert>}
 
                         <Divider sx={{ my: 2 }}>
@@ -159,7 +219,7 @@ function Register() {
                             sx={{ py: 1.5 }}
                         >
                             Sign up with Google
-                        
+
                         </Button>
                         <p className="auth-footer">
                             Have an account? <Link to="/login">Login.</Link>

@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export const useLogin = () => {
     const { login, API_URL } = useAuth();
@@ -8,6 +9,7 @@ export const useLogin = () => {
     const [captchaToken, setCaptchaToken] = useState(null);
     const [error, setError] = useState('');
     const captchaRef = useRef(null);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -41,6 +43,7 @@ export const useLogin = () => {
 
             if (data.success) {
                 login(data.user);
+                navigate('/track-request');
             }
         } catch (err) {
             setError('Network error: Could not connect to the server.');
@@ -73,6 +76,7 @@ export const useRegister = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const captchaRef = useRef(null);
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -111,6 +115,7 @@ export const useRegister = () => {
             if (data.success) {
                 setSuccess(true);
                 login(data.user);
+                navigate('/track-request');
             }
         } catch (err) {
             setError('Network error: Could not connect to the server.');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import SideBar from "./components/SideBar";
 import TopBar from "./components/TopBar";
@@ -7,9 +7,14 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import ReCAPTCHA from "react-google-recaptcha";
+import { z } from 'zod';
 import "./styles/main.css";
 import { useLogin } from './utils/authLogic';
 
+const loginSchema = z.object({
+    email: z.email('Enter a valid email address.').min(1, 'Email is required.'),
+    password: z.string().min(8, 'The password must be 8 characters or more.')
+});
 
 function Login() {
     const {
@@ -19,12 +24,36 @@ function Login() {
         error,
         emailError,
         captchaRef,
-        handleSubmit,
+        handleSubmit: authHandleSubmit,
         handleGoogleLogin,
     } = useLogin();
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+    const [touched, setTouched] = useState({ email: false, password: false });
+
+    const validation = useMemo(() => {
+        const result = loginSchema.safeParse({ email, password });
+        if (result.success) return { isValid: true, errors: {} };
+        const fieldErrors = {};
+        for (const issue of result.error.issues) {
+            const field = issue.path[0];
+            if (!fieldErrors[field]) fieldErrors[field] = issue.message;
+        }
+        return { isValid: false, errors: fieldErrors };
+    }, [email, password]);
+
+    const handleBlur = (field) => {
+        setTouched((prev) => ({ ...prev, [field]: true }));
+    };
+
+    const onSubmit = (e) => {
+        e.preventDefault();
+        setTouched({ email: true, password: true });
+        if (!validation.isValid) return;
+        authHandleSubmit(e);
+    };
 
     const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
 
@@ -46,13 +75,15 @@ function Login() {
                             </Typography>
 
                             {/* --- LOCAL LOGIN FORM --- */}
-                            <form onSubmit={handleSubmit} className="auth-form">
+                            <form onSubmit={onSubmit} className="auth-form" noValidate>
                                 <TextField
                                     label="Email"
                                     variant="outlined"
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
+                                    onBlur={() => handleBlur('email')}
+                                    error={touched.email && !!validation.errors.email}
                                     required
                                 />
                                 <Typography
@@ -61,10 +92,22 @@ function Login() {
                                     sx={{
                                         fontSize: '0.75rem',
                                         mt: -1.5,
-                                        color: email.length === 0 ? 'text.secondary' : emailError ? 'error.main' : 'success.main',
+                                        color: touched.email && validation.errors.email
+                                            ? 'error.main'
+                                            : emailError
+                                                ? 'error.main'
+                                                : (!touched.email && email.length === 0)
+                                                    ? 'text.secondary'
+                                                    : 'success.main',
                                     }}
                                 >
-                                    {email.length === 0 ? 'Enter a valid email address' : emailError ?? 'Valid Email.'}
+                                    {touched.email && validation.errors.email
+                                        ? validation.errors.email
+                                        : emailError
+                                            ? emailError
+                                            : (!touched.email && email.length === 0)
+                                                ? 'Enter a valid email address'
+                                                : 'Valid Email.'}
                                 </Typography>
                                 <TextField
                                     label="Password"
@@ -72,6 +115,8 @@ function Login() {
                                     type="password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    onBlur={() => handleBlur('password')}
+                                    error={touched.password && !!validation.errors.password}
                                     required
                                 />
                                 <p
@@ -80,18 +125,18 @@ function Login() {
                                         fontSize: '0.75rem',
                                         marginTop: '-6px',
                                         marginBottom: 0,
-                                        color: password.length === 0
-                                            ? 'var(--text-secondary)'
-                                            : password.length >= 8
-                                                ? 'var(--success-color)'
-                                                : 'var(--error-color)',
+                                        color: touched.password && validation.errors.password
+                                            ? 'var(--error-color)'
+                                            : (!touched.password && password.length === 0)
+                                                ? 'var(--text-secondary)'
+                                                : 'var(--success-color)'
                                     }}
                                 >
-                                    {password.length === 0
-                                        ? 'The password must be 8 digits long or more.'
-                                        : password.length >= 8
-                                            ? 'Valid Password.'
-                                            : 'The password must be 8 digits long or more.'}
+                                    {touched.password && validation.errors.password
+                                        ? validation.errors.password
+                                        : (!touched.password && password.length === 0)
+                                            ? 'The password must be 8 characters long or more.'
+                                            : 'Valid Password.'}
                                 </p>
 
                                 {/* Captcha Widget */}
@@ -109,7 +154,7 @@ function Login() {
                                     color="primary"
                                     type="submit"
                                     size="large"
-                                    disabled={!!emailError || password.length < 8}
+                                    disabled={!validation.isValid || !!emailError}
                                 >
                                     Login with Email
                                 </Button>
