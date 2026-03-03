@@ -5,49 +5,64 @@ import pool from './mysqlConnection.js';
  * @param {{startDate: string, endDate: string}} 
  * @returns {{totals: {totalTickets: number, solvedCount: number, avgResolutionHours: number, backlogCount: number}, statusBreakdown: {status: string, count: number}[], volumeByDate: {day: string, count: number}[], volumeByCategory: {category: string, count: number}[], backlogCount: number}}
  */
-const getAdminOverview = async ({ startDate, endDate }) => {
-    const dateParams = [startDate, endDate];
+const getAdminOverview = async ({ startDate, endDate, category, status }) => {
     const connection = await pool.getConnection();
 
     try {
+        let baseWhere = "t.status != 'draft' AND t.status != 'merged' AND t.createdAt >= ? AND t.createdAt < DATE_ADD(?, INTERVAL 1 DAY)";
+        const baseParams = [startDate, endDate];
+        let joinStr = "";
+
+        if (status) {
+            baseWhere += " AND t.status = ?";
+            baseParams.push(status);
+        }
+
+        if (category) {
+            joinStr = "JOIN TicketCategory tc_filter ON tc_filter.ticketID = t.id";
+            baseWhere += " AND tc_filter.category = ?";
+            baseParams.push(category);
+        }
+
         const [[totalRow]] = await connection.execute(
-            "SELECT COUNT(*) AS totalTickets FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
-            dateParams
+            `SELECT COUNT(DISTINCT t.id) AS totalTickets FROM Ticket t ${joinStr} WHERE ${baseWhere}`,
+            baseParams
         );
 
         const [[resolvedRow]] = await connection.execute(
-            "SELECT COUNT(*) AS solvedCount FROM Ticket WHERE status = 'solved' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
-            dateParams
+            `SELECT COUNT(DISTINCT t.id) AS solvedCount FROM Ticket t ${joinStr} WHERE ${baseWhere} AND t.status = 'solved'`,
+            baseParams
         );
 
         const [[avgRow]] = await connection.execute(
-            "SELECT AVG(TIMESTAMPDIFF(HOUR, createdAt, updatedAt)) AS avgResolutionHours FROM Ticket WHERE status = 'solved' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
-            dateParams
+            `SELECT AVG(TIMESTAMPDIFF(HOUR, t.createdAt, t.updatedAt)) AS avgResolutionHours FROM Ticket t ${joinStr} WHERE ${baseWhere} AND t.status = 'solved'`,
+            baseParams
         );
 
         const [statusRows] = await connection.execute(
-            "SELECT status, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY status",
-            dateParams
+            `SELECT t.status, COUNT(DISTINCT t.id) AS count FROM Ticket t ${joinStr} WHERE ${baseWhere} GROUP BY t.status`,
+            baseParams
         );
 
         const [volumeByDateRows] = await connection.execute(
-            "SELECT DATE(createdAt) AS day, COUNT(*) AS count FROM Ticket WHERE status != 'draft' AND status != 'merged' AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY DATE(createdAt) ORDER BY day ASC",
-            dateParams
+            `SELECT DATE(t.createdAt) AS day, COUNT(DISTINCT t.id) AS count FROM Ticket t ${joinStr} WHERE ${baseWhere} GROUP BY DATE(t.createdAt) ORDER BY day ASC`,
+            baseParams
         );
 
         const [volumeByCategoryRows] = await connection.execute(
-            `SELECT tc.category AS category, COUNT(*) AS count
-             FROM TicketCategory tc
-             JOIN Ticket t ON t.id = tc.ticketID
-             WHERE t.status != 'draft' AND t.createdAt >= ? AND t.createdAt < DATE_ADD(?, INTERVAL 1 DAY)
+            `SELECT tc.category AS category, COUNT(DISTINCT t.id) AS count
+             FROM Ticket t
+             ${joinStr}
+             JOIN TicketCategory tc ON t.id = tc.ticketID
+             WHERE ${baseWhere}
              GROUP BY tc.category
              ORDER BY count DESC`,
-            dateParams
+            baseParams
         );
 
         const [[backlogRow]] = await connection.execute(
-            "SELECT COUNT(*) AS backlogCount FROM Ticket WHERE status NOT IN ('solved','failed','draft','merged') AND createdAt >= ? AND createdAt < DATE_ADD(?, INTERVAL 1 DAY)",
-            dateParams
+            `SELECT COUNT(DISTINCT t.id) AS backlogCount FROM Ticket t ${joinStr} WHERE ${baseWhere} AND t.status NOT IN ('solved','failed')`,
+            baseParams
         );
 
         return {

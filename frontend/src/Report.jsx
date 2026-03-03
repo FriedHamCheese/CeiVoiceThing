@@ -10,6 +10,10 @@ import {
   Alert,
   useTheme,
   useMediaQuery,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import { useReportLogic } from './utils/reportLogic';
 import { MetricCard, BreakdownList, BreakdownPie } from './components/ReportComponents';
@@ -28,6 +32,12 @@ export default function ReportingDashboard({ mode }) {
     errorMessage,
     adminRange,
     setAdminRange,
+    presetRange,
+    setPresetRange,
+    filterType,
+    setFilterType,
+    filterValue,
+    setFilterValue,
     days,
     setDays,
     statusItems,
@@ -84,7 +94,7 @@ export default function ReportingDashboard({ mode }) {
             wordBreak: 'break-word',
           }}
         >
-          {isAdmin ? 'Admin Reporting Dashboard' : 'My Reporting Dashboard'}
+          {isAdmin ? 'Admin Reports' : 'Reports'}
         </Typography>
         <Typography
           variant="body2"
@@ -106,34 +116,111 @@ export default function ReportingDashboard({ mode }) {
       {/* ─── Filters ─── */}
       <Stack spacing={SPACING} sx={{ width: '100%', minWidth: 0, mb: 2 }}>
         {isAdmin ? (
-          <Grid container spacing={SPACING} sx={{ width: '100%', margin: 0 }}>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                size={isSmUp ? 'medium' : 'small'}
-                label="Start date"
-                type="date"
-                value={adminRange.startDate}
-                onChange={(e) =>
-                  setAdminRange((prev) => ({ ...prev, startDate: e.target.value }))
-                }
-                InputLabelProps={{ shrink: true }}
-              />
+          <Stack spacing={2} sx={{ width: '100%' }}>
+            <Grid container spacing={SPACING} sx={{ width: '100%', margin: 0 }}>
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth size={isSmUp ? 'medium' : 'small'}>
+                  <InputLabel shrink>Date Range</InputLabel>
+                  <Select
+                    value={presetRange}
+                    label="Date Range"
+                    notched
+                    displayEmpty
+                    onChange={(e) => setPresetRange(e.target.value)}
+                  >
+                    <MenuItem value="7">Last 7 Days</MenuItem>
+                    <MenuItem value="30">Last 30 Days</MenuItem>
+                    <MenuItem value="90">Last 90 Days</MenuItem>
+                    <MenuItem value="all">All Time</MenuItem>
+                    <MenuItem value="custom">Custom Range</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              {presetRange === 'custom' && (
+                <>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      size={isSmUp ? 'medium' : 'small'}
+                      label="Start date"
+                      type="date"
+                      value={adminRange.startDate}
+                      onChange={(e) =>
+                        setAdminRange((prev) => ({ ...prev, startDate: e.target.value }))
+                      }
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <TextField
+                      fullWidth
+                      size={isSmUp ? 'medium' : 'small'}
+                      label="End date"
+                      type="date"
+                      value={adminRange.endDate}
+                      onChange={(e) =>
+                        setAdminRange((prev) => ({ ...prev, endDate: e.target.value }))
+                      }
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                </>
+              )}
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                size={isSmUp ? 'medium' : 'small'}
-                label="End date"
-                type="date"
-                value={adminRange.endDate}
-                onChange={(e) =>
-                  setAdminRange((prev) => ({ ...prev, endDate: e.target.value }))
-                }
-                InputLabelProps={{ shrink: true }}
-              />
+            <Grid container spacing={SPACING} sx={{ width: '100%', margin: 0 }}>
+              <Grid item xs={12} sm={4}>
+                <FormControl fullWidth size={isSmUp ? 'medium' : 'small'}>
+                  <InputLabel shrink>Filter By</InputLabel>
+                  <Select
+                    value={filterType}
+                    label="Filter By"
+                    notched
+                    displayEmpty
+                    onChange={(e) => {
+                      setFilterType(e.target.value);
+                      setFilterValue('');
+                    }}
+                  >
+                    <MenuItem value="all">All Tickets</MenuItem>
+                    <MenuItem value="category">Category</MenuItem>
+                    <MenuItem value="status">Status</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              {filterType !== 'all' && (
+                <Grid item xs={12} sm={8}>
+                  {filterType === 'status' ? (
+                    <FormControl fullWidth size={isSmUp ? 'medium' : 'small'}>
+                      <InputLabel shrink>Status</InputLabel>
+                      <Select
+                        value={filterValue}
+                        label="Status"
+                        notched
+                        displayEmpty
+                        onChange={(e) => setFilterValue(e.target.value)}
+                      >
+                        <MenuItem value=""><em>Select Status</em></MenuItem>
+                        <MenuItem value="open">Open</MenuItem>
+                        <MenuItem value="in_progress">In Progress</MenuItem>
+                        <MenuItem value="solved">Solved</MenuItem>
+                        <MenuItem value="failed">Failed</MenuItem>
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <TextField
+                      fullWidth
+                      size={isSmUp ? 'medium' : 'small'}
+                      label="Category"
+                      placeholder="e.g. hardware, software"
+                      value={filterValue}
+                      onChange={(e) => setFilterValue(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  )}
+                </Grid>
+              )}
             </Grid>
-          </Grid>
+          </Stack>
         ) : (
           <TextField
             fullWidth

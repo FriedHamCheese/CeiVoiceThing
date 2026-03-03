@@ -3,10 +3,10 @@ import { useAuth } from '../context/AuthContext';
 
 const formatDateOnly = (date) => date.toISOString().slice(0, 10);
 
-const getDefaultRange = () => {
+const getDefaultRange = (days = 30) => {
     const end = new Date();
     const start = new Date();
-    start.setDate(end.getDate() - 30);
+    start.setDate(end.getDate() - days);
     return {
         startDate: formatDateOnly(start),
         endDate: formatDateOnly(end)
@@ -17,17 +17,43 @@ export const useReportLogic = (mode) => {
     const { user, API_URL } = useAuth();
     const isAdmin = mode === 'admin';
 
-    const [adminRange, setAdminRange] = useState(getDefaultRange());
+    const [presetRange, setPresetRange] = useState('30'); // '7', '30', '90', 'all', 'custom'
+    const [adminRange, setAdminRange] = useState(getDefaultRange(30));
+
+    // Filters
+    const [filterType, setFilterType] = useState('all'); // 'all', 'category', 'status'
+    const [filterValue, setFilterValue] = useState('');
+
     const [days, setDays] = useState(30);
     const [data, setData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState('');
+
+    // Update adminRange when presetRange changes
+    useEffect(() => {
+        if (presetRange !== 'custom' && presetRange !== 'all') {
+            setAdminRange(getDefaultRange(parseInt(presetRange, 10)));
+        } else if (presetRange === 'all') {
+            const end = new Date();
+            const start = new Date(2000, 0, 1); // some old date
+            setAdminRange({
+                startDate: formatDateOnly(start),
+                endDate: formatDateOnly(end)
+            });
+        }
+    }, [presetRange]);
 
     const fetchAdminOverview = useCallback(async () => {
         const params = new URLSearchParams({
             startDate: adminRange.startDate,
             endDate: adminRange.endDate
         });
+
+        if (filterType === 'category' && filterValue) {
+            params.append('category', filterValue);
+        } else if (filterType === 'status' && filterValue) {
+            params.append('status', filterValue);
+        }
 
         const response = await fetch(`${API_URL}/api/admin/reports?${params.toString()}`, {
             credentials: 'include'
@@ -39,7 +65,7 @@ export const useReportLogic = (mode) => {
         }
 
         return response.json();
-    }, [API_URL, adminRange]);
+    }, [API_URL, adminRange, filterType, filterValue]);
 
     const fetchAssigneeOverview = useCallback(async () => {
         if (!user?.email) throw new Error('Missing user email');
@@ -109,6 +135,9 @@ export const useReportLogic = (mode) => {
         isLoading,
         errorMessage,
         adminRange, setAdminRange,
+        presetRange, setPresetRange,
+        filterType, setFilterType,
+        filterValue, setFilterValue,
         days, setDays,
         statusItems,
         categoryItems,

@@ -9,7 +9,8 @@ const router = express.Router();
 router.get('/', validateRequest(reportAdminSchema), async (request, response) => {
 	try {
 		const { startDate, endDate } = parseRange(request.query);
-		const data = await getAdminOverview({ startDate, endDate });
+		const { category, status } = request.query;
+		const data = await getAdminOverview({ startDate, endDate, category, status });
 		response.json({
 			range: { startDate, endDate },
 			...data
