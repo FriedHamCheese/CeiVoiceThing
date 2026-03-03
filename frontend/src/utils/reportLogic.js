@@ -29,7 +29,7 @@ export const useReportLogic = (mode) => {
             endDate: adminRange.endDate
         });
 
-        const response = await fetch(`${API_URL}/admin/reports?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/api/admin/reports?${params.toString()}`, {
             credentials: 'include'
         });
 
@@ -49,7 +49,7 @@ export const useReportLogic = (mode) => {
             days: String(days)
         });
 
-        const response = await fetch(`${API_URL}/assignee/reports?${params.toString()}`, {
+        const response = await fetch(`${API_URL}/api/assignee/reports?${params.toString()}`, {
             credentials: 'include'
         });
 

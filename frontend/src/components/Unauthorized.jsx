@@ -1,26 +1,65 @@
 import React, { useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Box, Typography, Button, Container, Paper } from '@mui/material';
+import LockPersonIcon from '@mui/icons-material/LockPerson';
 
 const Unauthorized = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            navigate('/');
-        }, 3000); // Redirect after 3 seconds
+            navigate('/track-request');
+        }, 5000); // Redirect after 5 seconds
 
         return () => clearTimeout(timer); // Cleanup timer on unmount
     }, [navigate]);
 
     return (
-        <div className="page-transition flex flex-col items-center justify-center h-screen bg-gray-100">
-            <h1 className="text-4xl font-bold text-red-600 mb-4">403 - Unauthorized</h1>
-            <p className="text-lg text-gray-700 mb-2">You do not have permission to view this page.</p>
-            <p className="text-sm text-gray-500 mb-8">Redirecting to home in 3 seconds...</p>
-            <Link to="/" className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300">
-                Go to Home
-            </Link>
-        </div>
+        <Container component="main" maxWidth="sm">
+            <Box
+                sx={{
+                    marginTop: 8,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                }}
+            >
+                <Paper
+                    elevation={3}
+                    sx={{
+                        p: 5,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        borderRadius: 3,
+                        bgcolor: 'background.paper',
+                    }}
+                >
+                    <LockPersonIcon sx={{ fontSize: 60, color: 'error.main', mb: 2 }} />
+                    <Typography component="h1" variant="h3" color="error" fontWeight="bold" gutterBottom>
+                        403
+                    </Typography>
+                    <Typography variant="h5" color="text.primary" gutterBottom>
+                        Unauthorized Access
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 1 }}>
+                        You do not have permission to view this page.
+                    </Typography>
+                    <Typography variant="body2" color="text.disabled" sx={{ mb: 4 }}>
+                        Redirecting to home in 5 seconds...
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => navigate('/track-request')}
+                        size="large"
+                        sx={{ borderRadius: 2, px: 4 }}
+                    >
+                        Go to Home
+                    </Button>
+                </Paper>
+            </Box>
+        </Container>
     );
 };
 

@@ -9,7 +9,7 @@ dotenv.config();
 
 const router = express.Router();
 
-const FRONTEND_URL = `https://localhost:${process.env.FRONTEND_PORT}`;
+const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
 
 router.post('/login', validateRequest(loginLocalSchema), loginLocal);
 router.post('/register', validateRequest(registerSchema), register);
@@ -35,14 +35,14 @@ router.get('/session', (req, res) => {
 });
 
 
-router.get('/logout', (req, res) => {
+router.post('/logout', (req, res) => {
     req.logout(() => {
         res.redirect(FRONTEND_URL);
     });
 });
 
 // TEMPORARY: Role assignment for testing
-router.post('/role', async (req, res) => {
+router.patch('/role', async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ message: 'Not authenticated' });
     const { role } = req.body;
     const email = req.user.email;

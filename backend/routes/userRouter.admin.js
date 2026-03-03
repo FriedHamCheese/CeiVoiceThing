@@ -28,7 +28,7 @@ router.get('/', async (request, response) => {
     response.json(allUsers);
 });
 
-router.post('/setUserRole', validateRequest(setUserRoleSchema), async (request, response) => {
+router.patch('/role', validateRequest(setUserRoleSchema), async (request, response) => {
     /*
      Endpoint setting permission of a user. 
      Demoting a specialist to a user will remove their associated scope tags.
@@ -70,7 +70,7 @@ router.post('/setUserRole', validateRequest(setUserRoleSchema), async (request, 
     response.status(HTTP_STATUS_FOR_OK).json({});
 });
 
-router.get('/getScopeTags', validateRequest(getScopeTagsSchema), async (request, response) => {
+router.get('/scope-tags', validateRequest(getScopeTagsSchema), async (request, response) => {
     /*
     Endpoint returning all scope tags of a specialist.
     
@@ -104,7 +104,7 @@ router.get('/getScopeTags', validateRequest(getScopeTagsSchema), async (request,
     response.json(scopeTags);
 });
 
-router.post('/setScopeTags', validateRequest(setScopeTagsSchema), async (request, response) => {
+router.put('/scope-tags', validateRequest(setScopeTagsSchema), async (request, response) => {
     /*
      Endpoint for setting scope tags of a user.
      

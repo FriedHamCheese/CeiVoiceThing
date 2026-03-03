@@ -18,7 +18,7 @@ export const useAssigneeProfile = () => {
         if (!user) return;
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/assignee/profile`, {
+            const response = await fetch(`${API_URL}/api/assignees/self-scope`, {
                 credentials: 'include'
             });
             if (!response.ok) throw new Error(`Server returned status ${response.status}`);
@@ -46,7 +46,7 @@ export const useAssigneeProfile = () => {
         setIsSaving(true);
         setMessage({ type: '', text: '' });
         try {
-            const response = await fetch(`${API_URL}/assignee/profile`, {
+            const response = await fetch(`${API_URL}/api/assignees/self-scope`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

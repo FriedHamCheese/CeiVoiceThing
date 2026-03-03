@@ -28,7 +28,7 @@ export const useDashboardTickets = () => {
         if (!user) return;
 
         try {
-            const endpoint = user.perm === 4 ? `${API_URL}/admin/tickets` : `${API_URL}/assignee/tickets`;
+            const endpoint = user.perm === 4 ? `${API_URL}/api/admin/tickets` : `${API_URL}/api/assignee/tickets`;
             const response = await fetch(endpoint, {
                 credentials: 'include' // Ensure cookies are sent for auth check
             });
@@ -49,7 +49,7 @@ export const useDashboardTickets = () => {
     const fetchRecommendations = useCallback(async () => {
         setIsRecommending(true);
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/recommend-merges`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/admin/tickets/recommend-merges`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setRecommendations(data.recommendations || []);
@@ -63,14 +63,14 @@ export const useDashboardTickets = () => {
 
     const fetchAssignees = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/assignees`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/admin/tickets/assignees`, { credentials: 'include' });
             if (response.ok) setAssignees(await response.json());
         } catch (err) { console.error("Failed to fetch assignees", err); }
     }, [API_URL]);
 
     const fetchCategories = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/tickets/scope`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/scope`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setCategories(data);
@@ -93,28 +93,28 @@ export const useDashboardTickets = () => {
     // Sub-fetchers
     const fetchComments = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/comments`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/${id}/comments`, { credentials: 'include' });
             if (response.ok) setComments(await response.json());
         } catch (err) { console.error("Failed to fetch comments", err); }
     };
 
     const fetchHistory = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${id}/history`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/admin/tickets/${id}/history`, { credentials: 'include' });
             if (response.ok) setHistory(await response.json());
         } catch (err) { console.error("Failed to fetch history", err); }
     };
 
     const fetchLinkedRequests = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${id}/requests`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/admin/tickets/${id}/requests`, { credentials: 'include' });
             if (response.ok) setLinkedRequests(await response.json());
         } catch (err) { console.error("Failed to fetch linked requests", err); }
     };
 
     const fetchFollowStatus = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/is_following`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/${id}/is_following`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setIsFollowing(data.isFollowing);
@@ -137,7 +137,7 @@ export const useDashboardTickets = () => {
     const handleUpdateDraft = async (id, updates) => {
         setIsUpdating(true);
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${id}`, {
+            const response = await fetch(`${API_URL}/api/admin/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates),
@@ -153,7 +153,7 @@ export const useDashboardTickets = () => {
 
     const handleUnlinkRequest = async (ticketId, requestId) => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${ticketId}/unlink/${requestId}`, {
+            const response = await fetch(`${API_URL}/api/admin/tickets/${ticketId}/unlink/${requestId}`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -170,7 +170,7 @@ export const useDashboardTickets = () => {
     const handleUpdateTicket = async (id, updates) => {
         setIsUpdating(true);
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${id}`, {
+            const response = await fetch(`${API_URL}/api/admin/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates),
@@ -188,7 +188,7 @@ export const useDashboardTickets = () => {
     const handleAddComment = async (id) => {
         if (!newComment.trim()) return;
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/comment`, {
+            const response = await fetch(`${API_URL}/api/tickets/${id}/comment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -207,7 +207,7 @@ export const useDashboardTickets = () => {
     const promoteTicket = async () => {
         if (!viewingTicket) return;
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/${viewingTicket.id}`, {
+            const response = await fetch(`${API_URL}/api/admin/tickets/${viewingTicket.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: 'New' }),
@@ -222,7 +222,7 @@ export const useDashboardTickets = () => {
 
     const handleToggleFollow = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/follow`, {
+            const response = await fetch(`${API_URL}/api/tickets/${id}/follow`, {
                 method: 'POST',
                 credentials: 'include'
             });

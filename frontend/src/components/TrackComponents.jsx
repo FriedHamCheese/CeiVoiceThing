@@ -122,12 +122,12 @@ export const TrackDetails = ({ ticketStatus, getStep, steps, user, setTicketStat
 
     return (
         <Box>
-                <Button variant="text" onClick={() => {
-                    setTicketStatus(null);
-                    setViewMode(user ? 'list' : 'search');
-                }} sx={{ mt: 4 }}>
-                    ← Back to {user ? 'My Requests' : 'Search'}
-                </Button>
+            <Button variant="text" onClick={() => {
+                setTicketStatus(null);
+                setViewMode(user ? 'list' : 'search');
+            }} sx={{ mt: 4 }}>
+                ← Back to {user ? 'My Requests' : 'Search'}
+            </Button>
             <Box
                 display="flex"
                 justifyContent="space-between"
@@ -164,6 +164,15 @@ export const TrackDetails = ({ ticketStatus, getStep, steps, user, setTicketStat
             </Stepper>
 
             <Divider sx={{ my: 4 }} />
+
+            {ticketStatus.resolutionComment && (
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" gutterBottom fontWeight="bold">Resolution Comment</Typography>
+                    <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default', wordBreak: 'break-word' }}>
+                        <Typography variant="body1">{ticketStatus.resolutionComment}</Typography>
+                    </Paper>
+                </Box>
+            )}
 
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">History</Typography>

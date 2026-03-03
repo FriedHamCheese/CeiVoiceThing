@@ -109,7 +109,7 @@ export default function DashboardTicketView({
             const fetchCreatorInfo = async () => {
                 setLoadingCreator(true);
                 try {
-                    const response = await fetch(`${API_URL}/tickets/creator/${viewingTicket.id}`, {
+                    const response = await fetch(`${API_URL}/api/tickets/creator/${viewingTicket.id}`, {
                         credentials: 'include'
                     });
                     if (response.ok) {
@@ -144,15 +144,16 @@ export default function DashboardTicketView({
         }
     };
 
-    const submitResolution = () => {
+    const submitResolution = async () => {
         if (!localResolutionComment.trim()) {
             alert("Resolution comment is required for Solved or Failed status.");
             return;
         }
-        handleUpdateTicket(viewingTicket.id, {
+        await handleUpdateTicket(viewingTicket.id, {
             status: localStatus,
             resolutionComment: localResolutionComment
         });
+        setViewingTicket(null);
     };
 
     if (!viewingTicket) return null;

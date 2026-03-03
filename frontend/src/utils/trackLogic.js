@@ -9,6 +9,7 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
     const [inputToken, setInputToken] = useState(tokenFromParams || '');
     const [email, setEmail] = useState(searchParamsEmail || (user ? user.email : ''));
     const [ticketStatus, setTicketStatus] = useState(null);
+    const [resolutionComment, setResolutionComment] = useState(null);
     const [userTickets, setUserTickets] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -33,13 +34,9 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
         if (!user) return;
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/tickets/requests`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email: user.email }),
+            const response = await fetch(`${API_URL}/api/tickets/requests?email=${encodeURIComponent(user.email)}`, {
+                method: 'GET',
+                credentials: 'include'
             });
             if (response.ok) {
                 setUserTickets(await response.json());
@@ -61,7 +58,7 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/public/tickets/track/${t}?email=${encodeURIComponent(em)}`, {
+            const response = await fetch(`${API_URL}/api/public/tickets/track/${t}?email=${encodeURIComponent(em)}`, {
                 credentials: 'include'
             });
             const data = await response.json();
@@ -85,7 +82,7 @@ export const useTrackTicket = (propToken, urlToken, searchParamsEmail) => {
         const currentToken = tokenFromParams || inputToken || (ticketStatus ? ticketStatus.token : null);
 
         try {
-            const response = await fetch(`${API_URL}/public/tickets/track/${currentToken}/comment`, {
+            const response = await fetch(`${API_URL}/api/public/tickets/track/${currentToken}/comment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: user ? user.email : email, text: newComment }),

@@ -80,21 +80,18 @@ export async function draftTicketFromUserRequest(userRequestText) {
 
         const cleanSummary = cleanString(summary, 2048);
 
-        console.time("⏱️  Step 2: Title & Solution Gen (Parallel)");
-        const [title, solutions] = await Promise.all([
+        console.time("⏱️  Step 2: Title & Solution Gen & Assignee (Parallel)");
+        const [title, solutions, assignedAgent] = await Promise.all([
             askOracle(
                 `Generate a title for this support ticket as short as possible.
                 Provide ONLY the title, with no introductory text. "${cleanSummary}"`
             ),
             askOracle(
                 `Suggest 3 solutions for this support request. as short and concise as possible."${cleanSummary}"`
-            )
+            ),
+            getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL)
         ]);
-        console.timeEnd("⏱️  Step 2: Title & Solution Gen (Parallel)");
-
-        console.time("⏱️  Step 3: Assignee Lookup");
-        const assignedAgent = await getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL);
-        console.timeEnd("⏱️  Step 3: Assignee Lookup");
+        console.timeEnd("⏱️  Step 2: Title & Solution Gen & Assignee (Parallel)");
 
         const result = {
             title: cleanString(title, 128),

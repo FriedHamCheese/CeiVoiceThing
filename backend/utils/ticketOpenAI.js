@@ -72,8 +72,8 @@ export async function draftTicketFromUserRequest(userRequestText) {
         const cleanSummary = cleanString(summary, 2048);
 
         // 3. Timer for Phase 2 (Parallel Title & Solution Gen)
-        console.time("⏱️  Step 2: Title & Solution Gen (Parallel)");
-        const [title, solutions] = await Promise.all([
+        console.time("⏱️  Step 2: Title & Solution Gen & Assignee (Parallel)");
+        const [title, solutions, assignedAgent] = await Promise.all([
             askOpenAI(
                 `Generate a short, concise title (under 10 words) for this support ticket.
                  Based ONLY on this summary: "${cleanSummary}"`
@@ -81,14 +81,10 @@ export async function draftTicketFromUserRequest(userRequestText) {
             askOpenAI(
                 `Suggest 3 short, actionable solutions or next steps for this issue.
                  Based ONLY on this summary: "${cleanSummary}"`
-            )
+            ),
+            getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL)
         ]);
-        console.timeEnd("⏱️  Step 2: Title & Solution Gen (Parallel)");
-
-        // 4. Timer for Phase 3 (DB Lookup)
-        console.time("⏱️  Step 3: Assignee Lookup");
-        const assignedAgent = await getAssigneeForScope(pool, category, SAFETY_FALLBACK_EMAIL);
-        console.timeEnd("⏱️  Step 3: Assignee Lookup");
+        console.timeEnd("⏱️  Step 2: Title & Solution Gen & Assignee (Parallel)");
 
         const result = {
             title: cleanString(title, 128),

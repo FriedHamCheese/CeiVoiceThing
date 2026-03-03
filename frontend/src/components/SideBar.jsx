@@ -93,12 +93,12 @@ export default function SideBar({ toggleSidebar }) {
                             </span>
                         </button>
                         <button
-                            className={isActive('/')}
-                            onClick={() => navigate('/')}
+                            className={isActive('/request-authed')}
+                            onClick={() => navigate('/request-authed')}
                         >
                             <span className="sidebar-btn-content">
                                 <PostAddIcon sx={{ fontSize: 20 }} />
-                                Create new ticket
+                                Submit Request
                             </span>
                         </button>
                         {user.perm === 4 && (

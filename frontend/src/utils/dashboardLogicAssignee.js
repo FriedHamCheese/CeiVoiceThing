@@ -22,7 +22,7 @@ export const useDashboardTicketsSpecialist = () => {
         if (!user) return;
 
         try {
-            const endpoint = `${API_URL}/assignee/tickets`;
+            const endpoint = `${API_URL}/api/assignee/tickets`;
             const response = await fetch(endpoint, {
                 credentials: 'include'
             });
@@ -42,7 +42,7 @@ export const useDashboardTicketsSpecialist = () => {
 
     const fetchSpecialists = useCallback(async () => {
         try {
-            const response = await fetch(`${API_URL}/tickets/assignees`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/assignees`, { credentials: 'include' });
             if (response.ok) setSpecialists(await response.json());
         } catch (err) { console.error("Failed to fetch specialists", err); }
     }, [API_URL]);
@@ -62,21 +62,21 @@ export const useDashboardTicketsSpecialist = () => {
     // Sub-fetchers
     const fetchComments = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/comments`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/${id}/comments`, { credentials: 'include' });
             if (response.ok) setComments(await response.json());
         } catch (err) { console.error("Failed to fetch comments", err); }
     };
 
     const fetchHistory = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/assignee/tickets/${id}/history`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/assignee/tickets/${id}/history`, { credentials: 'include' });
             if (response.ok) setHistory(await response.json());
         } catch (err) { console.error("Failed to fetch history", err); }
     };
 
     const fetchFollowStatus = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/is_following`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/${id}/is_following`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setIsFollowing(data.isFollowing);
@@ -86,7 +86,7 @@ export const useDashboardTicketsSpecialist = () => {
 
     const fetchLinkedRequests = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/assignee/tickets/${id}/requests`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/assignee/tickets/${id}/requests`, { credentials: 'include' });
             if (response.ok) setLinkedRequests(await response.json());
         } catch (err) { console.error("Failed to fetch linked requests", err); }
     };
@@ -103,7 +103,7 @@ export const useDashboardTicketsSpecialist = () => {
     const handleUpdateTicket = async (id, updates) => {
         setIsUpdating(true);
         try {
-            const response = await fetch(`${API_URL}/assignee/tickets/${id}`, {
+            const response = await fetch(`${API_URL}/api/assignee/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates),
@@ -124,7 +124,7 @@ export const useDashboardTicketsSpecialist = () => {
     const handleAddComment = async (id) => {
         if (!newComment.trim()) return;
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/comment`, {
+            const response = await fetch(`${API_URL}/api/tickets/${id}/comment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -144,7 +144,7 @@ export const useDashboardTicketsSpecialist = () => {
 
     const handleToggleFollow = async (id) => {
         try {
-            const response = await fetch(`${API_URL}/tickets/${id}/follow`, {
+            const response = await fetch(`${API_URL}/api/tickets/${id}/follow`, {
                 method: 'POST',
                 credentials: 'include'
             });

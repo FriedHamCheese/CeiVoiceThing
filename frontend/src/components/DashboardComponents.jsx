@@ -13,7 +13,7 @@ const API_URL = `http://${API_HOST}:${API_PORT}`;
  * Decoupling this makes it easier to test and reuse.
  */
 async function promoteTicketToNew(ticketID, userEmail) {
-    const url = `${API_URL}/admin/tickets/${ticketID}`;
+    const url = `${API_URL}/api/admin/tickets/${ticketID}`;
 
     const response = await fetch(url, {
         method: 'PATCH',

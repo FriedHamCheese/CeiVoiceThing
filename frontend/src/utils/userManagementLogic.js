@@ -11,7 +11,7 @@ export const useUserManagement = () => {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/admin/users`, {
+            const response = await fetch(`${API_URL}/api/admin/users`, {
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
             });
@@ -32,7 +32,7 @@ export const useUserManagement = () => {
     const updateUserRole = async (email, newPerm) => {
         setError('');
         try {
-            const response = await fetch(`${API_URL}/admin/users/${email}/role`, {
+            const response = await fetch(`${API_URL}/api/admins/users/${email}/role`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -60,7 +60,7 @@ export const useUserManagement = () => {
 
     const fetchUserScopeTags = async (email) => {
         try {
-            const response = await fetch(`${API_URL}/admin/users/getScopeTags`, {
+            const response = await fetch(`${API_URL}/api/admin/users/scope-tags`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -82,8 +82,8 @@ export const useUserManagement = () => {
 
     const updateUserScopeTags = async (email, scopeTags) => {
         try {
-            const response = await fetch(`${API_URL}/admin/users/setScopeTags`, {
-                method: 'POST',
+            const response = await fetch(`${API_URL}/api/admin/users/scope-tags`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ email, scopeTags }),
@@ -102,7 +102,7 @@ export const useUserManagement = () => {
 
     const fetchScopeTags = async () => {
         try {
-            const response = await fetch(`${API_URL}/admin/tickets/scope`, { credentials: 'include' });
+            const response = await fetch(`${API_URL}/api/tickets/scope`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 setScopeTags(data);

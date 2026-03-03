@@ -90,7 +90,7 @@ export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets
     async function sendMergeRequest() {
         let response = null;
         try {
-            response = await fetch(`${API_URL}/admin/tickets/merge/`, {
+            response = await fetch(`${API_URL}/api/admin/tickets/merge`, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

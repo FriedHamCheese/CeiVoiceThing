@@ -25,7 +25,7 @@ export const useLogin = () => {
         }
 
         try {
-            const response = await fetch(`${API_URL}/auth/login`, {
+            const response = await fetch(`${API_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -52,7 +52,7 @@ export const useLogin = () => {
     };
 
     const handleGoogleLogin = () => {
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = `${API_URL}/api/auth/google`;
     };
 
     return {
@@ -96,7 +96,7 @@ export const useRegister = () => {
         }
 
         try {
-            const response = await fetch(`${API_URL}/auth/register`, {
+            const response = await fetch(`${API_URL}/api/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -124,7 +124,7 @@ export const useRegister = () => {
     };
 
     const handleGoogleRegister = () => {
-        window.location.href = `${API_URL}/auth/google`;
+        window.location.href = `${API_URL}/api/auth/google`;
     };
 
     return {

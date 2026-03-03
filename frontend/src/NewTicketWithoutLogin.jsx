@@ -70,7 +70,7 @@ export default function RequestWithoutLogin() {
         setStatus({ type: '', message: '', trackingToken: '', submittedEmail: '' });
 
         try {
-            const response = await fetch(`${API_URL}/public/tickets/request`, {
+            const response = await fetch(`${API_URL}/api/public/tickets/request`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

@@ -33,7 +33,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.SERVER_PORT;
-const FRONTEND_URL = `https://localhost:${process.env.FRONTEND_PORT}`;
+const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
 
 app.use(helmet());
 app.use(cors({
@@ -67,34 +67,23 @@ app.use(passport.session());
 // Initialize passport strategies
 configurePassport(passport);
 
-app.use('/auth', authRoutes);
-app.use('/tickets', isAuthenticated, ticketRoutes);
-app.use('/public/tickets', ticketPublicRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/tickets', isAuthenticated, ticketRoutes);
+app.use('/api/public/tickets', ticketPublicRoutes);
 
 //Assignee
-app.use('/assignee/reports', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], reportAssigneeRoutes);
-app.use('/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketAssigneeRoutes);
-app.use('/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketInternalRoutes);
-app.use('/assignee', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], assigneeRoutes);
+app.use('/api/assignee/reports', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], reportAssigneeRoutes);
+app.use('/api/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketAssigneeRoutes);
+app.use('/api/assignee/tickets', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], ticketInternalRoutes);
+app.use('/api/assignees', [isAuthenticated, restrictTo(ROLES.ASSIGNEE)], assigneeRoutes);
 
 //Admin
-app.use('/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketAdminRoutes);
-app.use('/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketInternalRoutes);
-app.use('/admin/reports', [isAuthenticated, restrictTo(ROLES.ADMIN)], reportAdminRoutes);
-app.use('/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdminRoutes);
-app.use('/admin', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
+app.use('/api/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketAdminRoutes);
+app.use('/api/admin/tickets', [isAuthenticated, restrictTo(ROLES.ADMIN)], ticketInternalRoutes);
+app.use('/api/admin/reports', [isAuthenticated, restrictTo(ROLES.ADMIN)], reportAdminRoutes);
+app.use('/api/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdminRoutes);
+app.use('/api/admins', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
 
-if (process.env.USE_HTTPS) {
-  const httpsServer = https.createServer({
-    cert: nodefilesystem.readFileSync('./creds/.crt'),
-    key: nodefilesystem.readFileSync('./creds/.key'),
-  }, app);
-
-  httpsServer.listen(PORT, () => {
-    console.log(`Server is running on https://localhost:${PORT}`);
-  });
-} else {
-  app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});

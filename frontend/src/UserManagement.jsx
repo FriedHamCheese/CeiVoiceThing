@@ -16,7 +16,7 @@ export default function ViewAllUsers() {
     async function getAllUsers() {
         let response;
         try {
-            response = await fetch(`${API_URL}/admin/users/`, { method: "GET", credentials: 'include' });
+            response = await fetch(`${API_URL}/api/admin/users/`, { method: "GET", credentials: 'include' });
         } catch (err) {
             if (err instanceof TypeError)
                 return setErrorMessage("Couldn't connect to server.");
@@ -46,7 +46,7 @@ export default function ViewAllUsers() {
     async function getAllScopeTags() {
         let response;
         try {
-            response = await fetch(`${API_URL}/admin/scope-tags/`, { method: "GET", credentials: 'include' });
+            response = await fetch(`${API_URL}/api/tickets/scope`, { method: "GET", credentials: 'include' });
         } catch (err) {
             if (err instanceof TypeError)
                 return setErrorMessage("Couldn't connect to server.");
@@ -82,6 +82,7 @@ export default function ViewAllUsers() {
                 editingScopeTag && <ScopeTagEditWindow
                     userObject={scopeEditingUserObject}
                     windowOpen={editingScopeTag}
+                    refreshPage={getAllUsers}
                     closeSelf={() => {
                         setEditingScopeTag(editingScopeTag => false);
                     }}

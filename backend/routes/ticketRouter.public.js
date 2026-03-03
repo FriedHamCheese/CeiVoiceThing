@@ -1,8 +1,126 @@
 import express from 'express';
+import { v4 as uuidv4 } from 'uuid'
 import mysqlConnection from '../utils/mysqlConnection.js';
-import { sendCommentNotificationEmail } from '../utils/email.js';
+import { draftTicketFromUserRequest } from '../utils/ticketOpenAI.js';
+import { sendConfirmationEmail, sendCommentNotificationEmail } from '../utils/email.js';
+import { validateRequest } from '../middleware/validate.js';
+import { createRequestSchema } from '../schemas/ticketRouterPublic.schema.js';
 
 const router = express.Router();
+
+router.post('/request', validateRequest(createRequestSchema), async (request, response) => {
+    const HTTP_STATUS_OK = 200;
+    const HTTP_STATUS_SERVER_ERROR = 500;
+
+    const { requestText, fromEmail } = request.body;
+    const trackingToken = uuidv4();
+    let connection;
+    try {
+        connection = await mysqlConnection.getConnection();
+        await connection.beginTransaction();
+
+        //Optimize database interaction by parallelizing the requests.
+        const userFlowPromise = (async () => {
+            await connection.execute(
+                'INSERT IGNORE INTO Users (email, name, perm) VALUES (?, ?, ?)',
+                [fromEmail, fromEmail.split('@')[0], 1]
+            );
+
+            const [userRequestRes] = await connection.execute(
+                'INSERT INTO UserRequest (userEmail, requestContents, tracking_token) VALUES (?, ?, ?)',
+                [fromEmail, requestText, trackingToken]
+            );
+
+            return userRequestRes.insertId;
+        })();
+
+        // 2. Define the "Assignee Fetching" flow (Independent)
+        const assigneePromise = (async () => {
+            const [assigneesRows] = await connection.execute(`
+                SELECT u.email, GROUP_CONCAT(ss.scopeTag SEPARATOR ', ') as scopes
+                FROM Users u
+                LEFT JOIN AssigneeScope ss ON u.email = ss.userEmail
+                WHERE u.perm = 2
+                GROUP BY u.email
+            `);
+            return assigneesRows.map(row => `${row.email}: [${row.scopes || ''}]`).join('\n');
+        })();
+
+        const [insertedUserRequestID, commaSeparatedAssignees] = await Promise.all([
+            userFlowPromise,
+            assigneePromise
+        ]);
+
+        const draftTicketSuggestions = await draftTicketFromUserRequest(requestText);
+
+        // Fast Fail
+        if (typeof draftTicketSuggestions === "string") {
+            console.error("AI Summary Error Body:", draftTicketSuggestions);
+            throw new Error(`AI Summary failed: ${draftTicketSuggestions}`);
+        }
+
+        // Get ID by inserting
+        const [draftRes] = await connection.execute(
+            'INSERT INTO Ticket (userRequestID, title, summary, solution, status) VALUES (?, ?, ?, ?, ?)',
+            [insertedUserRequestID, draftTicketSuggestions.title, draftTicketSuggestions.summary, draftTicketSuggestions.suggestedSolutions, 'draft']
+        );
+        const insertedTicketID = draftRes.insertId;
+
+        // 3. Prepare Data for Parallel Execution
+        // Database Task, Category, Assignee, Follower
+        const dbTasks = [];
+        const uniqueCategories = new Set(
+            draftTicketSuggestions.categories.map(c => c.trim().substring(0, 32))
+        );
+        //Using x.push(sql_queries) does not wait for sql to finish.        
+        dbTasks.push(connection.execute(
+            'INSERT INTO TicketUserRequest (userRequestID, ticketID) VALUES (?, ?)',
+            [insertedUserRequestID, insertedTicketID]
+        ));
+        dbTasks.push(connection.execute(
+            "INSERT INTO TicketFollower (ticketID, userEmail) VALUES (?, ?)",
+            [insertedTicketID, fromEmail]
+        ));
+        if (draftTicketSuggestions.suggestedAssignee) {
+            dbTasks.push(connection.execute(
+                "INSERT INTO TicketAssignee (ticketID, assigneeEmail) VALUES (?, ?)",
+                [insertedTicketID, draftTicketSuggestions.suggestedAssignee]
+            ));
+        }
+
+        if (uniqueCategories.size > 0) {
+            // Create placeholders: (?, ?), (?, ?)
+            const placeholders = Array.from(uniqueCategories).map(() => '(?, ?)').join(', ');
+            const values = [];
+            uniqueCategories.forEach(cat => values.push(insertedTicketID, cat));
+
+            dbTasks.push(connection.execute(
+                `INSERT INTO TicketCategory (ticketID, category) VALUES ${placeholders}`,
+                values
+            ));
+        }
+
+        //wait for all tasks to complete
+        await Promise.all(dbTasks);
+        await connection.commit();
+
+        //Then send email.
+        sendConfirmationEmail(fromEmail, trackingToken)
+            .catch(err => console.error("Email send failed:", err));
+
+        response.status(HTTP_STATUS_OK).json({
+            message: 'Draft ticket created successfully.',
+            trackingToken: trackingToken
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error(error);
+        response.status(HTTP_STATUS_SERVER_ERROR).json({ message: "Internal server error." });
+    } finally {
+        if (connection) connection.release();
+    }
+});
 
 // Get Ticket Details
 // Mounted at /public/tickets -> GET /ticket/:id
@@ -97,13 +215,26 @@ router.get('/track/:token', async (request, response) => {
             [ticket.id]
         );
 
+        let message = "";
+        if (ticket.status === "New") {
+            message = "Your request has been accepted and is currently in our active workflow.";
+        } else if (ticket.status === "Assigned") {
+            message = "Your request is assigned to responsible personnel.";
+        } else if (ticket.status === "Solving") {
+            message = "Your request is being worked on.";
+        } else if (ticket.status === "Solved") {
+            message = "Your request has been solved.";
+        } else if (ticket.status === "Failed") {
+            message = "Your request has failed.";
+        }
+
         return response.json({
             id: ticket.id,
             status: ticket.status || "New",
             title: ticket.title,
             details: ticket.requestContents,
             resolutionComment: ticket.resolutionComment,
-            message: "Your request has been accepted and is currently in our active workflow.",
+            message: message,
             comments: comments,
             assignees: assignees,
             history: history

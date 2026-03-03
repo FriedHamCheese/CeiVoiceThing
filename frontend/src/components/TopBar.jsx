@@ -29,41 +29,41 @@ export default function TopBar({ isSidebarOpen, toggleSidebar }) {
                 {user && (
                     <div className="user-welcome-container">
                         <div className="role-buttons-container">
-                        {[
-                            { label: 'User', value: 1, color: '#2ed573' },
-                            { label: 'Assignee', value: 2, color: '#ffa502' },
-                            { label: 'Admin', value: 4, color: '#ff4757' }
-                        ].map(role => (
-                            <button
-                                key={role.value}
-                                onClick={async () => {
-                                    if (user.perm === role.value) return; // No change needed
-                                    try {
-                                        const response = await fetch(`${API_URL}/auth/role`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ role: role.value }),
-                                            credentials: 'include',
-                                        });
-                                        if (response.ok) {
-                                            const data = await response.json();
-                                            if (data.success) {
-                                                updateUser(data.user);
+                            {[
+                                { label: 'User', value: 1, color: '#2ed573' },
+                                { label: 'Assignee', value: 2, color: '#ffa502' },
+                                { label: 'Admin', value: 4, color: '#ff4757' }
+                            ].map(role => (
+                                <button
+                                    key={role.value}
+                                    onClick={async () => {
+                                        if (user.perm === role.value) return; // No change needed
+                                        try {
+                                            const response = await fetch(`${API_URL}/api/auth/role`, {
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ role: role.value }),
+                                                credentials: 'include',
+                                            });
+                                            if (response.ok) {
+                                                const data = await response.json();
+                                                if (data.success) {
+                                                    updateUser(data.user);
+                                                }
                                             }
+                                        } catch (error) {
+                                            console.error("Failed to update role:", error);
                                         }
-                                    } catch (error) {
-                                        console.error("Failed to update role:", error);
-                                    }
-                                }}
-                                className="role-btn"
-                                style={{
-                                    backgroundColor: user.perm === role.value ? role.color : '#ccc',
-                                    opacity: user.perm === role.value ? 1 : 0.7
-                                }}
-                            >
-                                {role.label}
-                            </button>
-                        ))}
+                                    }}
+                                    className="role-btn"
+                                    style={{
+                                        backgroundColor: user.perm === role.value ? role.color : '#ccc',
+                                        opacity: user.perm === role.value ? 1 : 0.7
+                                    }}
+                                >
+                                    {role.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}

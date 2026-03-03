@@ -330,11 +330,10 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
     }
 });
 
-// Post User Requests (Generic - authenticated users fetching their own)
+// GET User Requests (Generic - authenticated users fetching their own)
 // Mounted at /tickets/requests
-// Is post to move email to body section.
-router.post('/requests', isAuthenticated, validateRequest(userRequestsSchema), async (request, response) => {
-    const { email } = request.body;
+router.get('/requests', isAuthenticated, validateRequest(userRequestsSchema), async (request, response) => {
+    const { email } = request.query;
 
     try {
         // Fetch All Tickets for this user

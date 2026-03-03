@@ -6,8 +6,7 @@ const AuthContext = createContext(null);
 // Construct API URL
 const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
 const API_PORT = import.meta.env.VITE_API_PORT || '5001';
-const API_URL = (import.meta.env.VITE_USE_HTTPS_BACKEND === 'true') ?
-    `https://${API_HOST}:${API_PORT}` : `http://${API_HOST}:${API_PORT}`;
+const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -22,7 +21,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkSession = async () => {
         try {
-            const response = await fetch(`${API_URL}/auth/session`, {
+            const response = await fetch(`${API_URL}/api/auth/session`, {
                 credentials: 'include',
             });
 
@@ -45,11 +44,14 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            await fetch(`${API_URL}/auth/logout`, {
-                method: 'GET',
+            await fetch(`${API_URL}/api/auth/logout`, {
+                method: 'POST',
                 credentials: 'include'
             }); // Or POST if changed
             setUser(null);
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/';
         } catch (error) {
             console.error("Logout failed", error);
         }

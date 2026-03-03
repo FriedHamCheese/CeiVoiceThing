@@ -21,12 +21,11 @@ export function UserElement({ userObject, setErrorMessage, API_URL, refreshPage,
 
         let response;
         try {
-            response = await fetch(`${API_URL}/admin/users/setUserRole/`, {
-                method: "POST",
+            response = await fetch(`${API_URL}/api/admins/users/${userObject.email}/role`, {
+                method: "PATCH",
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userEmail: userObject.email,
                     perm: value
                 })
             });
@@ -69,9 +68,10 @@ export function UserElement({ userObject, setErrorMessage, API_URL, refreshPage,
                 exclusive
                 size="small"
                 onChange={async (_, value) => {
-                    changePermission(value);
-                    await new Promise(r => setTimeout(r, WAIT_FOR_SERVER_TO_WRITE_MS));
-                    await refreshPage();
+                    const success = await changePermission(value);
+                    if (success) {
+                        await refreshPage();
+                    }
                 }}
             >
                 <ToggleButton value={1} color="primary">User</ToggleButton>
@@ -94,7 +94,7 @@ export function UserElement({ userObject, setErrorMessage, API_URL, refreshPage,
 
 
 
-export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL }) {
+export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL, refreshPage }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [scopeTags, setScopeTags] = useState([]);
     const [availableCategories, setAvailableCategories] = useState([]);
@@ -113,7 +113,7 @@ export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL 
     async function getScopeTags() {
         let response;
         try {
-            response = await fetch(`${API_URL}/admin/users/getScopeTags/`, {
+            response = await fetch(`${API_URL}/api/admin/users/scope-tags`, {
                 method: "GET",
                 credentials: 'include',
                 headers: { email: userObject.email },
@@ -148,8 +148,8 @@ export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL 
     async function sendScopeTags() {
         let response;
         try {
-            response = await fetch(`${API_URL}/admin/users/setScopeTags/`, {
-                method: "POST",
+            response = await fetch(`${API_URL}/api/admin/users/scope-tags`, {
+                method: "PUT",
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -190,7 +190,7 @@ export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL 
 
     async function getCategories() {
         try {
-            const response = await fetch(`${API_URL}/tickets/scope/`, {
+            const response = await fetch(`${API_URL}/api/tickets/scope`, {
                 method: "GET",
                 credentials: 'include',
             });
@@ -236,8 +236,14 @@ export function ScopeTagEditWindow({ userObject, windowOpen, closeSelf, API_URL 
             </DialogContent>
             <DialogActions>
                 <Button onClick={closeSelf}>Close</Button>
-                <Button onClick={(e) => {
-                    if (sendScopeTags()) closeSelf();
+                <Button onClick={async (e) => {
+                    const success = await sendScopeTags();
+                    if (success && refreshPage) {
+                        await refreshPage();
+                        closeSelf();
+                    } else if (success) {
+                        closeSelf();
+                    }
                 }}>
                     Submit Changes
                 </Button>
