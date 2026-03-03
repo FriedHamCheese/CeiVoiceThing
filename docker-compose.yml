@@ -1,0 +1,49 @@
+services:
+  database:
+    image: mysql:8.4
+    container_name: ceivoice-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ceivoice
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ceivoice-backend
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=5001
+      - FRONTEND_PORT=5501
+      - FRONTEND_URL=http://${DOMAIN_OR_IP}
+      - DB_HOST=database
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=ceivoice
+      - SESSION_SECRET=${SESSION_SECRET}
+      - NODE_ENV=production
+    depends_on:
+      - database
+    ports:
+      - "5001:5001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ceivoice-frontend
+    restart: unless-stopped
+    ports:
+      - "5501:5501"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

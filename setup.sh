@@ -4,8 +4,8 @@
 cd "$(dirname "$0")" || exit 1
 
 echo "[1/5] Starting backend database with Docker..."
-cd backend/database || exit 1
-docker compose --env-file ../.env -f db-compose-dev.yml up -d
+cd database || exit 1
+docker compose --env-file ./.env -f db-compose-dev.yml up -d
 
 # Check if Docker started successfully
 if [ $? -ne 0 ]; then
@@ -17,7 +17,7 @@ echo -e "\n[2/5] Docker started. Waiting 30s for Database to initialize..."
 sleep 30
 
 echo -e "\n[3/5] Installing backend dependencies..."
-cd .. || exit 1
+cd ../backend || exit 1
 npm install
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Backend 'npm install' failed."
@@ -25,7 +25,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -e "\n[4/5] Running database setup..."
-cd database || exit 1
+cd ../database || exit 1
 node setup.js
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Database setup.js failed. Check your script and .env variables."
@@ -33,7 +33,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo -e "\n[5/5] Installing frontend dependencies..."
-cd ../../frontend || exit 1
+cd ../frontend || exit 1
 npm install
 if [ $? -ne 0 ]; then
     echo -e "\nERROR: Frontend 'npm install' failed."

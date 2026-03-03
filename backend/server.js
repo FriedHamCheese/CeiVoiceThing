@@ -33,7 +33,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.SERVER_PORT;
-const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
+const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT}`;
 
 app.use(helmet());
 app.use(cors({
