@@ -1,12 +1,8 @@
 import React, { useCallback } from 'react';
+import { API_URL } from '../config';
 import { Card, Box, Typography, Button, Checkbox, Chip } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-
-// Construct API URL
-const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
-const API_PORT = import.meta.env.VITE_API_PORT || '5001';
-const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 /**
  * Service function to handle the API request.

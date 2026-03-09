@@ -1,51 +1,43 @@
 import { useState, useEffect, useRef } from 'react';
+import { API_URL } from '../config';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions,
-    Button, TextField, Stack, Chip, Typography, Box,
-    Accordion, AccordionSummary, AccordionDetails,
-    Alert, Autocomplete
-} from '@mui/material';
-
-// Construct API URL
-const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
-const API_PORT = import.meta.env.VITE_API_PORT || '5001';
-const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 function DraftTicketComponent({ draftTicket, removeSelf }) {
-    return (
-        <Accordion disableGutters elevation={1} sx={{ mb: 1, '&:before': { display: 'none' } }}>
-            <AccordionSummary
-                expandIcon={<span>▼</span>}
-                aria-controls={`panel-${draftTicket.id}-content`}
-                id={`panel-${draftTicket.id}-header`}
-                sx={{ flexDirection: 'row-reverse', '& .MuiAccordionSummary-content': { marginLeft: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' } }}
-            >
-                <Box display="flex" alignItems="center" gap={2}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>#{draftTicket.id}</Typography>
-                    <Typography variant="subtitle2">{draftTicket.title}</Typography>
-                </Box>
-                <Button
-                    size="small"
-                    color="error"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        removeSelf(draftTicket.id);
-                    }}
-                    sx={{ minWidth: 'auto' }}
+        return (
+            <Accordion disableGutters elevation={1} sx={{ mb: 1, '&:before': { display: 'none' } }}>
+                <AccordionSummary
+                    expandIcon={<span>▼</span>}
+                    aria-controls={`panel-${draftTicket.id}-content`}
+                    id={`panel-${draftTicket.id}-header`}
+                    sx={{ flexDirection: 'row-reverse', '& .MuiAccordionSummary-content': { marginLeft: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' } }}
                 >
-                    UNLINK
-                </Button>
-            </AccordionSummary>
-            <AccordionDetails>
-                <Typography variant="subtitle2" gutterBottom>Content/Summary</Typography>
-                <Typography variant="body2" paragraph color="text.secondary">{draftTicket.summary}</Typography>
+                    <Box display="flex" alignItems="center" gap={2}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>#{draftTicket.id}</Typography>
+                        <Typography variant="subtitle2">{draftTicket.title}</Typography>
+                    </Box>
+                    <Button
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            removeSelf(draftTicket.id);
+                        }}
+                        sx={{ minWidth: 'auto' }}
+                    >
+                        UNLINK
+                    </Button>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Typography variant="subtitle2" gutterBottom>Content/Summary</Typography>
+                    <Typography variant="body2" paragraph color="text.secondary">{draftTicket.summary}</Typography>
 
-                <Typography variant="subtitle2" gutterBottom>Suggested solutions</Typography>
-                <Typography variant="body2" color="text.secondary">{draftTicket.solution}</Typography>
-            </AccordionDetails>
-        </Accordion>
-    );
-}
+                    <Typography variant="subtitle2" gutterBottom>Suggested solutions</Typography>
+                    <Typography variant="body2" color="text.secondary">{draftTicket.solution}</Typography>
+                </AccordionDetails>
+            </Accordion>
+        );
+    }
 
 export default function DashboardMergeWindow({ closeWindow, selectedDraftTickets, refreshData, clearSelection, assignees }) {
     const [contentText, setContentText] = useState("");

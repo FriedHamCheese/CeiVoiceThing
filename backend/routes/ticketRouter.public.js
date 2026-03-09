@@ -290,7 +290,8 @@ router.post('/track/:token/comment', async (request, response) => {
 
         // Send email to all assignees
         // Link for assignees (Admin Dashboard)
-        const dashboardLink = `http://localhost:${process.env.FRONTEND_PORT}/admin/tickets/${ticketID}`;
+        const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
+        const dashboardLink = `${frontendUrl}/admin/tickets/${ticketID}`;
 
         for (const assignee of assignees) {
             sendCommentNotificationEmail(

@@ -181,7 +181,8 @@ router.patch('/:id', validateRequest(ticketUpdateSchema), async (request, respon
 
         // Send Assignment Notifications
         if (newAssigneesToNotify.length > 0) {
-            const link = `http://localhost:${process.env.FRONTEND_PORT}/`;
+            const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
+            const link = `${frontendUrl}/`;
             const displayTitle = current.title;
             for (const assignee of newAssigneesToNotify) {
                 if (assignee !== email) {

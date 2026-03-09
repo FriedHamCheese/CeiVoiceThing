@@ -10,6 +10,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./database/setup.sql:/docker-entrypoint-initdb.d/setup.sql
     ports:
       - "3306:3306"
 
@@ -22,11 +23,11 @@ services:
     environment:
       - SERVER_PORT=5001
       - FRONTEND_PORT=5501
-      - FRONTEND_URL=http://${DOMAIN_OR_IP}
-      - DB_HOST=database
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=ceivoice
+      - FRONTEND_URL=http://${DOMAIN_OR_IP}:5501
+      - DATABASE_HOST=database
+      - DATABASE_USERNAME=${DB_USER}
+      - DATABASE_PASSWORD=${DB_PASSWORD}
+      - DATABASE_NAME=ceivoice
       - SESSION_SECRET=${SESSION_SECRET}
       - NODE_ENV=production
     depends_on:
@@ -38,6 +39,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_HOST=${DOMAIN_OR_IP}
+        - VITE_API_PORT=5001
     container_name: ceivoice-frontend
     restart: unless-stopped
     ports:

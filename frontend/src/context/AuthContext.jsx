@@ -1,12 +1,7 @@
-
 import React, { createContext, useState, useEffect, useContext, useMemo, useRef } from 'react';
+import { API_URL } from '../config';
 
 const AuthContext = createContext(null);
-
-// Construct API URL
-const API_HOST = import.meta.env.VITE_API_HOST || 'localhost';
-const API_PORT = import.meta.env.VITE_API_PORT || '5001';
-const API_URL = `http://${API_HOST}:${API_PORT}`;
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);

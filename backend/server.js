@@ -32,8 +32,8 @@ import configurePassport from './utils/passport.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.SERVER_PORT;
-const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT}`;
+const PORT = process.env.SERVER_PORT || 5001;
+const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
 
 app.use(helmet());
 app.use(cors({

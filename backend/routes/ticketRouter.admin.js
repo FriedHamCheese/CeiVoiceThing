@@ -445,7 +445,8 @@ router.post("/merge", validateRequest(ticketMergeSchema), async (request, respon
         await connection.commit();
 
         if (newAssigneesToNotify && newAssigneesToNotify.length > 0) {
-            const link = `http://localhost:${process.env.FRONTEND_PORT}/`;
+            const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
+            const link = `${frontendUrl}/`;
             const displayTitle = title.trim();
             for (const assignee of newAssigneesToNotify) {
                 if (assignee !== email) {

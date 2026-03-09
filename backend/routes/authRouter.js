@@ -9,7 +9,7 @@ dotenv.config();
 
 const router = express.Router();
 
-const FRONTEND_URL = `http://localhost:${process.env.FRONTEND_PORT}`;
+const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
 
 router.post('/login', validateRequest(loginLocalSchema), loginLocal);
 router.post('/register', validateRequest(registerSchema), register);

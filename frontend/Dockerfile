@@ -7,6 +7,13 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Accept build arguments
+ARG VITE_API_HOST
+ARG VITE_API_PORT
+# Set environment variables for Vite
+ENV VITE_API_HOST=$VITE_API_HOST
+ENV VITE_API_PORT=$VITE_API_PORT
+
 # Copy the rest of the code and build the project
 COPY . .
 RUN npm run build
@@ -17,8 +24,8 @@ FROM nginx:alpine
 # Vite outputs compiled files to the 'dist' folder by default
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Update Nginx to listen on port 5501 instead of 80
-RUN sed -i 's/listen  *80;/listen 5501;/g' /etc/nginx/conf.d/default.conf
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 5501 for Nginx
 EXPOSE 5501
