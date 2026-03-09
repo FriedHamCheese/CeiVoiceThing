@@ -205,6 +205,17 @@ export const TrackDetails = ({ ticketStatus, getStep, steps, user, setTicketStat
                 </Box>
             )}
 
+            {ticketStatus.followers && ticketStatus.followers.length > 0 && (
+                <Box sx={{ mb: 4 }}>
+                    <Typography variant="h6" gutterBottom fontWeight="bold">Followers</Typography>
+                    <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1 }}>
+                        {ticketStatus.followers.map(f => (
+                            <Chip key={f.email} label={f.name} variant="outlined" sx={{ mb: 1, fontSize: '1rem' }} />
+                        ))}
+                    </Stack>
+                </Box>
+            )}
+
             <Box sx={{ mb: 4 }}>
                 <Typography variant="h6" gutterBottom fontWeight="bold">Public Comments</Typography>
                 <List sx={{ bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #eee' }}>

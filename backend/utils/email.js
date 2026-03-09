@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendConfirmationEmail = async (toEmail, trackingToken) => {
-    const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
+    const trackingLink = `https://app.shoveitin.me/track/${trackingToken}`;
 
     const mailOptions = {
         from: `"CEiVoice Support" <${process.env.SMTP_USER}>`,
@@ -66,7 +66,7 @@ export const sendConfirmationEmail = async (toEmail, trackingToken) => {
  * @returns {boolean} - True if the email was sent successfully, false otherwise.
  */
 export const sendStatusUpdateEmail = async (toEmail, ticketTitle, newStatus, trackingToken) => {
-    const trackingLink = `http://localhost:${process.env.FRONTEND_PORT}/track/${trackingToken}`;
+    const trackingLink = `https://app.shoveitin.me/track/${trackingToken}`;
 
     const mailOptions = {
         from: `"CEiVoice Support" <${process.env.SMTP_USER}>`,

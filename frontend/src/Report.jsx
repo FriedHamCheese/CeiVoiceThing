@@ -200,8 +200,9 @@ export default function ReportingDashboard({ mode }) {
                         onChange={(e) => setFilterValue(e.target.value)}
                       >
                         <MenuItem value=""><em>Select Status</em></MenuItem>
-                        <MenuItem value="open">Open</MenuItem>
-                        <MenuItem value="in_progress">In Progress</MenuItem>
+                        <MenuItem value="new">New</MenuItem>
+                        <MenuItem value="assigned">Assigned</MenuItem>
+                        <MenuItem value="solving">Solving</MenuItem>
                         <MenuItem value="solved">Solved</MenuItem>
                         <MenuItem value="failed">Failed</MenuItem>
                       </Select>

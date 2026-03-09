@@ -98,7 +98,7 @@ const getAssigneeOverview = async ({ email, days }) => {
              FROM Ticket t
              JOIN TicketAssignee ta ON ta.ticketID = t.id
              WHERE ta.assigneeEmail = ?
-             AND t.status NOT IN ('solved','failed','draft')`,
+             AND t.status NOT IN ('solved', 'failed', 'draft', 'merged')`,
             [email]
         );
 
@@ -107,7 +107,7 @@ const getAssigneeOverview = async ({ email, days }) => {
              FROM Ticket t
              JOIN TicketAssignee ta ON ta.ticketID = t.id
              WHERE ta.assigneeEmail = ?
-             AND t.status NOT IN ('solved','failed','draft')
+             AND t.status NOT IN ('solved', 'failed', 'draft', 'merged')
              GROUP BY t.status`,
             [email]
         );

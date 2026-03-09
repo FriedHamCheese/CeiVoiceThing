@@ -215,6 +215,11 @@ router.get('/track/:token', async (request, response) => {
             [ticket.id]
         );
 
+        const [followers] = await mysqlConnection.execute(
+            "SELECT u.name, u.email FROM Users u JOIN TicketFollower tf ON u.email = tf.userEmail WHERE tf.ticketID = ?",
+            [ticket.id]
+        );
+
         let message = "";
         if (ticket.status === "New") {
             message = "Your request has been accepted and is currently in our active workflow.";
@@ -237,6 +242,7 @@ router.get('/track/:token', async (request, response) => {
             message: message,
             comments: comments,
             assignees: assignees,
+            followers: followers,
             history: history
         });
 

@@ -244,7 +244,7 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
         );
 
         // --- Notification Logic ---
-        if (userPerm === 2) {
+        if (userPerm === 2 || userPerm === 4) {
             // 1. Fetch Ticket Info (Title)
             const [ticketRows] = await mysqlConnection.execute("SELECT title FROM Ticket WHERE id = ?", [ticketID]);
             const ticketTitle = ticketRows[0]?.title || "Support Ticket";
@@ -261,7 +261,7 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
             );
 
             // Link for assignees (Admin/Specialist Dashboard)
-            const dashboardLink = `http://localhost:${process.env.FRONTEND_PORT}/admin/tickets/${ticketID}`;
+            const dashboardLink = `https://app.shoveitin.me/admin/tickets/${ticketID}`;
 
             for (const assignee of assignees) {
                 if (!processedEmails.has(assignee.assigneeEmail)) {
@@ -299,27 +299,15 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
             }
 
             for (const follower of followers) {
-                if (!processedEmails.has(follower.userEmail)) {
-                    const isCreator = !!emailToTokenMap[follower.userEmail];
-
-                    if (isCreator) {
-                        // Don't notify creators
-                        processedEmails.add(follower.userEmail);
-                    }
-                } else {
-                    // It's a staff follower (or someone without a request link)
-                    // They get notified regardless (assuming they have perm to view)
-                    // We assume followers are authorized if they managed to follow.
-                    processedEmails.add(follower.userEmail);
-                    sendCommentNotificationEmail(
-                        follower.userEmail,
-                        ticketTitle,
-                        userEmail,
-                        text,
-                        dashboardLink,
-                        finalIsInternal
-                    ).catch(console.error);
-                }
+                processedEmails.add(follower.userEmail);
+                sendCommentNotificationEmail(
+                    follower.userEmail,
+                    ticketTitle,
+                    userEmail,
+                    text,
+                    dashboardLink,
+                    finalIsInternal
+                ).catch(console.error);
             }
         }
         response.json({ message: "Comment added" });

@@ -28,8 +28,8 @@ export default function SpecialistDashboard() {
         window.location.href = '/';
     }
 
-    const [sortBy, setSortBy] = useState('createdAt');
-    const [sortOrder, setSortOrder] = useState('desc');
+    const [sortBy, setSortBy] = useState('deadline');
+    const [sortOrder, setSortOrder] = useState('asc');
 
     const sortedTickets = useMemo(() => {
         return [...tickets].sort((a, b) => {
