@@ -35,10 +35,12 @@ const getAdminOverview = async ({ startDate, endDate, category, status }) => {
         );
 
         const [[avgRow]] = await connection.execute(
-            `SELECT AVG(TIMESTAMPDIFF(HOUR, t.createdAt, t.updatedAt)) AS avgResolutionHours FROM Ticket t ${joinStr} WHERE ${baseWhere} AND t.status = 'solved'`,
+            `SELECT 
+                AVG(TIMESTAMPDIFF(SECOND, t.createdAt, t.updatedAt)) / 3600 AS avgResolutionHours 
+            FROM Ticket t ${joinStr} 
+            WHERE ${baseWhere} AND t.status = 'solved'`,
             baseParams
         );
-
         const [statusRows] = await connection.execute(
             `SELECT t.status, COUNT(DISTINCT t.id) AS count FROM Ticket t ${joinStr} WHERE ${baseWhere} GROUP BY t.status`,
             baseParams

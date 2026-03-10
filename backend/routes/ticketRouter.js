@@ -244,7 +244,8 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
         );
 
         // --- Notification Logic ---
-        if (userPerm === 2 || userPerm === 4) {
+        // Added !finalIsInternal to ensure emails do not trigger for internal notes
+        if (!finalIsInternal && (userPerm === 2 || userPerm === 4)) {
             // 1. Fetch Ticket Info (Title)
             const [ticketRows] = await mysqlConnection.execute("SELECT title FROM Ticket WHERE id = ?", [ticketID]);
             const ticketTitle = ticketRows[0]?.title || "Support Ticket";
@@ -272,7 +273,7 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
                         userEmail,
                         text,
                         dashboardLink,
-                        finalIsInternal
+                        finalIsInternal // Will always be false here now, but safe to pass
                     ).catch(console.error);
                 }
             }
@@ -299,15 +300,18 @@ router.post('/:id/comment', isAuthenticated, validateRequest(addCommentSchema), 
             }
 
             for (const follower of followers) {
-                processedEmails.add(follower.userEmail);
-                sendCommentNotificationEmail(
-                    follower.userEmail,
-                    ticketTitle,
-                    userEmail,
-                    text,
-                    dashboardLink,
-                    finalIsInternal
-                ).catch(console.error);
+                // Ensure we don't send duplicates to followers either
+                if (!processedEmails.has(follower.userEmail)) {
+                    processedEmails.add(follower.userEmail);
+                    sendCommentNotificationEmail(
+                        follower.userEmail,
+                        ticketTitle,
+                        userEmail,
+                        text,
+                        dashboardLink,
+                        finalIsInternal
+                    ).catch(console.error);
+                }
             }
         }
         response.json({ message: "Comment added" });
