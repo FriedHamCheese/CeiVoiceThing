@@ -94,8 +94,8 @@ const register = async (req, res) => {
             return res.status(409).json({ message: 'Email already taken' });
         }
 
-        let newUser;
-        if (existing.length > 0 && existing[0].password_hash == null) {
+        let newUser = null;
+        if (existing.length === 0 || existing[0].password_hash == null) {
             // 3. Extract Name from Email
             const name = email.split('@')[0];
 
@@ -116,6 +116,7 @@ const register = async (req, res) => {
 
             newUser = { email: email, name: name, perm: 1 };
         }
+        console.log("New User", newUser);
 
 
         // 6. Log in the user after successful registration
