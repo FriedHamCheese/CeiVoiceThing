@@ -90,24 +90,33 @@ const register = async (req, res) => {
             [email]
         );
 
-        if (existing.length > 0) {
+        if (existing.length > 0 && existing[0].password_hash != null) {
             return res.status(409).json({ message: 'Email already taken' });
         }
 
-        // 3. Extract Name from Email
-        const name = email.split('@')[0];
+        let newUser;
+        if (existing.length > 0 && existing[0].password_hash == null) {
+            // 3. Extract Name from Email
+            const name = email.split('@')[0];
 
-        // 4. Hash Password
-        const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
-        const hash = await bcrypt.hash(password, saltRounds);
+            // 4. Hash Password
+            const saltRounds = parseInt(process.env.SALT_ROUNDS) || 10;
+            const hash = await bcrypt.hash(password, saltRounds);
 
-        // 5. Insert into Database
-        const [result] = await mysqlConnection.execute(
-            'INSERT INTO Users (email, name, password_hash, perm) VALUES (?, ?, ?, 1)',
-            [email, name, hash]
-        );
+            // 5. Insert into Database
+            const [result] = await mysqlConnection.execute(
+                `INSERT INTO Users (email, name, password_hash, perm) 
+                VALUES (?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE 
+                    name = VALUES(name), 
+                    password_hash = VALUES(password_hash),
+                    perm = VALUES(perm)`,
+                [email, name, hash]
+            );
 
-        const newUser = { email: email, name: name, perm: 1 };
+            newUser = { email: email, name: name, perm: 1 };
+        }
+
 
         // 6. Log in the user after successful registration
         req.logIn(newUser, (err) => {

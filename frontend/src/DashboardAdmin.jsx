@@ -42,8 +42,8 @@ export default function AdminDashboard() {
 
             if (sortBy === 'deadline') {
                 if (!valA && !valB) return 0;
-                if (!valA) return 1; // Put nulls at the end
-                if (!valB) return -1;
+                if (!valA) return sortOrder === 'asc' ? 1 : -1;
+                if (!valB) return sortOrder === 'asc' ? -1 : 1;
             } else {
                 if (!valA && !valB) return 0;
                 if (!valA) return 1;

@@ -21,15 +21,28 @@ services:
     container_name: ceivoice-backend
     restart: unless-stopped
     environment:
-      - SERVER_PORT=5001
-      - FRONTEND_PORT=5501
-      - FRONTEND_URL=http://${DOMAIN_OR_IP}:5501
-      - DATABASE_HOST=database
-      - DATABASE_USERNAME=${DB_USER}
-      - DATABASE_PASSWORD=${DB_PASSWORD}
-      - DATABASE_NAME=ceivoice
+      - SERVER_PORT=${SERVER_PORT}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
       - SESSION_SECRET=${SESSION_SECRET}
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - ORACLE_URL=${ORACLE_URL}
+      - ORACLE_MODEL=${ORACLE_MODEL}
+      - ORACLE_USER=${ORACLE_USER}
+      - ORACLE_PASS=${ORACLE_PASS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SAFTY_FALLBACK_EMAIL=${SAFTY_FALLBACK_EMAIL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
     depends_on:
       - database
     ports:
@@ -40,8 +53,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_HOST=${DOMAIN_OR_IP}
-        - VITE_API_PORT=5001
+        - VITE_API_URL=${VITE_API_URL}
+        - VITE_RECAPTCHA_SITE_KEY=${VITE_RECAPTCHA_SITE_KEY}
     container_name: ceivoice-frontend
     restart: unless-stopped
     ports:

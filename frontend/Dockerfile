@@ -1,5 +1,5 @@
 # --- Stage 1: Build the Vite frontend ---
-FROM node:18-alpine as build
+FROM node:20-alpine as build
 
 WORKDIR /app
 
@@ -8,11 +8,11 @@ COPY package*.json ./
 RUN npm install
 
 # Accept build arguments
-ARG VITE_API_HOST
-ARG VITE_API_PORT
+ARG VITE_API_URL
+ARG VITE_RECAPTCHA_SITE_KEY
 # Set environment variables for Vite
-ENV VITE_API_HOST=$VITE_API_HOST
-ENV VITE_API_PORT=$VITE_API_PORT
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_RECAPTCHA_SITE_KEY=$VITE_RECAPTCHA_SITE_KEY
 
 # Copy the rest of the code and build the project
 COPY . .

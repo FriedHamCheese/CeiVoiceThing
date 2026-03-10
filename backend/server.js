@@ -32,6 +32,7 @@ import configurePassport from './utils/passport.js';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.SERVER_PORT || 5001;
 const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
 
