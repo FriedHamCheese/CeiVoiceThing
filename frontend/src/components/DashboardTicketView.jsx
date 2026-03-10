@@ -174,6 +174,11 @@ export default function DashboardTicketView({
                                 Creator: {creatorInfo?.map((user) => `${user.name} (${user.email})`).join(', ')}
                             </Typography>
                         ) : null}
+                        {viewingTicket.createdAt && (
+                            <Typography variant="caption" color="text.secondary">
+                                Created on: {new Date(viewingTicket.createdAt).toLocaleString()}
+                            </Typography>
+                        )}
                         <TextField
                             fullWidth
                             label="Title"
@@ -394,6 +399,11 @@ export default function DashboardTicketView({
                                 {isFollowing ? "Unfollow" : "Follow"}
                             </Button>
                         </Box>
+                        {viewingTicket.createdAt && (
+                            <Typography variant="caption" color="text.secondary">
+                                Created on: {new Date(viewingTicket.createdAt).toLocaleString()}
+                            </Typography>
+                        )}
 
                         <TextField
                             fullWidth
