@@ -21,6 +21,17 @@ import { MetricCard, BreakdownList, BreakdownBar } from './components/ReportComp
 const SPACING = { xs: 1.5, sm: 2 };
 const PADDING = { xs: 1.5, sm: 2, md: 3 };
 
+const PREDEFINED_CATEGORIES = [
+  'Internship',
+  'Medical',
+  'Finance',
+  'Academics',
+  'Transportation',
+  'Facility',
+  'Organised Events',
+  'Administration',
+];
+
 export default function ReportingDashboard({ mode }) {
   const theme = useTheme();
   const isSmUp = useMediaQuery(theme.breakpoints.up('sm'));
@@ -208,15 +219,23 @@ export default function ReportingDashboard({ mode }) {
                       </Select>
                     </FormControl>
                   ) : (
-                    <TextField
-                      fullWidth
-                      size={isSmUp ? 'medium' : 'small'}
-                      label="Category"
-                      placeholder="e.g. hardware, software"
-                      value={filterValue}
-                      onChange={(e) => setFilterValue(e.target.value)}
-                      InputLabelProps={{ shrink: true }}
-                    />
+                    <FormControl fullWidth size={isSmUp ? 'medium' : 'small'}>
+                      <InputLabel shrink>Category</InputLabel>
+                      <Select
+                        value={filterValue}
+                        label="Category"
+                        notched
+                        displayEmpty
+                        onChange={(e) => setFilterValue(e.target.value)}
+                      >
+                        <MenuItem value=""><em>Select Category</em></MenuItem>
+                        {PREDEFINED_CATEGORIES.map((cat) => (
+                          <MenuItem key={cat} value={cat}>
+                            {cat}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   )}
                 </Grid>
               )}

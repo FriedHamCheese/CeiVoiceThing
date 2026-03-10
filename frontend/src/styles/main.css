@@ -118,6 +118,14 @@ body {
     flex-direction: column;
 }
 
+.panel .page-transition::after {
+    content: "";
+    display: block;
+    height: 100px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
 /* ================= GLASS HOVER BUTTON ================= */
 
 button,
