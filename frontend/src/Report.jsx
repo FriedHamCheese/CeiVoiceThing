@@ -16,7 +16,7 @@ import {
   MenuItem,
 } from '@mui/material';
 import { useReportLogic } from './utils/reportLogic';
-import { MetricCard, BreakdownList, BreakdownPie } from './components/ReportComponents';
+import { MetricCard, BreakdownList, BreakdownBar } from './components/ReportComponents';
 
 const SPACING = { xs: 1.5, sm: 2 };
 const PADDING = { xs: 1.5, sm: 2, md: 3 };
@@ -263,7 +263,7 @@ export default function ReportingDashboard({ mode }) {
             <MetricCard label="Current backlog" value={data.totals.backlogCount} />
           </Box>
 
-          {/* ─── Admin: Pie charts (fill width; side-by-side on lg) ─── */}
+          {/* ─── Admin: Bar charts (fill width; side-by-side on lg) ─── */}
           <Box
             sx={{
               display: 'grid',
@@ -275,14 +275,14 @@ export default function ReportingDashboard({ mode }) {
             }}
           >
             <Box sx={{ minWidth: 0, minHeight: isLgUp ? 320 : 260 }}>
-              <BreakdownPie
+              <BreakdownBar
                 title="Status breakdown"
                 items={statusItems}
                 total={totalForStatus}
               />
             </Box>
             <Box sx={{ minWidth: 0, minHeight: isLgUp ? 320 : 260 }}>
-              <BreakdownPie
+              <BreakdownBar
                 title="Category breakdown"
                 items={categoryItems}
                 total={totalForCategory}

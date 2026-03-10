@@ -157,7 +157,7 @@ hr {
     .panel {
         margin: var(--spacing-xs);
         padding: var(--spacing-md);
-        padding-bottom: calc(var(--spacing-md) + var(--spacing-xl));
+        padding-bottom: calc(var(--spacing-md) + var(--spacing-xl) * 2);
         border-radius: 8px;
     }
 }

@@ -1,6 +1,18 @@
 import React from 'react';
 import { Card, CardContent, Typography, Box, Stack } from '@mui/material';
-import { PieChart, Pie, Cell, Legend, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+    PieChart,
+    Pie,
+    Cell,
+    Legend,
+    ResponsiveContainer,
+    Tooltip,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+} from 'recharts';
 
 const CHART_COLORS = ['#1a73e8', '#34a853', '#f9ab00', '#ea4335', '#9334e6', '#e37400', '#00acc1', '#5e35b1'];
 
@@ -126,6 +138,89 @@ export const BreakdownPie = ({ title, items, total }) => {
                                     verticalAlign="bottom"
                                 />
                             </PieChart>
+                        </ResponsiveContainer>
+                    </Box>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
+export const BreakdownBar = ({ title, items, total }) => {
+    const chartData = items.map((item, i) => ({
+        name: item.label,
+        value: item.count || 0,
+        fill: CHART_COLORS[i % CHART_COLORS.length]
+    })).filter(d => d.value > 0);
+
+    return (
+        <Card
+            variant="outlined"
+            sx={{
+                width: '100%',
+                minWidth: 0,
+                height: '100%',
+                minHeight: 220,
+                display: 'flex',
+                flexDirection: 'column',
+                boxSizing: 'border-box',
+            }}
+        >
+            <CardContent
+                sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 180,
+                    py: { xs: 1.5, sm: 2 },
+                    px: { xs: 1.5, sm: 2 },
+                    '&:last-child': { pb: { xs: 1.5, sm: 2 } },
+                }}
+            >
+                <Typography
+                    variant="h6"
+                    sx={{
+                        mb: 1,
+                        flexShrink: 0,
+                        fontSize: { xs: '0.95rem', sm: '1rem' },
+                        wordBreak: 'break-word',
+                    }}
+                >
+                    {title}
+                </Typography>
+                {chartData.length === 0 ? (
+                    <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 100 }}>
+                        <Typography color="text.secondary" sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}>
+                            No data available.
+                        </Typography>
+                    </Box>
+                ) : (
+                    <Box sx={{ flex: 1, minHeight: 160, minWidth: 0 }}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={160}>
+                            <BarChart
+                                data={chartData}
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                                <XAxis type="number" hide />
+                                <YAxis
+                                    dataKey="name"
+                                    type="category"
+                                    width={80}
+                                    tick={{ fontSize: 10 }}
+                                    interval={0}
+                                />
+                                <Tooltip
+                                    formatter={(value) => [value, total > 0 ? `${Math.round((value / total) * 100)}%` : '']}
+                                    contentStyle={{ fontSize: '11px' }}
+                                />
+                                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                    {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
                         </ResponsiveContainer>
                     </Box>
                 )}
