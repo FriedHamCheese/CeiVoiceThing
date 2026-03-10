@@ -4,10 +4,10 @@ services:
     container_name: ceivoice-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
       MYSQL_DATABASE: ceivoice
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DATABASE_USERNAME}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/setup.sql:/docker-entrypoint-initdb.d/setup.sql
