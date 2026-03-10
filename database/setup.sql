@@ -153,14 +153,14 @@ INSERT INTO Users (email, name, password_hash, perm) VALUES
 ('assignee8.administration@example.com', 'Assignee 8', '$2a$10$9HFpjKO3w4fESWW95/x7RO7y8asqHi.zK9c7EtzdbA.DtiJsCscLm', 2);
 
 INSERT INTO AssigneeScope (userEmail, scopeTag) VALUES 
-('assignee1@example.com', 'Internship'),
-('assignee2@example.com', 'Medical'),
-('assignee3@example.com', 'Finance'),
-('assignee4@example.com', 'Academics'),
-('assignee5@example.com', 'Transportation'),
-('assignee6@example.com', 'Facility'),
-('assignee7@example.com', 'Organised Events'),
-('assignee8@example.com', 'Administration');
+('assignee1.internship@example.com', 'Internship'),
+('assignee2.medical@example.com', 'Medical'),
+('assignee3.finance@example.com', 'Finance'),
+('assignee4.academics@example.com', 'Academics'),
+('assignee5.Transportation@example.com', 'Transportation'),
+('assignee6.facility@example.com', 'Facility'),
+('assignee7.event@example.com', 'Organised Events'),
+('assignee8.administration@example.com', 'Administration');
 
 SET FOREIGN_KEY_CHECKS = 1;
 COMMIT;
