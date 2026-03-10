@@ -67,6 +67,11 @@ router.patch('/:id', validateRequest(ticketUpdateAdminSchema), async (request, r
             }
 
             if (current.status === 'draft' && status === 'New') {
+                const finalDeadline = deadline !== undefined ? (deadline === '' ? null : deadline) : current.deadline;
+                if (!finalDeadline) {
+                    await connection.rollback();
+                    return response.status(400).json({ error: "Deadline is required when promoting a ticket from draft to New." });
+                }
                 historyItems.push({ action: "Promoted", details: "Ticket promoted from draft" });
                 shouldNotifyNew = true;
             }
