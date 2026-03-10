@@ -23,7 +23,7 @@ services:
     environment:
       - SERVER_PORT=5001
       - FRONTEND_PORT=5501
-      - FRONTEND_URL=http://${DOMAIN_OR_IP}:5501
+      - FRONTEND_URL=https://${DOMAIN_OR_IP}
       - DATABASE_HOST=database
       - DATABASE_USERNAME=${DB_USER}
       - DATABASE_PASSWORD=${DB_PASSWORD}

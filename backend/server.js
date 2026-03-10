@@ -32,8 +32,9 @@ import configurePassport from './utils/passport.js';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.SERVER_PORT || 5001;
-const FRONTEND_URL = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || 5501}`;
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 app.use(helmet());
 app.use(cors({
@@ -85,5 +86,5 @@ app.use('/api/admin/users', [isAuthenticated, restrictTo(ROLES.ADMIN)], userAdmi
 app.use('/api/admins', [isAuthenticated, restrictTo(ROLES.ADMIN)], adminRoutes);
 
 app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT} Frontend URL: ${FRONTEND_URL}`);
 });
