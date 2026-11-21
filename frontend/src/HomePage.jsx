@@ -1,17 +1,35 @@
-export default function HomePage({
-	redirectToMyRequestsPage, 
-	redirectToMyTasksPage, 
-	redirectToViewUsersPage, 
-	redirectToSystemDashboardPage, 
-	redirectToViewTicketsPage
-}){
-	return (
-	<div>
-		<button onClick={redirectToMyRequestsPage}>My Requests (User)</button>
-		<button onClick={redirectToMyTasksPage}>My Tasks (Assignee)</button>
-		<button onClick={redirectToViewUsersPage}>View Users (Admin)</button>
-		<button onClick={redirectToSystemDashboardPage}>System Dashboard (Admin)</button>
-		<button onClick={redirectToViewTicketsPage}>View Tickets (Admin)</button>				
-	</div>
-);
+import { useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import React from "react";
+import SideBar from "./components/SideBar";
+import TopBar from "./components/TopBar";
+
+import "./styles/main.css";
+
+export default function HomePage() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+
+  return (
+    <div className={`viewport ${!isSidebarOpen ? "sidebar-hidden" : ""}`}>
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? "active" : ""}`}
+        onClick={() => setIsSidebarOpen(false)}
+      ></div>
+      <SideBar toggleSidebar={toggleSidebar} />
+
+      <div className="main-layout">
+        <TopBar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+
+        <main className="panel">
+          <div key={location.pathname} className="page-transition">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
 }

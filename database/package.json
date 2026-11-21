@@ -1,0 +1,14 @@
+{
+    "name": "ceivoice-database-setup",
+    "version": "1.0.0",
+    "description": "Database setup script for CeiVoice",
+    "main": "setup.js",
+    "type": "module",
+    "scripts": {
+        "setup": "node setup.js"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.5",
+        "mysql2": "^3.9.7"
+    }
+}

@@ -1,0 +1,1 @@
+EP01-ST001, EP01-ST004 Do user must absolutely register before creating tickets? Or the process of creating tickets can be done without registration? 

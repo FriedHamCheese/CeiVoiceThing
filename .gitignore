@@ -1,2 +1,7 @@
 .env
 /backend/node_modules
+node_modules
+.env
+.key
+.crt
+/classifier

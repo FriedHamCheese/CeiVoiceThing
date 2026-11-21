@@ -1,0 +1,66 @@
+services:
+  database:
+    image: mysql:8.4
+    container_name: ceivoice-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DATABASE_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DATABASE_NAME}
+      MYSQL_USER: ${DATABASE_USERNAME}
+      MYSQL_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+    ports:
+      - "3306:3306"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ceivoice-backend
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=${SERVER_PORT}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - NODE_ENV=${NODE_ENV}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - ORACLE_URL=${ORACLE_URL}
+      - ORACLE_MODEL=${ORACLE_MODEL}
+      - ORACLE_USER=${ORACLE_USER}
+      - ORACLE_PASS=${ORACLE_PASS}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SAFTY_FALLBACK_EMAIL=${SAFTY_FALLBACK_EMAIL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    depends_on:
+      - database
+    ports:
+      - "5001:5001"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+        - VITE_RECAPTCHA_SITE_KEY=${VITE_RECAPTCHA_SITE_KEY}
+    container_name: ceivoice-frontend
+    restart: unless-stopped
+    ports:
+      - "5501:5501"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

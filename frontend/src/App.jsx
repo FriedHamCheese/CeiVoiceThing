@@ -1,42 +1,58 @@
-import HomePage from './HomePage.jsx';
-import MyRequestsPage from './MyRequestsPage.jsx';
-import ViewTicketsPage from './ViewTicketsPage.jsx';
-import {useState} from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Home from './HomePage.jsx';
+import Login from './Login.jsx';
+import Register from './Register.jsx';
+import NewTicket from './NewTicket.jsx';
+import RequestWithoutLogin from './NewTicketWithoutLogin.jsx';
+import AssigneeDashboard from './DashboardAssignee.jsx';
+import AdminDashboard from './DashboardAdmin.jsx';
+import ReportingDashboard from './Report.jsx';
+import TrackTicket from './Track.jsx';
+import AssigneeProfile from './AssigneeProfile.jsx';
+import UserManagement from './UserManagement.jsx';
+import Unauthorized from './components/Unauthorized.jsx';
+import { AuthProvider } from './context/AuthContext.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import NotFound from './NotFound.jsx';
 
-const APIDomain = 'http://localhost:5001';
-
-export default function App(){
-	//Gonna keep this separated from App's return in case App has header or footer
-	function SelectedPage(){
-		const [currentPage, setCurrentPage] = useState('Home');
-		switch(currentPage){
-			case 'Home':
-				return <HomePage
-					redirectToMyRequestsPage = {() => setCurrentPage('MyRequests')}
-					redirectToMyTasksPage = {() => setCurrentPage('MyTasks')}
-					redirectToViewUsersPage = {() => setCurrentPage('ViewUsers')}
-					redirectToSystemDashboardPage = {() => setCurrentPage('SystemDashboard')}
-					redirectToViewTicketsPage = {() => setCurrentPage('ViewTickets')}
-				/>;
-			case 'MyRequests':
-				return <MyRequestsPage
-					redirectToHomePage = {() => setCurrentPage('Home')}
-				/>;
-			case 'ViewTickets':
-				return <ViewTicketsPage
-					redirectToHomePage = {() => setCurrentPage('Home')}
-					APIDomain={APIDomain}
-				/>
-			default: return (
-				<div>
-					<h2>{currentPage} not implemented or handled.</h2>
-					<button onClick={() => setCurrentPage('Home')}>To Home</button>
-				</div>
-			);
-		}
-	}
-
+export default function App() {
 	return (
-		<SelectedPage/>
+		<AuthProvider>
+			<Router>
+				<Routes>
+					{/* Public Routes */}
+					<Route path="/login" element={<Login />} />
+					<Route path="/unauthorized" element={<Unauthorized />} />
+
+					{/* Routes wrapped in Home Layout */}
+					<Route element={<Home />}>
+						<Route path="/request" element={<RequestWithoutLogin />} />
+						<Route path="/register" element={<Register />} />
+						<Route path="/track-request" element={<TrackTicket />} />
+						<Route path="/request-authed" element={<NewTicket />} />
+						<Route path="/track/:token" element={<TrackTicket />} />
+
+						<Route element={<ProtectedRoute minRole={1} />}>
+							<Route path="/ticket" element={<NewTicket />} />
+						</Route>
+
+						<Route element={<ProtectedRoute minRole={2} />}>
+							<Route path="/dashboard" element={<AssigneeDashboard />} />
+							<Route path="/reports" element={<ReportingDashboard mode="assignee" />} />
+							<Route path="/assignee/profile" element={<AssigneeProfile />} />
+						</Route>
+
+						<Route element={<ProtectedRoute minRole={4} />}>
+							<Route path="/admin/dashboard" element={<AdminDashboard />} />
+							<Route path="/admin/reports" element={<ReportingDashboard mode="admin" />} />
+							<Route path="/admin/users" element={<UserManagement />} />
+						</Route>
+					</Route>
+
+					{/* Catch all - Redirect to 404 */}
+					<Route path="*" element={<NotFound />} />
+				</Routes>
+			</Router>
+		</AuthProvider>
 	);
 }
