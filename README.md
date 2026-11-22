@@ -2,6 +2,20 @@
 
 CeiVoice is a full-stack web application designed for ticket tracking and management, built with React, Vite, Material-UI on the frontend, and Node.js, Express, MySQL on the backend, with OpenAI integration.
 
+## Features
+- [x] Create and track requests as user
+- [x] LLM summarizes request, provide title, suggest assignee, possible solutions and turn the request into a draft ticket
+- [x] Admin can edit, merge or assign tickets
+- [x] LLM can provide possible ticket merge, combining many requests/tickets into one before marking ticket as assigned
+- [x] Assignee has permission to change status of their assigned tickets, or reassign to anothe assignee
+- [x] Users, assignees and admin can chat in the ticket, with assignees and admin having an internal visibility message option
+- [x] Email notification for anyone involved with a ticket
+
+<img width="1794" height="889" alt="Screenshot_22-11-2026_113711_ceivoice shoveitin me" src="https://github.com/user-attachments/assets/5402d4ed-fb10-483a-adc2-70e39e55b3cd" />
+<img width="1794" height="889" alt="Screenshot_22-11-2026_113658_ceivoice shoveitin me" src="https://github.com/user-attachments/assets/5e0a2eb1-822e-4c7b-8b3b-6d7129c71430" />
+<img width="1794" height="889" alt="Screenshot_22-11-2026_112751_ceivoice shoveitin me" src="https://github.com/user-attachments/assets/406af301-933f-448e-9eae-78b4800c8af2" />
+<img width="1794" height="889" alt="Screenshot_22-11-2026_113741_ceivoice shoveitin me" src="https://github.com/user-attachments/assets/66fdf732-ed30-46c7-b1ce-16ade09517ef" />
+
 ## Prerequisites
 - **Node.js**: v18 or higher recommended
 - **Docker**: For running the MySQL database containers
